@@ -94,4 +94,485 @@
 &lt;p&gt;I&#39;ll dive deeper into each of these patterns in future posts. If you&#39;re building something similar, I&#39;d love to hear about your approach — &lt;a href=&quot;https://linkedin.com/in/rohit-marathe-ucf&quot;&gt;reach out on LinkedIn&lt;/a&gt;.&lt;/p&gt;
 </content>
   </entry>
+  <entry>
+    <title>Essential Design Patterns Every Engineer Should Know</title>
+    <link href="https://rpm360.github.io/my-blog/blog/design-patterns-every-engineer-should-know/" />
+    <updated>2025-02-25T00:00:00Z</updated>
+    <id>https://rpm360.github.io/my-blog/blog/design-patterns-every-engineer-should-know/</id>
+    <content type="html">&lt;p&gt;Design patterns are battle-tested solutions to recurring problems in software design. You don&#39;t need to memorize all 23 Gang of Four patterns — but knowing the essential ones will make you a significantly better engineer.&lt;/p&gt;
+&lt;p&gt;&lt;picture&gt;&lt;source type=&quot;image/avif&quot; srcset=&quot;https://rpm360.github.io/my-blog/blog/design-patterns-every-engineer-should-know/vgtnQoDOwf-640.avif 640w&quot;&gt;&lt;source type=&quot;image/webp&quot; srcset=&quot;https://rpm360.github.io/my-blog/blog/design-patterns-every-engineer-should-know/vgtnQoDOwf-640.webp 640w&quot;&gt;&lt;img loading=&quot;lazy&quot; decoding=&quot;async&quot; src=&quot;https://rpm360.github.io/my-blog/blog/design-patterns-every-engineer-should-know/vgtnQoDOwf-640.png&quot; alt=&quot;Software design patterns illustrated as interconnected architectural components&quot; width=&quot;640&quot; height=&quot;640&quot;&gt;&lt;/picture&gt;&lt;/p&gt;
+&lt;p&gt;Here are the patterns I use most in production systems, with practical examples that go beyond textbook definitions.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id=&quot;1-factory-pattern-dont-new-things-directly&quot;&gt;1. Factory Pattern — &amp;quot;Don&#39;t &lt;code&gt;new&lt;/code&gt; Things Directly&amp;quot;&lt;/h2&gt;
+&lt;p&gt;The Factory pattern delegates object creation to a separate method or class, so your code doesn&#39;t need to know the exact class it&#39;s creating.&lt;/p&gt;
+&lt;h3 id=&quot;why-it-matters&quot;&gt;Why It Matters&lt;/h3&gt;
+&lt;p&gt;Imagine you&#39;re building an AI system that needs to support multiple LLM providers — Claude, GPT-4, and Gemini. Without a factory, every place you create a provider is tightly coupled:&lt;/p&gt;
+&lt;pre class=&quot;language-python&quot; tabindex=&quot;0&quot;&gt;&lt;code class=&quot;language-python&quot;&gt;&lt;span class=&quot;token comment&quot;&gt;# ❌ Bad — tightly coupled&lt;/span&gt;
+&lt;span class=&quot;token keyword&quot;&gt;if&lt;/span&gt; provider_name &lt;span class=&quot;token operator&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;claude&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+    client &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; ClaudeClient&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;api_key&lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt;key&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; model&lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&quot;claude-3&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;token keyword&quot;&gt;elif&lt;/span&gt; provider_name &lt;span class=&quot;token operator&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;gpt4&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+    client &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; OpenAIClient&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;api_key&lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt;key&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; model&lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&quot;gpt-4&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;token keyword&quot;&gt;elif&lt;/span&gt; provider_name &lt;span class=&quot;token operator&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;gemini&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+    client &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; GeminiClient&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;api_key&lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt;key&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; model&lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&quot;gemini-pro&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;With a factory, creation logic lives in one place:&lt;/p&gt;
+&lt;pre class=&quot;language-python&quot; tabindex=&quot;0&quot;&gt;&lt;code class=&quot;language-python&quot;&gt;&lt;span class=&quot;token comment&quot;&gt;# ✅ Good — Factory pattern&lt;/span&gt;
+&lt;span class=&quot;token keyword&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;token class-name&quot;&gt;LLMFactory&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+    _providers &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;token string&quot;&gt;&quot;claude&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; ClaudeClient&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+        &lt;span class=&quot;token string&quot;&gt;&quot;gpt4&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; OpenAIClient&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+        &lt;span class=&quot;token string&quot;&gt;&quot;gemini&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; GeminiClient&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;
+
+    &lt;span class=&quot;token decorator annotation punctuation&quot;&gt;@classmethod&lt;/span&gt;
+    &lt;span class=&quot;token keyword&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;token function&quot;&gt;create&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;cls&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; provider&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token builtin&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;token operator&quot;&gt;**&lt;/span&gt;kwargs&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;token operator&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;token operator&quot;&gt;&gt;&lt;/span&gt; LLMClient&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;token keyword&quot;&gt;if&lt;/span&gt; provider &lt;span class=&quot;token keyword&quot;&gt;not&lt;/span&gt; &lt;span class=&quot;token keyword&quot;&gt;in&lt;/span&gt; cls&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;_providers&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;token keyword&quot;&gt;raise&lt;/span&gt; ValueError&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token string-interpolation&quot;&gt;&lt;span class=&quot;token string&quot;&gt;f&quot;Unknown provider: &lt;/span&gt;&lt;span class=&quot;token interpolation&quot;&gt;&lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;provider&lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&quot;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;token keyword&quot;&gt;return&lt;/span&gt; cls&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;_providers&lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;provider&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token operator&quot;&gt;**&lt;/span&gt;kwargs&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+
+&lt;span class=&quot;token comment&quot;&gt;# Usage — clean and extensible&lt;/span&gt;
+client &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; LLMFactory&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;create&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&quot;claude&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; api_key&lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt;key&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; model&lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&quot;claude-3&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;h3 id=&quot;when-to-use-it&quot;&gt;When to Use It&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;You need to create objects without specifying their exact class&lt;/li&gt;
+&lt;li&gt;You want to centralize complex creation logic&lt;/li&gt;
+&lt;li&gt;You need to swap implementations easily (testing, A/B experiments)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;hr&gt;
+&lt;h2 id=&quot;2-observer-pattern-notify-everyone-who-cares&quot;&gt;2. Observer Pattern — &amp;quot;Notify Everyone Who Cares&amp;quot;&lt;/h2&gt;
+&lt;p&gt;The Observer pattern lets objects subscribe to events and get notified when something changes — without the publisher knowing who&#39;s listening.&lt;/p&gt;
+&lt;h3 id=&quot;real-world-example&quot;&gt;Real-World Example&lt;/h3&gt;
+&lt;p&gt;In a monitoring system, when a deployment completes, multiple systems need to react:&lt;/p&gt;
+&lt;pre class=&quot;language-python&quot; tabindex=&quot;0&quot;&gt;&lt;code class=&quot;language-python&quot;&gt;&lt;span class=&quot;token keyword&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;token class-name&quot;&gt;EventBus&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;token keyword&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;token function&quot;&gt;__init__&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;self&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+        self&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;_subscribers&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token builtin&quot;&gt;dict&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;token builtin&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;token builtin&quot;&gt;list&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;Callable&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;
+
+    &lt;span class=&quot;token keyword&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;token function&quot;&gt;subscribe&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;self&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; event&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token builtin&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; callback&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; Callable&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+        self&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;_subscribers&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;setdefault&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;event&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;append&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;callback&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+
+    &lt;span class=&quot;token keyword&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;token function&quot;&gt;publish&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;self&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; event&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token builtin&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; data&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token builtin&quot;&gt;dict&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;token keyword&quot;&gt;for&lt;/span&gt; callback &lt;span class=&quot;token keyword&quot;&gt;in&lt;/span&gt; self&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;_subscribers&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;get&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;event&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+            callback&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;data&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+
+&lt;span class=&quot;token comment&quot;&gt;# Set up observers&lt;/span&gt;
+bus &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; EventBus&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+bus&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;subscribe&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&quot;deploy.complete&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; send_slack_notification&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+bus&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;subscribe&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&quot;deploy.complete&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; update_dashboard&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+bus&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;subscribe&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&quot;deploy.complete&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; run_smoke_tests&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+bus&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;subscribe&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&quot;deploy.failed&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; page_oncall_engineer&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+
+&lt;span class=&quot;token comment&quot;&gt;# Publisher doesn&#39;t know or care who&#39;s listening&lt;/span&gt;
+bus&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;publish&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&quot;deploy.complete&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&quot;service&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;api&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;version&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;2.1.0&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;h3 id=&quot;when-to-use-it-2&quot;&gt;When to Use It&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Multiple components need to react to the same event&lt;/li&gt;
+&lt;li&gt;You want loose coupling between event producers and consumers&lt;/li&gt;
+&lt;li&gt;Building notification systems, event-driven architectures, or UI state management&lt;/li&gt;
+&lt;/ul&gt;
+&lt;hr&gt;
+&lt;h2 id=&quot;3-strategy-pattern-swap-algorithms-at-runtime&quot;&gt;3. Strategy Pattern — &amp;quot;Swap Algorithms at Runtime&amp;quot;&lt;/h2&gt;
+&lt;p&gt;The Strategy pattern lets you define a family of algorithms, put each in its own class, and make them interchangeable.&lt;/p&gt;
+&lt;p&gt;&lt;picture&gt;&lt;source type=&quot;image/avif&quot; srcset=&quot;https://rpm360.github.io/my-blog/blog/design-patterns-every-engineer-should-know/7kx96MCr20-640.avif 640w&quot;&gt;&lt;source type=&quot;image/webp&quot; srcset=&quot;https://rpm360.github.io/my-blog/blog/design-patterns-every-engineer-should-know/7kx96MCr20-640.webp 640w&quot;&gt;&lt;img loading=&quot;lazy&quot; decoding=&quot;async&quot; src=&quot;https://rpm360.github.io/my-blog/blog/design-patterns-every-engineer-should-know/7kx96MCr20-640.png&quot; alt=&quot;Three core design patterns: Factory, Observer, and Strategy&quot; width=&quot;640&quot; height=&quot;640&quot;&gt;&lt;/picture&gt;&lt;/p&gt;
+&lt;h3 id=&quot;real-world-example-2&quot;&gt;Real-World Example&lt;/h3&gt;
+&lt;p&gt;Different documents need different chunking strategies for a RAG pipeline:&lt;/p&gt;
+&lt;pre class=&quot;language-python&quot; tabindex=&quot;0&quot;&gt;&lt;code class=&quot;language-python&quot;&gt;&lt;span class=&quot;token keyword&quot;&gt;from&lt;/span&gt; abc &lt;span class=&quot;token keyword&quot;&gt;import&lt;/span&gt; ABC&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; abstractmethod
+
+&lt;span class=&quot;token keyword&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;token class-name&quot;&gt;ChunkingStrategy&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;ABC&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;token decorator annotation punctuation&quot;&gt;@abstractmethod&lt;/span&gt;
+    &lt;span class=&quot;token keyword&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;token function&quot;&gt;chunk&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;self&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; text&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token builtin&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;token operator&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;token operator&quot;&gt;&gt;&lt;/span&gt; &lt;span class=&quot;token builtin&quot;&gt;list&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;token builtin&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;token keyword&quot;&gt;pass&lt;/span&gt;
+
+&lt;span class=&quot;token keyword&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;token class-name&quot;&gt;FixedSizeChunking&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;ChunkingStrategy&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;token keyword&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;token function&quot;&gt;__init__&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;self&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; size&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token builtin&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;512&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; overlap&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token builtin&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;50&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+        self&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;size &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; size
+        self&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;overlap &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; overlap
+
+    &lt;span class=&quot;token keyword&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;token function&quot;&gt;chunk&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;self&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; text&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token builtin&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;token operator&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;token operator&quot;&gt;&gt;&lt;/span&gt; &lt;span class=&quot;token builtin&quot;&gt;list&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;token builtin&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+        chunks &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt;
+        &lt;span class=&quot;token keyword&quot;&gt;for&lt;/span&gt; i &lt;span class=&quot;token keyword&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;token builtin&quot;&gt;range&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token number&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;token builtin&quot;&gt;len&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;text&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; self&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;size &lt;span class=&quot;token operator&quot;&gt;-&lt;/span&gt; self&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;overlap&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+            chunks&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;append&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;text&lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;i&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;i &lt;span class=&quot;token operator&quot;&gt;+&lt;/span&gt; self&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;size&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;token keyword&quot;&gt;return&lt;/span&gt; chunks
+
+&lt;span class=&quot;token keyword&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;token class-name&quot;&gt;SemanticChunking&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;ChunkingStrategy&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;token keyword&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;token function&quot;&gt;chunk&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;self&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; text&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token builtin&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;token operator&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;token operator&quot;&gt;&gt;&lt;/span&gt; &lt;span class=&quot;token builtin&quot;&gt;list&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;token builtin&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;token comment&quot;&gt;# Split on paragraph boundaries for semantic coherence&lt;/span&gt;
+        &lt;span class=&quot;token keyword&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;p&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;strip&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;token keyword&quot;&gt;for&lt;/span&gt; p &lt;span class=&quot;token keyword&quot;&gt;in&lt;/span&gt; text&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;split&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&quot;&#92;n&#92;n&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;token keyword&quot;&gt;if&lt;/span&gt; p&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;strip&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt;
+
+&lt;span class=&quot;token keyword&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;token class-name&quot;&gt;DocumentProcessor&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;token keyword&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;token function&quot;&gt;__init__&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;self&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; strategy&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; ChunkingStrategy&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+        self&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;strategy &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; strategy
+
+    &lt;span class=&quot;token keyword&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;token function&quot;&gt;process&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;self&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; document&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token builtin&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;token operator&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;token operator&quot;&gt;&gt;&lt;/span&gt; &lt;span class=&quot;token builtin&quot;&gt;list&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;token builtin&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;token keyword&quot;&gt;return&lt;/span&gt; self&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;strategy&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;chunk&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;document&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+
+&lt;span class=&quot;token comment&quot;&gt;# Swap strategies without changing the processor&lt;/span&gt;
+processor &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; DocumentProcessor&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;SemanticChunking&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+chunks &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; processor&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;process&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;long_document&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;h3 id=&quot;when-to-use-it-3&quot;&gt;When to Use It&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;You have multiple algorithms for the same task&lt;/li&gt;
+&lt;li&gt;You want to switch behavior at runtime based on context&lt;/li&gt;
+&lt;li&gt;You&#39;re building configurable pipelines (data processing, ML, ETL)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;hr&gt;
+&lt;h2 id=&quot;4-singleton-pattern-one-instance-to-rule-them-all&quot;&gt;4. Singleton Pattern — &amp;quot;One Instance to Rule Them All&amp;quot;&lt;/h2&gt;
+&lt;p&gt;The Singleton pattern ensures a class has exactly one instance and provides a global access point to it.&lt;/p&gt;
+&lt;h3 id=&quot;when-its-actually-useful&quot;&gt;When It&#39;s Actually Useful&lt;/h3&gt;
+&lt;p&gt;Database connection pools, configuration managers, and logging services are legitimate Singleton use cases:&lt;/p&gt;
+&lt;pre class=&quot;language-python&quot; tabindex=&quot;0&quot;&gt;&lt;code class=&quot;language-python&quot;&gt;&lt;span class=&quot;token keyword&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;token class-name&quot;&gt;DatabasePool&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+    _instance &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;token boolean&quot;&gt;None&lt;/span&gt;
+
+    &lt;span class=&quot;token keyword&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;token function&quot;&gt;__new__&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;cls&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;token keyword&quot;&gt;if&lt;/span&gt; cls&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;_instance &lt;span class=&quot;token keyword&quot;&gt;is&lt;/span&gt; &lt;span class=&quot;token boolean&quot;&gt;None&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+            cls&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;_instance &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;token builtin&quot;&gt;super&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;__new__&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;cls&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+            cls&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;_instance&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;_pool &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; create_connection_pool&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;
+                host&lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&quot;db.example.com&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+                max_connections&lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;token number&quot;&gt;20&lt;/span&gt;
+            &lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;token keyword&quot;&gt;return&lt;/span&gt; cls&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;_instance
+
+    &lt;span class=&quot;token keyword&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;token function&quot;&gt;get_connection&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;self&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;token keyword&quot;&gt;return&lt;/span&gt; self&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;_pool&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;acquire&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+
+&lt;span class=&quot;token comment&quot;&gt;# Both references point to the same pool&lt;/span&gt;
+db1 &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; DatabasePool&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+db2 &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; DatabasePool&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;token keyword&quot;&gt;assert&lt;/span&gt; db1 &lt;span class=&quot;token keyword&quot;&gt;is&lt;/span&gt; db2  &lt;span class=&quot;token comment&quot;&gt;# True — same instance&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;h3 id=&quot;the-singleton-warning&quot;&gt;⚠️ The Singleton Warning&lt;/h3&gt;
+&lt;p&gt;Singletons are heavily overused. Before reaching for one, ask yourself:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Could I use dependency injection instead?&lt;/strong&gt; (Usually yes, and it&#39;s more testable)&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Am I using this as a global variable?&lt;/strong&gt; (That&#39;s a code smell)&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Will this make testing harder?&lt;/strong&gt; (Singletons carry state between tests)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;In modern Python, I prefer module-level instances or dependency injection over the classic Singleton pattern.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id=&quot;cheat-sheet&quot;&gt;Cheat Sheet&lt;/h2&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Pattern&lt;/th&gt;
+&lt;th&gt;Problem It Solves&lt;/th&gt;
+&lt;th&gt;Key Signal&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;strong&gt;Factory&lt;/strong&gt;&lt;/td&gt;
+&lt;td&gt;Complex object creation&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;if/elif&lt;/code&gt; chains creating objects&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;strong&gt;Observer&lt;/strong&gt;&lt;/td&gt;
+&lt;td&gt;Multiple reactions to events&lt;/td&gt;
+&lt;td&gt;Several components watching for changes&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;strong&gt;Strategy&lt;/strong&gt;&lt;/td&gt;
+&lt;td&gt;Swappable algorithms&lt;/td&gt;
+&lt;td&gt;&lt;code&gt;if/elif&lt;/code&gt; chains choosing behavior&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;strong&gt;Singleton&lt;/strong&gt;&lt;/td&gt;
+&lt;td&gt;Exactly one shared instance&lt;/td&gt;
+&lt;td&gt;Resource pools, config, logging&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;h2 id=&quot;what-about-the-rest&quot;&gt;What About the Rest?&lt;/h2&gt;
+&lt;p&gt;These four cover probably 70% of the patterns I use day-to-day. Other patterns worth learning next:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Decorator&lt;/strong&gt; — Add behavior to objects dynamically (Python has this built-in with &lt;code&gt;@decorators&lt;/code&gt;)&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Adapter&lt;/strong&gt; — Make incompatible interfaces work together&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Builder&lt;/strong&gt; — Construct complex objects step by step&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The best way to learn patterns isn&#39;t memorization — it&#39;s recognizing the problems they solve in your own code. Next time you see a messy &lt;code&gt;if/elif&lt;/code&gt; chain or tightly coupled components, that&#39;s your signal.&lt;/p&gt;
+&lt;hr&gt;
+&lt;p&gt;&lt;em&gt;Have a favorite pattern I didn&#39;t cover? &lt;a href=&quot;https://linkedin.com/in/rohit-marathe-ucf&quot;&gt;Let me know on LinkedIn&lt;/a&gt;.&lt;/em&gt;&lt;/p&gt;
+</content>
+  </entry>
+  <entry>
+    <title>System Design 101 — Building Blocks of Scalable Systems</title>
+    <link href="https://rpm360.github.io/my-blog/blog/system-design-101/" />
+    <updated>2025-02-24T00:00:00Z</updated>
+    <id>https://rpm360.github.io/my-blog/blog/system-design-101/</id>
+    <content type="html">&lt;p&gt;System design interviews can feel overwhelming, but every complex system is built from the same fundamental components. Once you understand these building blocks, you can reason about any architecture.&lt;/p&gt;
+&lt;p&gt;&lt;picture&gt;&lt;source type=&quot;image/avif&quot; srcset=&quot;https://rpm360.github.io/my-blog/blog/system-design-101/18eZbXD2nY-640.avif 640w&quot;&gt;&lt;source type=&quot;image/webp&quot; srcset=&quot;https://rpm360.github.io/my-blog/blog/system-design-101/18eZbXD2nY-640.webp 640w&quot;&gt;&lt;img loading=&quot;lazy&quot; decoding=&quot;async&quot; src=&quot;https://rpm360.github.io/my-blog/blog/system-design-101/18eZbXD2nY-640.png&quot; alt=&quot;Distributed system architecture with cloud services, load balancers, and microservices&quot; width=&quot;640&quot; height=&quot;640&quot;&gt;&lt;/picture&gt;&lt;/p&gt;
+&lt;p&gt;This post covers the core components you&#39;ll see in every system design — with practical explanations of &lt;em&gt;why&lt;/em&gt; each exists and &lt;em&gt;when&lt;/em&gt; to use it.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id=&quot;the-big-picture&quot;&gt;The Big Picture&lt;/h2&gt;
+&lt;p&gt;Before diving into individual components, here&#39;s how they fit together in a typical web-scale system:&lt;/p&gt;
+&lt;p&gt;&lt;picture&gt;&lt;source type=&quot;image/avif&quot; srcset=&quot;https://rpm360.github.io/my-blog/blog/system-design-101/tdvhPHNEqV-640.avif 640w&quot;&gt;&lt;source type=&quot;image/webp&quot; srcset=&quot;https://rpm360.github.io/my-blog/blog/system-design-101/tdvhPHNEqV-640.webp 640w&quot;&gt;&lt;img loading=&quot;lazy&quot; decoding=&quot;async&quot; src=&quot;https://rpm360.github.io/my-blog/blog/system-design-101/tdvhPHNEqV-640.png&quot; alt=&quot;System design architecture diagram showing CDN, Load Balancer, API Servers, Cache, Database, and Message Queue&quot; width=&quot;640&quot; height=&quot;640&quot;&gt;&lt;/picture&gt;&lt;/p&gt;
+&lt;p&gt;Every request flows through this chain. Let me break down each component.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id=&quot;1-load-balancer-distribute-the-traffic&quot;&gt;1. Load Balancer — &amp;quot;Distribute the Traffic&amp;quot;&lt;/h2&gt;
+&lt;p&gt;A load balancer sits in front of your servers and distributes incoming requests across multiple instances. It&#39;s the reason Netflix doesn&#39;t crash when 100 million people hit play at 8 PM.&lt;/p&gt;
+&lt;h3 id=&quot;how-it-works&quot;&gt;How It Works&lt;/h3&gt;
+&lt;pre&gt;&lt;code&gt;Client Request
+      ↓
+┌─────────────────┐
+│  Load Balancer   │
+└─────────────────┘
+   ↓      ↓      ↓
+Server1 Server2 Server3
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h3 id=&quot;common-algorithms&quot;&gt;Common Algorithms&lt;/h3&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Algorithm&lt;/th&gt;
+&lt;th&gt;How It Works&lt;/th&gt;
+&lt;th&gt;Best For&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;strong&gt;Round Robin&lt;/strong&gt;&lt;/td&gt;
+&lt;td&gt;Requests rotate through servers in order&lt;/td&gt;
+&lt;td&gt;Equal-capacity servers&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;strong&gt;Least Connections&lt;/strong&gt;&lt;/td&gt;
+&lt;td&gt;Sends to the server with fewest active connections&lt;/td&gt;
+&lt;td&gt;Varying request complexity&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;strong&gt;IP Hash&lt;/strong&gt;&lt;/td&gt;
+&lt;td&gt;Same client IP always goes to same server&lt;/td&gt;
+&lt;td&gt;Session persistence&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;strong&gt;Weighted&lt;/strong&gt;&lt;/td&gt;
+&lt;td&gt;More traffic to beefier servers&lt;/td&gt;
+&lt;td&gt;Mixed hardware&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;h3 id=&quot;key-insight&quot;&gt;Key Insight&lt;/h3&gt;
+&lt;p&gt;Load balancers also handle &lt;strong&gt;health checks&lt;/strong&gt; — they stop sending traffic to unhealthy servers automatically. This is how you achieve high availability without manual intervention.&lt;/p&gt;
+&lt;pre class=&quot;language-python&quot; tabindex=&quot;0&quot;&gt;&lt;code class=&quot;language-python&quot;&gt;&lt;span class=&quot;token comment&quot;&gt;# Simplified health check logic&lt;/span&gt;
+&lt;span class=&quot;token keyword&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;token class-name&quot;&gt;LoadBalancer&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;token keyword&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;token function&quot;&gt;__init__&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;self&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; servers&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token builtin&quot;&gt;list&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;Server&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+        self&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;servers &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; servers
+
+    &lt;span class=&quot;token keyword&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;token function&quot;&gt;get_healthy_server&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;self&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;token operator&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;token operator&quot;&gt;&gt;&lt;/span&gt; Server&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+        healthy &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;s &lt;span class=&quot;token keyword&quot;&gt;for&lt;/span&gt; s &lt;span class=&quot;token keyword&quot;&gt;in&lt;/span&gt; self&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;servers &lt;span class=&quot;token keyword&quot;&gt;if&lt;/span&gt; s&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;health_check&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt;
+        &lt;span class=&quot;token keyword&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;token builtin&quot;&gt;min&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;healthy&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; key&lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;token keyword&quot;&gt;lambda&lt;/span&gt; s&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; s&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;active_connections&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;hr&gt;
+&lt;h2 id=&quot;2-caching-dont-compute-the-same-thing-twice&quot;&gt;2. Caching — &amp;quot;Don&#39;t Compute the Same Thing Twice&amp;quot;&lt;/h2&gt;
+&lt;p&gt;Caching stores frequently accessed data in fast storage (usually memory) to avoid hitting slower databases or APIs repeatedly.&lt;/p&gt;
+&lt;h3 id=&quot;cache-tiers&quot;&gt;Cache Tiers&lt;/h3&gt;
+&lt;pre&gt;&lt;code&gt;Request → L1 (In-Memory, ~1ms) → L2 (Redis, ~5ms) → Database (~50ms)
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h3 id=&quot;cache-strategies&quot;&gt;Cache Strategies&lt;/h3&gt;
+&lt;p&gt;&lt;strong&gt;Cache-Aside (Lazy Loading)&lt;/strong&gt; — The most common pattern:&lt;/p&gt;
+&lt;pre class=&quot;language-python&quot; tabindex=&quot;0&quot;&gt;&lt;code class=&quot;language-python&quot;&gt;&lt;span class=&quot;token keyword&quot;&gt;async&lt;/span&gt; &lt;span class=&quot;token keyword&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;token function&quot;&gt;get_user&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;user_id&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token builtin&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;token operator&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;token operator&quot;&gt;&gt;&lt;/span&gt; User&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;token comment&quot;&gt;# 1. Check cache first&lt;/span&gt;
+    cached &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;token keyword&quot;&gt;await&lt;/span&gt; redis&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;get&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token string-interpolation&quot;&gt;&lt;span class=&quot;token string&quot;&gt;f&quot;user:&lt;/span&gt;&lt;span class=&quot;token interpolation&quot;&gt;&lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;user_id&lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&quot;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;token keyword&quot;&gt;if&lt;/span&gt; cached&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;token keyword&quot;&gt;return&lt;/span&gt; User&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;from_json&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;cached&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+
+    &lt;span class=&quot;token comment&quot;&gt;# 2. Cache miss — fetch from database&lt;/span&gt;
+    user &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;token keyword&quot;&gt;await&lt;/span&gt; db&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;query&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&quot;SELECT * FROM users WHERE id = ?&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; user_id&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+
+    &lt;span class=&quot;token comment&quot;&gt;# 3. Store in cache for next time (expire in 5 minutes)&lt;/span&gt;
+    &lt;span class=&quot;token keyword&quot;&gt;await&lt;/span&gt; redis&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token builtin&quot;&gt;set&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token string-interpolation&quot;&gt;&lt;span class=&quot;token string&quot;&gt;f&quot;user:&lt;/span&gt;&lt;span class=&quot;token interpolation&quot;&gt;&lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;user_id&lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&quot;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; user&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;to_json&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; ex&lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;token number&quot;&gt;300&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+
+    &lt;span class=&quot;token keyword&quot;&gt;return&lt;/span&gt; user&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;strong&gt;Write-Through&lt;/strong&gt; — Write to cache and database simultaneously:&lt;/p&gt;
+&lt;pre class=&quot;language-python&quot; tabindex=&quot;0&quot;&gt;&lt;code class=&quot;language-python&quot;&gt;&lt;span class=&quot;token keyword&quot;&gt;async&lt;/span&gt; &lt;span class=&quot;token keyword&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;token function&quot;&gt;update_user&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;user_id&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token builtin&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; data&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token builtin&quot;&gt;dict&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;token comment&quot;&gt;# Write to both — cache is always fresh&lt;/span&gt;
+    &lt;span class=&quot;token keyword&quot;&gt;await&lt;/span&gt; db&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;update&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&quot;users&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; user_id&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; data&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;token keyword&quot;&gt;await&lt;/span&gt; redis&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token builtin&quot;&gt;set&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token string-interpolation&quot;&gt;&lt;span class=&quot;token string&quot;&gt;f&quot;user:&lt;/span&gt;&lt;span class=&quot;token interpolation&quot;&gt;&lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;user_id&lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&quot;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; json&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;dumps&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;data&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; ex&lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;token number&quot;&gt;300&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;h3 id=&quot;cache-invalidation&quot;&gt;Cache Invalidation&lt;/h3&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;em&gt;&amp;quot;There are only two hard things in Computer Science: cache invalidation and naming things.&amp;quot;&lt;/em&gt; — Phil Karlton&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Common invalidation strategies:&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Strategy&lt;/th&gt;
+&lt;th&gt;Mechanism&lt;/th&gt;
+&lt;th&gt;Trade-off&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;strong&gt;TTL (Time-to-Live)&lt;/strong&gt;&lt;/td&gt;
+&lt;td&gt;Expires after N seconds&lt;/td&gt;
+&lt;td&gt;Simple but stale reads possible&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;strong&gt;Event-based&lt;/strong&gt;&lt;/td&gt;
+&lt;td&gt;Invalidate on write events&lt;/td&gt;
+&lt;td&gt;Fresh data but more complex&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;strong&gt;Version-based&lt;/strong&gt;&lt;/td&gt;
+&lt;td&gt;Key includes version number&lt;/td&gt;
+&lt;td&gt;Precise but coordination needed&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;hr&gt;
+&lt;h2 id=&quot;3-database-where-the-truth-lives&quot;&gt;3. Database — &amp;quot;Where the Truth Lives&amp;quot;&lt;/h2&gt;
+&lt;h3 id=&quot;sql-vs-nosql-the-real-decision-framework&quot;&gt;SQL vs NoSQL — The Real Decision Framework&lt;/h3&gt;
+&lt;p&gt;Don&#39;t pick your database based on hype. Pick it based on your access patterns:&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Choose &lt;strong&gt;SQL&lt;/strong&gt; When&lt;/th&gt;
+&lt;th&gt;Choose &lt;strong&gt;NoSQL&lt;/strong&gt; When&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;Data has relationships (joins)&lt;/td&gt;
+&lt;td&gt;Data is denormalized/nested&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;You need ACID transactions&lt;/td&gt;
+&lt;td&gt;You need horizontal scaling&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;Schema is well-defined&lt;/td&gt;
+&lt;td&gt;Schema evolves rapidly&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;Complex queries needed&lt;/td&gt;
+&lt;td&gt;Simple key-value lookups&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;h3 id=&quot;database-scaling-patterns&quot;&gt;Database Scaling Patterns&lt;/h3&gt;
+&lt;p&gt;&lt;strong&gt;Read Replicas&lt;/strong&gt; — Scale reads by copying data to replica databases:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;Writes → Primary DB
+Reads  → Replica 1, Replica 2, Replica 3
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;This is the first scaling move most systems make. It works because most applications are read-heavy (~90% reads, ~10% writes).&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Sharding&lt;/strong&gt; — Split data across multiple databases by a key:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;Users A-M → Shard 1
+Users N-Z → Shard 2
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;⚠️ &lt;strong&gt;Warning:&lt;/strong&gt; Sharding adds massive complexity. Don&#39;t shard until you absolutely have to. A single well-optimized Postgres instance can handle millions of rows.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id=&quot;4-message-queue-do-it-later&quot;&gt;4. Message Queue — &amp;quot;Do It Later&amp;quot;&lt;/h2&gt;
+&lt;p&gt;Message queues decouple producers from consumers, letting you process work asynchronously.&lt;/p&gt;
+&lt;h3 id=&quot;why-queues-matter&quot;&gt;Why Queues Matter&lt;/h3&gt;
+&lt;p&gt;Without a queue, if your email service is slow, your entire API slows down:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;# ❌ Synchronous — user waits for email to send
+POST /signup → Create User → Send Email → Return 200
+                                  ↑
+                         Slow! (2-5 seconds)
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;With a queue, the API returns instantly:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;# ✅ Asynchronous — user gets instant response
+POST /signup → Create User → Push to Queue → Return 200
+                                     ↓
+                        Worker picks up → Sends Email
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h3 id=&quot;queue-pattern-in-practice&quot;&gt;Queue Pattern in Practice&lt;/h3&gt;
+&lt;pre class=&quot;language-python&quot; tabindex=&quot;0&quot;&gt;&lt;code class=&quot;language-python&quot;&gt;&lt;span class=&quot;token comment&quot;&gt;# Producer — API server&lt;/span&gt;
+&lt;span class=&quot;token keyword&quot;&gt;async&lt;/span&gt; &lt;span class=&quot;token keyword&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;token function&quot;&gt;handle_signup&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;request&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+    user &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;token keyword&quot;&gt;await&lt;/span&gt; create_user&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;request&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;data&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+
+    &lt;span class=&quot;token comment&quot;&gt;# Don&#39;t send email now — push to queue&lt;/span&gt;
+    &lt;span class=&quot;token keyword&quot;&gt;await&lt;/span&gt; queue&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;publish&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&quot;emails&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;token string&quot;&gt;&quot;type&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;welcome&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+        &lt;span class=&quot;token string&quot;&gt;&quot;to&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; user&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;email&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+        &lt;span class=&quot;token string&quot;&gt;&quot;name&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; user&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;name&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+
+    &lt;span class=&quot;token keyword&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&quot;status&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;created&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;  &lt;span class=&quot;token comment&quot;&gt;# Returns in ~50ms&lt;/span&gt;
+
+&lt;span class=&quot;token comment&quot;&gt;# Consumer — Background worker&lt;/span&gt;
+&lt;span class=&quot;token keyword&quot;&gt;async&lt;/span&gt; &lt;span class=&quot;token keyword&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;token function&quot;&gt;email_worker&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;token keyword&quot;&gt;async&lt;/span&gt; &lt;span class=&quot;token keyword&quot;&gt;for&lt;/span&gt; message &lt;span class=&quot;token keyword&quot;&gt;in&lt;/span&gt; queue&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;subscribe&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&quot;emails&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;token keyword&quot;&gt;await&lt;/span&gt; send_email&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;
+            to&lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt;message&lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&quot;to&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+            template&lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt;message&lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&quot;type&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+            data&lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt;message&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+        &lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;h3 id=&quot;when-to-use-queues&quot;&gt;When to Use Queues&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Sending emails/notifications&lt;/li&gt;
+&lt;li&gt;Processing images/videos&lt;/li&gt;
+&lt;li&gt;Syncing data between services&lt;/li&gt;
+&lt;li&gt;Any work that doesn&#39;t need an immediate response&lt;/li&gt;
+&lt;/ul&gt;
+&lt;hr&gt;
+&lt;h2 id=&quot;5-cdn-serve-content-close-to-users&quot;&gt;5. CDN — &amp;quot;Serve Content Close to Users&amp;quot;&lt;/h2&gt;
+&lt;p&gt;A Content Delivery Network caches your static content (images, CSS, JS) on servers worldwide, so users download from a nearby server instead of your origin.&lt;/p&gt;
+&lt;h3 id=&quot;impact&quot;&gt;Impact&lt;/h3&gt;
+&lt;pre&gt;&lt;code&gt;Without CDN:  User in Tokyo → Server in Virginia → 200ms latency
+With CDN:     User in Tokyo → CDN edge in Tokyo → 20ms latency
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;That&#39;s a &lt;strong&gt;10x improvement&lt;/strong&gt; just by putting a CDN in front of your static assets.&lt;/p&gt;
+&lt;h3 id=&quot;what-to-put-on-a-cdn&quot;&gt;What to Put on a CDN&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;✅ Images, videos, fonts&lt;/li&gt;
+&lt;li&gt;✅ CSS and JavaScript bundles&lt;/li&gt;
+&lt;li&gt;✅ Static HTML pages&lt;/li&gt;
+&lt;li&gt;✅ API responses that rarely change&lt;/li&gt;
+&lt;li&gt;❌ User-specific dynamic content&lt;/li&gt;
+&lt;li&gt;❌ Real-time data&lt;/li&gt;
+&lt;/ul&gt;
+&lt;hr&gt;
+&lt;h2 id=&quot;putting-it-all-together&quot;&gt;Putting It All Together&lt;/h2&gt;
+&lt;p&gt;Here&#39;s how these components work for a real system — let&#39;s say a social media feed:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;CDN&lt;/strong&gt; serves profile images and static assets&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Load Balancer&lt;/strong&gt; routes API requests across server instances&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;API Servers&lt;/strong&gt; handle business logic&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Cache (Redis)&lt;/strong&gt; stores pre-computed feeds and session data&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Database&lt;/strong&gt; stores users, posts, and relationships&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Message Queue&lt;/strong&gt; handles async work — push notifications, feed updates, email digests&lt;/li&gt;
+&lt;/ol&gt;
+&lt;h3 id=&quot;scaling-checklist&quot;&gt;Scaling Checklist&lt;/h3&gt;
+&lt;p&gt;When your system needs to scale, follow this order:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;Add caching&lt;/strong&gt; (biggest bang for buck)&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Add read replicas&lt;/strong&gt; (scale reads)&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Add a CDN&lt;/strong&gt; (offload static content)&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Add message queues&lt;/strong&gt; (decouple and go async)&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Add more app servers + load balancer&lt;/strong&gt; (horizontal scaling)&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Shard the database&lt;/strong&gt; (last resort — high complexity)&lt;/li&gt;
+&lt;/ol&gt;
+&lt;hr&gt;
+&lt;h2 id=&quot;key-takeaways&quot;&gt;Key Takeaways&lt;/h2&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Component&lt;/th&gt;
+&lt;th&gt;One-Line Summary&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;strong&gt;Load Balancer&lt;/strong&gt;&lt;/td&gt;
+&lt;td&gt;Distributes traffic, enables horizontal scaling&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;strong&gt;Cache&lt;/strong&gt;&lt;/td&gt;
+&lt;td&gt;Stores hot data in memory, reduces database load&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;strong&gt;Database&lt;/strong&gt;&lt;/td&gt;
+&lt;td&gt;Persistent storage — pick SQL or NoSQL based on access patterns&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;strong&gt;Message Queue&lt;/strong&gt;&lt;/td&gt;
+&lt;td&gt;Decouples services, enables async processing&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;&lt;strong&gt;CDN&lt;/strong&gt;&lt;/td&gt;
+&lt;td&gt;Serves static content from edge locations near users&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;The beauty of these building blocks is that they compose. Start simple — a single server with a database — and add components as your scale demands them. Every engineering decision is a trade-off, and the best architecture is the simplest one that meets your requirements.&lt;/p&gt;
+&lt;hr&gt;
+&lt;p&gt;&lt;em&gt;Next up: I&#39;ll dive deeper into database scaling patterns and when to actually shard. &lt;a href=&quot;https://linkedin.com/in/rohit-marathe-ucf&quot;&gt;Follow me on LinkedIn&lt;/a&gt; to stay updated.&lt;/em&gt;&lt;/p&gt;
+</content>
+  </entry>
 </feed>

@@ -1,0 +1,1064 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>System Design 101 — Building Blocks of Scalable Systems</title>
+		<meta name="description" content="A beginner-friendly guide to the fundamental building blocks of system design: load balancers, caching, databases, message queues, and CDNs.">
+		<meta name="author" content="Rohit Marathe">
+		<link rel="alternate" href="/my-blog/feed/feed.xml" type="application/atom+xml" title="Rohit Marathe">
+		<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
+		<link rel="preconnect" href="https://fonts.googleapis.com">
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+		<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+		
+		<style>/* ============================================
+   Rohit Marathe — Personal Blog Theme
+   Modern dark theme with glassmorphism accents
+   ============================================ */
+
+/* === Design Tokens === */
+:root {
+	--font-family: 'Inter', -apple-system, system-ui, sans-serif;
+	--font-family-monospace: 'JetBrains Mono', Consolas, Menlo, Monaco, monospace;
+
+	/* Dark palette */
+	--bg-primary: #0a0f1a;
+	--bg-secondary: #111827;
+	--bg-card: rgba(17, 24, 39, 0.6);
+	--bg-glass: rgba(255, 255, 255, 0.03);
+
+	/* Accent colors */
+	--accent-cyan: #00d4ff;
+	--accent-purple: #7c3aed;
+	--accent-gradient: linear-gradient(135deg, #00d4ff, #7c3aed);
+
+	/* Text */
+	--text-primary: #e2e8f0;
+	--text-secondary: #94a3b8;
+	--text-muted: #64748b;
+
+	/* Borders */
+	--border-subtle: rgba(255, 255, 255, 0.06);
+	--border-accent: rgba(0, 212, 255, 0.2);
+
+	/* Misc */
+	--syntax-tab-size: 2;
+	--radius: 12px;
+	--radius-sm: 8px;
+	--transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* === Global Reset === */
+* {
+	box-sizing: border-box;
+}
+
+@view-transition {
+	navigation: auto;
+}
+
+html,
+body {
+	padding: 0;
+	margin: 0 auto;
+	font-family: var(--font-family);
+	color: var(--text-primary);
+	background-color: var(--bg-primary);
+}
+html {
+	overflow-y: scroll;
+	scroll-behavior: smooth;
+}
+body {
+	max-width: 48em;
+	min-height: 100vh;
+	display: flex;
+	flex-direction: column;
+}
+
+/* === Ambient Background Glow === */
+body::before {
+	content: '';
+	position: fixed;
+	top: -20%;
+	left: -10%;
+	width: 40%;
+	height: 40%;
+	background: radial-gradient(circle, rgba(0, 212, 255, 0.08) 0%, transparent 70%);
+	pointer-events: none;
+	z-index: -1;
+}
+body::after {
+	content: '';
+	position: fixed;
+	bottom: -20%;
+	right: -10%;
+	width: 50%;
+	height: 50%;
+	background: radial-gradient(circle, rgba(124, 58, 237, 0.06) 0%, transparent 70%);
+	pointer-events: none;
+	z-index: -1;
+}
+
+/* === Accessibility === */
+.visually-hidden:not(:focus):not(:active) {
+	clip: rect(0 0 0 0);
+	clip-path: inset(50%);
+	height: 1px;
+	overflow: hidden;
+	position: absolute;
+	white-space: nowrap;
+	width: 1px;
+}
+
+/* === Fluid Media === */
+img {
+	max-width: 100%;
+}
+img[width][height] {
+	height: auto;
+}
+img[src$=".svg"] {
+	width: 100%;
+	height: auto;
+	max-width: none;
+}
+video,
+iframe {
+	width: 100%;
+	height: auto;
+	border-radius: var(--radius);
+}
+iframe {
+	aspect-ratio: 16/9;
+}
+
+/* === Typography === */
+p {
+	line-height: 1.75;
+	color: var(--text-secondary);
+}
+p:last-child {
+	margin-bottom: 0;
+}
+li {
+	line-height: 1.75;
+	color: var(--text-secondary);
+}
+
+h1, h2, h3, h4 {
+	color: var(--text-primary);
+	letter-spacing: -0.02em;
+}
+h1 {
+	font-size: 2em;
+	font-weight: 800;
+}
+h2 {
+	font-size: 1.5em;
+	margin-top: 2em;
+}
+
+/* === Links === */
+a[href] {
+	color: var(--accent-cyan);
+	text-decoration: none;
+	transition: var(--transition);
+}
+a[href]:visited {
+	color: var(--accent-cyan);
+	opacity: 0.85;
+}
+a[href]:hover,
+a[href]:active {
+	color: #fff;
+	text-shadow: 0 0 12px rgba(0, 212, 255, 0.4);
+}
+
+/* === Layout === */
+main {
+	padding: 2rem 1.5rem;
+	flex: 1;
+}
+main :first-child {
+	margin-top: 0;
+}
+footer {
+	padding: 1.5rem;
+}
+
+/* === Header / Nav === */
+header {
+	display: flex;
+	gap: 1em;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	align-items: center;
+	padding: 1.2em 1.5em;
+	background: var(--bg-glass);
+	backdrop-filter: blur(20px);
+	-webkit-backdrop-filter: blur(20px);
+	border-bottom: 1px solid var(--border-subtle);
+	position: sticky;
+	top: 0;
+	z-index: 100;
+}
+.home-link {
+	flex-grow: 1;
+	font-size: 1.15em;
+	font-weight: 800;
+	background: var(--accent-gradient);
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+	background-clip: text;
+	letter-spacing: -0.02em;
+}
+.home-link:link:not(:hover) {
+	text-decoration: none;
+}
+
+/* Nav */
+.nav {
+	display: flex;
+	gap: .5em 1em;
+	padding: 0;
+	margin: 0;
+	list-style: none;
+}
+.nav-item {
+	display: inline-block;
+}
+.nav-item a[href] {
+	text-decoration: none;
+	color: var(--text-secondary);
+	font-size: 0.9em;
+	font-weight: 500;
+	padding: 0.4em 0.8em;
+	border-radius: var(--radius-sm);
+	transition: var(--transition);
+}
+.nav-item a[href]:hover {
+	color: var(--accent-cyan);
+	background: rgba(0, 212, 255, 0.08);
+	text-shadow: none;
+}
+.nav a[href][aria-current="page"] {
+	color: var(--accent-cyan);
+	background: rgba(0, 212, 255, 0.1);
+	text-decoration: none;
+}
+
+/* === Skip Link === */
+#skip-link {
+	text-decoration: none;
+	background: var(--bg-secondary);
+	color: var(--text-primary);
+	padding: 0.5rem 1rem;
+	border: 1px solid var(--border-accent);
+	border-radius: var(--radius-sm);
+}
+#skip-link.visually-hidden:focus {
+	position: absolute;
+	top: 1rem;
+	left: 1rem;
+	z-index: 999;
+}
+
+/* === Hero Section === */
+.hero {
+	text-align: center;
+	padding: 3rem 1rem 2rem;
+	margin-bottom: 2rem;
+	position: relative;
+}
+.hero-emoji {
+	font-size: 3.5rem;
+	display: block;
+	margin-bottom: 0.5rem;
+	animation: float 3s ease-in-out infinite;
+}
+@keyframes float {
+	0%, 100% { transform: translateY(0); }
+	50% { transform: translateY(-8px); }
+}
+.hero h1 {
+	font-size: 2.2em;
+	font-weight: 800;
+	margin: 0 0 0.3em;
+	background: var(--accent-gradient);
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+	background-clip: text;
+}
+.hero-tagline {
+	font-size: 1.15em;
+	color: var(--text-secondary);
+	margin: 0 0 1.5em;
+	line-height: 1.6;
+}
+.hero-tags {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	gap: 0.5em;
+	list-style: none;
+	padding: 0;
+	margin: 0;
+}
+.hero-tag {
+	font-size: 0.78em;
+	font-weight: 500;
+	color: var(--accent-cyan);
+	background: rgba(0, 212, 255, 0.08);
+	border: 1px solid rgba(0, 212, 255, 0.15);
+	padding: 0.35em 0.85em;
+	border-radius: 100px;
+	letter-spacing: 0.02em;
+	transition: var(--transition);
+}
+.hero-tag:hover {
+	background: rgba(0, 212, 255, 0.15);
+	transform: translateY(-1px);
+}
+
+/* === Posts List === */
+.postlist {
+	counter-reset: start-from var(--postlist-index);
+	list-style: none;
+	padding: 0;
+}
+.postlist-item {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	counter-increment: start-from -1;
+	padding: 1.2em 1.4em;
+	margin-bottom: 0.75em;
+	background: var(--bg-card);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius);
+	transition: var(--transition);
+}
+.postlist-item:hover {
+	border-color: var(--border-accent);
+	transform: translateY(-2px);
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+.postlist-item:before {
+	display: inline-block;
+	pointer-events: none;
+	content: "" counter(start-from, decimal-leading-zero) ". ";
+	line-height: 100%;
+	text-align: right;
+	color: var(--text-muted);
+	font-size: 0.8em;
+	margin-right: 0.75em;
+}
+.postlist-date,
+.postlist-item:before {
+	font-size: 0.8125em;
+	color: var(--text-muted);
+}
+.postlist-date {
+	word-spacing: -0.5px;
+}
+.postlist-link {
+	font-size: 1.15em;
+	font-weight: 700;
+	flex-basis: calc(100% - 3rem);
+	padding-left: .25em;
+	padding-right: .5em;
+	text-underline-position: from-font;
+	text-underline-offset: 0;
+	text-decoration-thickness: 1px;
+	color: var(--text-primary);
+}
+.postlist-link:visited {
+	color: var(--text-primary);
+}
+.postlist-link:hover {
+	color: var(--accent-cyan);
+}
+.postlist-item-active .postlist-link {
+	font-weight: bold;
+}
+
+/* === Tags === */
+.post-tag {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 0.78em;
+	font-weight: 500;
+	font-style: normal;
+	color: var(--accent-purple);
+	background: rgba(124, 58, 237, 0.1);
+	border: 1px solid rgba(124, 58, 237, 0.2);
+	padding: 0.25em 0.7em;
+	border-radius: 100px;
+	text-transform: capitalize;
+	transition: var(--transition);
+}
+.post-tag:hover {
+	background: rgba(124, 58, 237, 0.2);
+	color: #a78bfa;
+	text-shadow: none;
+}
+.post-tag:visited {
+	color: var(--accent-purple);
+}
+.postlist-item > .post-tag {
+	align-self: center;
+}
+
+/* Post Metadata */
+.post-metadata {
+	display: inline-flex;
+	flex-wrap: wrap;
+	gap: .5em;
+	list-style: none;
+	padding: 0;
+	margin: 0;
+}
+.post-metadata time {
+	margin-right: 1em;
+	color: var(--text-muted);
+}
+
+/* === Prev/Next Navigation === */
+.links-nextprev {
+	display: flex;
+	justify-content: space-between;
+	gap: .5em 1em;
+	list-style: "";
+	border-top: 1px solid var(--border-subtle);
+	padding: 1.5em 0;
+	margin-top: 2em;
+}
+.links-nextprev > * {
+	flex-grow: 1;
+}
+.links-nextprev-next {
+	text-align: right;
+}
+
+/* === Tables === */
+table {
+	margin: 1em 0;
+	border-collapse: collapse;
+}
+table td,
+table th {
+	padding: 0.6em 1em;
+	border: 1px solid var(--border-subtle);
+}
+table th {
+	background: var(--bg-secondary);
+	color: var(--text-primary);
+}
+
+/* === Code Blocks === */
+pre,
+code {
+	font-family: var(--font-family-monospace);
+}
+code {
+	word-break: break-all;
+	font-size: 0.9em;
+	color: var(--accent-cyan);
+	background: rgba(0, 212, 255, 0.06);
+	padding: 0.15em 0.4em;
+	border-radius: 4px;
+}
+pre code {
+	background: none;
+	padding: 0;
+	color: inherit;
+}
+pre:not([class*="language-"]) {
+	margin: .5em 0;
+	line-height: 1.375;
+	-moz-tab-size: var(--syntax-tab-size);
+	-o-tab-size: var(--syntax-tab-size);
+	tab-size: var(--syntax-tab-size);
+	-webkit-hyphens: none;
+	-ms-hyphens: none;
+	hyphens: none;
+	direction: ltr;
+	text-align: left;
+	white-space: pre;
+	word-spacing: normal;
+	word-break: normal;
+	overflow-x: auto;
+	background: var(--bg-secondary);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius-sm);
+	padding: 1em;
+}
+
+/* === Footer === */
+footer {
+	border-top: 1px solid var(--border-subtle);
+	text-align: center;
+	padding: 2rem 1.5rem;
+}
+footer p {
+	margin: 0;
+	font-size: 0.85em;
+	color: var(--text-muted);
+}
+.footer-links {
+	display: flex;
+	justify-content: center;
+	gap: 1.5em;
+	margin-bottom: 0.75em;
+}
+.footer-links a {
+	color: var(--text-muted);
+	font-size: 0.85em;
+	font-weight: 500;
+	transition: var(--transition);
+}
+.footer-links a:hover {
+	color: var(--accent-cyan);
+}
+
+/* === Section Heading for Homepage === */
+.section-heading {
+	font-size: 1.3em;
+	font-weight: 700;
+	color: var(--text-primary);
+	margin: 2.5em 0 1em;
+	padding-bottom: 0.5em;
+	border-bottom: 1px solid var(--border-subtle);
+}
+
+/* === Fade-in Animation === */
+@keyframes fadeInUp {
+	from {
+		opacity: 0;
+		transform: translateY(16px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+main {
+	animation: fadeInUp 0.5s ease-out;
+}
+
+/* === Responsive === */
+@media (max-width: 600px) {
+	.hero h1 {
+		font-size: 1.6em;
+	}
+	.hero-tagline {
+		font-size: 1em;
+	}
+	header {
+		padding: 1em;
+	}
+	.postlist-item {
+		padding: 1em;
+	}
+}
+/**
+ * okaidia theme for JavaScript, CSS and HTML
+ * Loosely based on Monokai textmate theme by http://www.monokai.nl/
+ * @author ocodia
+ */
+
+code[class*="language-"],
+pre[class*="language-"] {
+	color: #f8f8f2;
+	background: none;
+	text-shadow: 0 1px rgba(0, 0, 0, 0.3);
+	font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+	font-size: 1em;
+	text-align: left;
+	white-space: pre;
+	word-spacing: normal;
+	word-break: normal;
+	word-wrap: normal;
+	line-height: 1.5;
+
+	-moz-tab-size: 4;
+	-o-tab-size: 4;
+	tab-size: 4;
+
+	-webkit-hyphens: none;
+	-moz-hyphens: none;
+	-ms-hyphens: none;
+	hyphens: none;
+}
+
+/* Code blocks */
+pre[class*="language-"] {
+	padding: 1em;
+	margin: .5em 0;
+	overflow: auto;
+	border-radius: 0.3em;
+}
+
+:not(pre) > code[class*="language-"],
+pre[class*="language-"] {
+	background: #272822;
+}
+
+/* Inline code */
+:not(pre) > code[class*="language-"] {
+	padding: .1em;
+	border-radius: .3em;
+	white-space: normal;
+}
+
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+	color: #8292a2;
+}
+
+.token.punctuation {
+	color: #f8f8f2;
+}
+
+.token.namespace {
+	opacity: .7;
+}
+
+.token.property,
+.token.tag,
+.token.constant,
+.token.symbol,
+.token.deleted {
+	color: #f92672;
+}
+
+.token.boolean,
+.token.number {
+	color: #ae81ff;
+}
+
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.inserted {
+	color: #a6e22e;
+}
+
+.token.operator,
+.token.entity,
+.token.url,
+.language-css .token.string,
+.style .token.string,
+.token.variable {
+	color: #f8f8f2;
+}
+
+.token.atrule,
+.token.attr-value,
+.token.function,
+.token.class-name {
+	color: #e6db74;
+}
+
+.token.keyword {
+	color: #66d9ef;
+}
+
+.token.regex,
+.token.important {
+	color: #fd971f;
+}
+
+.token.important,
+.token.bold {
+	font-weight: bold;
+}
+.token.italic {
+	font-style: italic;
+}
+
+.token.entity {
+	cursor: help;
+}
+/*
+ * New diff- syntax
+ */
+
+pre[class*="language-diff-"] {
+	--eleventy-code-padding: 1.25em;
+	padding-left: var(--eleventy-code-padding);
+	padding-right: var(--eleventy-code-padding);
+}
+.token.deleted {
+	background-color: hsl(0, 51%, 37%);
+	color: inherit;
+}
+.token.inserted {
+	background-color: hsl(126, 31%, 39%);
+	color: inherit;
+}
+
+/* Make the + and - characters unselectable for copy/paste */
+.token.prefix.unchanged,
+.token.prefix.inserted,
+.token.prefix.deleted {
+	-webkit-user-select: none;
+	user-select: none;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding-top: 2px;
+	padding-bottom: 2px;
+}
+.token.prefix.inserted,
+.token.prefix.deleted {
+	width: var(--eleventy-code-padding);
+	background-color: rgba(0,0,0,.2);
+}
+
+/* Optional: full-width background color */
+.token.inserted:not(.prefix),
+.token.deleted:not(.prefix) {
+	display: block;
+	margin-left: calc(-1 * var(--eleventy-code-padding));
+	margin-right: calc(-1 * var(--eleventy-code-padding));
+	text-decoration: none; /* override del, ins, mark defaults */
+	color: inherit; /* override del, ins, mark defaults */
+}</style>
+		
+	</head>
+	<body>
+		<a href="#main" id="skip-link" class="visually-hidden">Skip to main content</a>
+
+		<header>
+			<a href="/my-blog/" class="home-link">Rohit Marathe</a>
+			<nav>
+				<h2 class="visually-hidden" id="top-level-navigation-menu">Top level navigation menu</h2>
+				<ul class="nav">
+					<li class="nav-item"><a href="/my-blog/">Home</a></li>
+					<li class="nav-item"><a href="/my-blog/blog/">Archive</a></li>
+					<li class="nav-item"><a href="/my-blog/about/">About</a></li>
+					<li class="nav-item"><a href="/my-blog/feed/feed.xml">Feed</a></li>
+				</ul>
+			</nav>
+		</header>
+
+		<main id="main">
+			<heading-anchors>
+				
+
+
+<h1 id="system-design-101-building-blocks-of-scalable-systems">System Design 101 — Building Blocks of Scalable Systems</h1>
+
+<ul class="post-metadata">
+	<li><time datetime="2025-02-24">24 February 2025</time></li>
+	<li><a href="/my-blog/tags/system-design/" class="post-tag">system-design</a>, </li>
+	<li><a href="/my-blog/tags/architecture/" class="post-tag">architecture</a>, </li>
+	<li><a href="/my-blog/tags/cloud/" class="post-tag">cloud</a></li>
+</ul>
+
+<p>System design interviews can feel overwhelming, but every complex system is built from the same fundamental components. Once you understand these building blocks, you can reason about any architecture.</p>
+<p><picture><source type="image/avif" srcset="/my-blog/blog/system-design-101/18eZbXD2nY-640.avif 640w"><source type="image/webp" srcset="/my-blog/blog/system-design-101/18eZbXD2nY-640.webp 640w"><img loading="lazy" decoding="async" src="/my-blog/blog/system-design-101/18eZbXD2nY-640.png" alt="Distributed system architecture with cloud services, load balancers, and microservices" width="640" height="640"></picture></p>
+<p>This post covers the core components you'll see in every system design — with practical explanations of <em>why</em> each exists and <em>when</em> to use it.</p>
+<hr>
+<h2 id="the-big-picture">The Big Picture</h2>
+<p>Before diving into individual components, here's how they fit together in a typical web-scale system:</p>
+<p><picture><source type="image/avif" srcset="/my-blog/blog/system-design-101/tdvhPHNEqV-640.avif 640w"><source type="image/webp" srcset="/my-blog/blog/system-design-101/tdvhPHNEqV-640.webp 640w"><img loading="lazy" decoding="async" src="/my-blog/blog/system-design-101/tdvhPHNEqV-640.png" alt="System design architecture diagram showing CDN, Load Balancer, API Servers, Cache, Database, and Message Queue" width="640" height="640"></picture></p>
+<p>Every request flows through this chain. Let me break down each component.</p>
+<hr>
+<h2 id="1-load-balancer-distribute-the-traffic">1. Load Balancer — &quot;Distribute the Traffic&quot;</h2>
+<p>A load balancer sits in front of your servers and distributes incoming requests across multiple instances. It's the reason Netflix doesn't crash when 100 million people hit play at 8 PM.</p>
+<h3 id="how-it-works">How It Works</h3>
+<pre><code>Client Request
+      ↓
+┌─────────────────┐
+│  Load Balancer   │
+└─────────────────┘
+   ↓      ↓      ↓
+Server1 Server2 Server3
+</code></pre>
+<h3 id="common-algorithms">Common Algorithms</h3>
+<table>
+<thead>
+<tr>
+<th>Algorithm</th>
+<th>How It Works</th>
+<th>Best For</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Round Robin</strong></td>
+<td>Requests rotate through servers in order</td>
+<td>Equal-capacity servers</td>
+</tr>
+<tr>
+<td><strong>Least Connections</strong></td>
+<td>Sends to the server with fewest active connections</td>
+<td>Varying request complexity</td>
+</tr>
+<tr>
+<td><strong>IP Hash</strong></td>
+<td>Same client IP always goes to same server</td>
+<td>Session persistence</td>
+</tr>
+<tr>
+<td><strong>Weighted</strong></td>
+<td>More traffic to beefier servers</td>
+<td>Mixed hardware</td>
+</tr>
+</tbody>
+</table>
+<h3 id="key-insight">Key Insight</h3>
+<p>Load balancers also handle <strong>health checks</strong> — they stop sending traffic to unhealthy servers automatically. This is how you achieve high availability without manual intervention.</p>
+<pre class="language-python" tabindex="0"><code class="language-python"><span class="token comment"># Simplified health check logic</span>
+<span class="token keyword">class</span> <span class="token class-name">LoadBalancer</span><span class="token punctuation">:</span>
+    <span class="token keyword">def</span> <span class="token function">__init__</span><span class="token punctuation">(</span>self<span class="token punctuation">,</span> servers<span class="token punctuation">:</span> <span class="token builtin">list</span><span class="token punctuation">[</span>Server<span class="token punctuation">]</span><span class="token punctuation">)</span><span class="token punctuation">:</span>
+        self<span class="token punctuation">.</span>servers <span class="token operator">=</span> servers
+
+    <span class="token keyword">def</span> <span class="token function">get_healthy_server</span><span class="token punctuation">(</span>self<span class="token punctuation">)</span> <span class="token operator">-</span><span class="token operator">></span> Server<span class="token punctuation">:</span>
+        healthy <span class="token operator">=</span> <span class="token punctuation">[</span>s <span class="token keyword">for</span> s <span class="token keyword">in</span> self<span class="token punctuation">.</span>servers <span class="token keyword">if</span> s<span class="token punctuation">.</span>health_check<span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">]</span>
+        <span class="token keyword">return</span> <span class="token builtin">min</span><span class="token punctuation">(</span>healthy<span class="token punctuation">,</span> key<span class="token operator">=</span><span class="token keyword">lambda</span> s<span class="token punctuation">:</span> s<span class="token punctuation">.</span>active_connections<span class="token punctuation">)</span></code></pre>
+<hr>
+<h2 id="2-caching-dont-compute-the-same-thing-twice">2. Caching — &quot;Don't Compute the Same Thing Twice&quot;</h2>
+<p>Caching stores frequently accessed data in fast storage (usually memory) to avoid hitting slower databases or APIs repeatedly.</p>
+<h3 id="cache-tiers">Cache Tiers</h3>
+<pre><code>Request → L1 (In-Memory, ~1ms) → L2 (Redis, ~5ms) → Database (~50ms)
+</code></pre>
+<h3 id="cache-strategies">Cache Strategies</h3>
+<p><strong>Cache-Aside (Lazy Loading)</strong> — The most common pattern:</p>
+<pre class="language-python" tabindex="0"><code class="language-python"><span class="token keyword">async</span> <span class="token keyword">def</span> <span class="token function">get_user</span><span class="token punctuation">(</span>user_id<span class="token punctuation">:</span> <span class="token builtin">str</span><span class="token punctuation">)</span> <span class="token operator">-</span><span class="token operator">></span> User<span class="token punctuation">:</span>
+    <span class="token comment"># 1. Check cache first</span>
+    cached <span class="token operator">=</span> <span class="token keyword">await</span> redis<span class="token punctuation">.</span>get<span class="token punctuation">(</span><span class="token string-interpolation"><span class="token string">f"user:</span><span class="token interpolation"><span class="token punctuation">{</span>user_id<span class="token punctuation">}</span></span><span class="token string">"</span></span><span class="token punctuation">)</span>
+    <span class="token keyword">if</span> cached<span class="token punctuation">:</span>
+        <span class="token keyword">return</span> User<span class="token punctuation">.</span>from_json<span class="token punctuation">(</span>cached<span class="token punctuation">)</span>
+
+    <span class="token comment"># 2. Cache miss — fetch from database</span>
+    user <span class="token operator">=</span> <span class="token keyword">await</span> db<span class="token punctuation">.</span>query<span class="token punctuation">(</span><span class="token string">"SELECT * FROM users WHERE id = ?"</span><span class="token punctuation">,</span> user_id<span class="token punctuation">)</span>
+
+    <span class="token comment"># 3. Store in cache for next time (expire in 5 minutes)</span>
+    <span class="token keyword">await</span> redis<span class="token punctuation">.</span><span class="token builtin">set</span><span class="token punctuation">(</span><span class="token string-interpolation"><span class="token string">f"user:</span><span class="token interpolation"><span class="token punctuation">{</span>user_id<span class="token punctuation">}</span></span><span class="token string">"</span></span><span class="token punctuation">,</span> user<span class="token punctuation">.</span>to_json<span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">,</span> ex<span class="token operator">=</span><span class="token number">300</span><span class="token punctuation">)</span>
+
+    <span class="token keyword">return</span> user</code></pre>
+<p><strong>Write-Through</strong> — Write to cache and database simultaneously:</p>
+<pre class="language-python" tabindex="0"><code class="language-python"><span class="token keyword">async</span> <span class="token keyword">def</span> <span class="token function">update_user</span><span class="token punctuation">(</span>user_id<span class="token punctuation">:</span> <span class="token builtin">str</span><span class="token punctuation">,</span> data<span class="token punctuation">:</span> <span class="token builtin">dict</span><span class="token punctuation">)</span><span class="token punctuation">:</span>
+    <span class="token comment"># Write to both — cache is always fresh</span>
+    <span class="token keyword">await</span> db<span class="token punctuation">.</span>update<span class="token punctuation">(</span><span class="token string">"users"</span><span class="token punctuation">,</span> user_id<span class="token punctuation">,</span> data<span class="token punctuation">)</span>
+    <span class="token keyword">await</span> redis<span class="token punctuation">.</span><span class="token builtin">set</span><span class="token punctuation">(</span><span class="token string-interpolation"><span class="token string">f"user:</span><span class="token interpolation"><span class="token punctuation">{</span>user_id<span class="token punctuation">}</span></span><span class="token string">"</span></span><span class="token punctuation">,</span> json<span class="token punctuation">.</span>dumps<span class="token punctuation">(</span>data<span class="token punctuation">)</span><span class="token punctuation">,</span> ex<span class="token operator">=</span><span class="token number">300</span><span class="token punctuation">)</span></code></pre>
+<h3 id="cache-invalidation">Cache Invalidation</h3>
+<blockquote>
+<p><em>&quot;There are only two hard things in Computer Science: cache invalidation and naming things.&quot;</em> — Phil Karlton</p>
+</blockquote>
+<p>Common invalidation strategies:</p>
+<table>
+<thead>
+<tr>
+<th>Strategy</th>
+<th>Mechanism</th>
+<th>Trade-off</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>TTL (Time-to-Live)</strong></td>
+<td>Expires after N seconds</td>
+<td>Simple but stale reads possible</td>
+</tr>
+<tr>
+<td><strong>Event-based</strong></td>
+<td>Invalidate on write events</td>
+<td>Fresh data but more complex</td>
+</tr>
+<tr>
+<td><strong>Version-based</strong></td>
+<td>Key includes version number</td>
+<td>Precise but coordination needed</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="3-database-where-the-truth-lives">3. Database — &quot;Where the Truth Lives&quot;</h2>
+<h3 id="sql-vs-nosql-the-real-decision-framework">SQL vs NoSQL — The Real Decision Framework</h3>
+<p>Don't pick your database based on hype. Pick it based on your access patterns:</p>
+<table>
+<thead>
+<tr>
+<th>Choose <strong>SQL</strong> When</th>
+<th>Choose <strong>NoSQL</strong> When</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Data has relationships (joins)</td>
+<td>Data is denormalized/nested</td>
+</tr>
+<tr>
+<td>You need ACID transactions</td>
+<td>You need horizontal scaling</td>
+</tr>
+<tr>
+<td>Schema is well-defined</td>
+<td>Schema evolves rapidly</td>
+</tr>
+<tr>
+<td>Complex queries needed</td>
+<td>Simple key-value lookups</td>
+</tr>
+</tbody>
+</table>
+<h3 id="database-scaling-patterns">Database Scaling Patterns</h3>
+<p><strong>Read Replicas</strong> — Scale reads by copying data to replica databases:</p>
+<pre><code>Writes → Primary DB
+Reads  → Replica 1, Replica 2, Replica 3
+</code></pre>
+<p>This is the first scaling move most systems make. It works because most applications are read-heavy (~90% reads, ~10% writes).</p>
+<p><strong>Sharding</strong> — Split data across multiple databases by a key:</p>
+<pre><code>Users A-M → Shard 1
+Users N-Z → Shard 2
+</code></pre>
+<p>⚠️ <strong>Warning:</strong> Sharding adds massive complexity. Don't shard until you absolutely have to. A single well-optimized Postgres instance can handle millions of rows.</p>
+<hr>
+<h2 id="4-message-queue-do-it-later">4. Message Queue — &quot;Do It Later&quot;</h2>
+<p>Message queues decouple producers from consumers, letting you process work asynchronously.</p>
+<h3 id="why-queues-matter">Why Queues Matter</h3>
+<p>Without a queue, if your email service is slow, your entire API slows down:</p>
+<pre><code># ❌ Synchronous — user waits for email to send
+POST /signup → Create User → Send Email → Return 200
+                                  ↑
+                         Slow! (2-5 seconds)
+</code></pre>
+<p>With a queue, the API returns instantly:</p>
+<pre><code># ✅ Asynchronous — user gets instant response
+POST /signup → Create User → Push to Queue → Return 200
+                                     ↓
+                        Worker picks up → Sends Email
+</code></pre>
+<h3 id="queue-pattern-in-practice">Queue Pattern in Practice</h3>
+<pre class="language-python" tabindex="0"><code class="language-python"><span class="token comment"># Producer — API server</span>
+<span class="token keyword">async</span> <span class="token keyword">def</span> <span class="token function">handle_signup</span><span class="token punctuation">(</span>request<span class="token punctuation">)</span><span class="token punctuation">:</span>
+    user <span class="token operator">=</span> <span class="token keyword">await</span> create_user<span class="token punctuation">(</span>request<span class="token punctuation">.</span>data<span class="token punctuation">)</span>
+
+    <span class="token comment"># Don't send email now — push to queue</span>
+    <span class="token keyword">await</span> queue<span class="token punctuation">.</span>publish<span class="token punctuation">(</span><span class="token string">"emails"</span><span class="token punctuation">,</span> <span class="token punctuation">{</span>
+        <span class="token string">"type"</span><span class="token punctuation">:</span> <span class="token string">"welcome"</span><span class="token punctuation">,</span>
+        <span class="token string">"to"</span><span class="token punctuation">:</span> user<span class="token punctuation">.</span>email<span class="token punctuation">,</span>
+        <span class="token string">"name"</span><span class="token punctuation">:</span> user<span class="token punctuation">.</span>name<span class="token punctuation">,</span>
+    <span class="token punctuation">}</span><span class="token punctuation">)</span>
+
+    <span class="token keyword">return</span> <span class="token punctuation">{</span><span class="token string">"status"</span><span class="token punctuation">:</span> <span class="token string">"created"</span><span class="token punctuation">}</span>  <span class="token comment"># Returns in ~50ms</span>
+
+<span class="token comment"># Consumer — Background worker</span>
+<span class="token keyword">async</span> <span class="token keyword">def</span> <span class="token function">email_worker</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">:</span>
+    <span class="token keyword">async</span> <span class="token keyword">for</span> message <span class="token keyword">in</span> queue<span class="token punctuation">.</span>subscribe<span class="token punctuation">(</span><span class="token string">"emails"</span><span class="token punctuation">)</span><span class="token punctuation">:</span>
+        <span class="token keyword">await</span> send_email<span class="token punctuation">(</span>
+            to<span class="token operator">=</span>message<span class="token punctuation">[</span><span class="token string">"to"</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
+            template<span class="token operator">=</span>message<span class="token punctuation">[</span><span class="token string">"type"</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
+            data<span class="token operator">=</span>message<span class="token punctuation">,</span>
+        <span class="token punctuation">)</span></code></pre>
+<h3 id="when-to-use-queues">When to Use Queues</h3>
+<ul>
+<li>Sending emails/notifications</li>
+<li>Processing images/videos</li>
+<li>Syncing data between services</li>
+<li>Any work that doesn't need an immediate response</li>
+</ul>
+<hr>
+<h2 id="5-cdn-serve-content-close-to-users">5. CDN — &quot;Serve Content Close to Users&quot;</h2>
+<p>A Content Delivery Network caches your static content (images, CSS, JS) on servers worldwide, so users download from a nearby server instead of your origin.</p>
+<h3 id="impact">Impact</h3>
+<pre><code>Without CDN:  User in Tokyo → Server in Virginia → 200ms latency
+With CDN:     User in Tokyo → CDN edge in Tokyo → 20ms latency
+</code></pre>
+<p>That's a <strong>10x improvement</strong> just by putting a CDN in front of your static assets.</p>
+<h3 id="what-to-put-on-a-cdn">What to Put on a CDN</h3>
+<ul>
+<li>✅ Images, videos, fonts</li>
+<li>✅ CSS and JavaScript bundles</li>
+<li>✅ Static HTML pages</li>
+<li>✅ API responses that rarely change</li>
+<li>❌ User-specific dynamic content</li>
+<li>❌ Real-time data</li>
+</ul>
+<hr>
+<h2 id="putting-it-all-together">Putting It All Together</h2>
+<p>Here's how these components work for a real system — let's say a social media feed:</p>
+<ol>
+<li><strong>CDN</strong> serves profile images and static assets</li>
+<li><strong>Load Balancer</strong> routes API requests across server instances</li>
+<li><strong>API Servers</strong> handle business logic</li>
+<li><strong>Cache (Redis)</strong> stores pre-computed feeds and session data</li>
+<li><strong>Database</strong> stores users, posts, and relationships</li>
+<li><strong>Message Queue</strong> handles async work — push notifications, feed updates, email digests</li>
+</ol>
+<h3 id="scaling-checklist">Scaling Checklist</h3>
+<p>When your system needs to scale, follow this order:</p>
+<ol>
+<li><strong>Add caching</strong> (biggest bang for buck)</li>
+<li><strong>Add read replicas</strong> (scale reads)</li>
+<li><strong>Add a CDN</strong> (offload static content)</li>
+<li><strong>Add message queues</strong> (decouple and go async)</li>
+<li><strong>Add more app servers + load balancer</strong> (horizontal scaling)</li>
+<li><strong>Shard the database</strong> (last resort — high complexity)</li>
+</ol>
+<hr>
+<h2 id="key-takeaways">Key Takeaways</h2>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>One-Line Summary</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Load Balancer</strong></td>
+<td>Distributes traffic, enables horizontal scaling</td>
+</tr>
+<tr>
+<td><strong>Cache</strong></td>
+<td>Stores hot data in memory, reduces database load</td>
+</tr>
+<tr>
+<td><strong>Database</strong></td>
+<td>Persistent storage — pick SQL or NoSQL based on access patterns</td>
+</tr>
+<tr>
+<td><strong>Message Queue</strong></td>
+<td>Decouples services, enables async processing</td>
+</tr>
+<tr>
+<td><strong>CDN</strong></td>
+<td>Serves static content from edge locations near users</td>
+</tr>
+</tbody>
+</table>
+<p>The beauty of these building blocks is that they compose. Start simple — a single server with a database — and add components as your scale demands them. Every engineering decision is a trade-off, and the best architecture is the simplest one that meets your requirements.</p>
+<hr>
+<p><em>Next up: I'll dive deeper into database scaling patterns and when to actually shard. <a href="https://linkedin.com/in/rohit-marathe-ucf">Follow me on LinkedIn</a> to stay updated.</em></p>
+
+<ul class="links-nextprev"><li class="links-nextprev-next">Next →<br><a href="/my-blog/blog/design-patterns-every-engineer-should-know/">Essential Design Patterns Every Engineer Should Know</a></li>
+</ul>
+
+			</heading-anchors>
+		</main>
+
+		<footer>
+			<div class="footer-links">
+				<a href="https://github.com/rpm360" target="_blank" rel="noopener">GitHub</a>
+				<a href="https://linkedin.com/in/rohit-marathe-ucf" target="_blank" rel="noopener">LinkedIn</a>
+				<a href="mailto:rohitmarathe1995@gmail.com">Email</a>
+			</div>
+			<p>&copy; 2025 Rohit Marathe · Built with <a href="https://www.11ty.dev/">Eleventy</a></p>
+		</footer>
+
+		<!-- This page `/blog/system-design-101/` was built on 2026-02-28T02:43:52.632Z -->
+		<script type="module" src="/my-blog/dist/cC8wS6ZjFU.js"></script>
+	</body>
+</html>

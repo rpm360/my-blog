@@ -1,0 +1,975 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>Essential Design Patterns Every Engineer Should Know</title>
+		<meta name="description" content="A practical guide to the most important software design patterns — Factory, Observer, Strategy, and Singleton — with real-world examples and when to use each.">
+		<meta name="author" content="Rohit Marathe">
+		<link rel="alternate" href="/my-blog/feed/feed.xml" type="application/atom+xml" title="Rohit Marathe">
+		<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
+		<link rel="preconnect" href="https://fonts.googleapis.com">
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+		<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+		
+		<style>/* ============================================
+   Rohit Marathe — Personal Blog Theme
+   Modern dark theme with glassmorphism accents
+   ============================================ */
+
+/* === Design Tokens === */
+:root {
+	--font-family: 'Inter', -apple-system, system-ui, sans-serif;
+	--font-family-monospace: 'JetBrains Mono', Consolas, Menlo, Monaco, monospace;
+
+	/* Dark palette */
+	--bg-primary: #0a0f1a;
+	--bg-secondary: #111827;
+	--bg-card: rgba(17, 24, 39, 0.6);
+	--bg-glass: rgba(255, 255, 255, 0.03);
+
+	/* Accent colors */
+	--accent-cyan: #00d4ff;
+	--accent-purple: #7c3aed;
+	--accent-gradient: linear-gradient(135deg, #00d4ff, #7c3aed);
+
+	/* Text */
+	--text-primary: #e2e8f0;
+	--text-secondary: #94a3b8;
+	--text-muted: #64748b;
+
+	/* Borders */
+	--border-subtle: rgba(255, 255, 255, 0.06);
+	--border-accent: rgba(0, 212, 255, 0.2);
+
+	/* Misc */
+	--syntax-tab-size: 2;
+	--radius: 12px;
+	--radius-sm: 8px;
+	--transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* === Global Reset === */
+* {
+	box-sizing: border-box;
+}
+
+@view-transition {
+	navigation: auto;
+}
+
+html,
+body {
+	padding: 0;
+	margin: 0 auto;
+	font-family: var(--font-family);
+	color: var(--text-primary);
+	background-color: var(--bg-primary);
+}
+html {
+	overflow-y: scroll;
+	scroll-behavior: smooth;
+}
+body {
+	max-width: 48em;
+	min-height: 100vh;
+	display: flex;
+	flex-direction: column;
+}
+
+/* === Ambient Background Glow === */
+body::before {
+	content: '';
+	position: fixed;
+	top: -20%;
+	left: -10%;
+	width: 40%;
+	height: 40%;
+	background: radial-gradient(circle, rgba(0, 212, 255, 0.08) 0%, transparent 70%);
+	pointer-events: none;
+	z-index: -1;
+}
+body::after {
+	content: '';
+	position: fixed;
+	bottom: -20%;
+	right: -10%;
+	width: 50%;
+	height: 50%;
+	background: radial-gradient(circle, rgba(124, 58, 237, 0.06) 0%, transparent 70%);
+	pointer-events: none;
+	z-index: -1;
+}
+
+/* === Accessibility === */
+.visually-hidden:not(:focus):not(:active) {
+	clip: rect(0 0 0 0);
+	clip-path: inset(50%);
+	height: 1px;
+	overflow: hidden;
+	position: absolute;
+	white-space: nowrap;
+	width: 1px;
+}
+
+/* === Fluid Media === */
+img {
+	max-width: 100%;
+}
+img[width][height] {
+	height: auto;
+}
+img[src$=".svg"] {
+	width: 100%;
+	height: auto;
+	max-width: none;
+}
+video,
+iframe {
+	width: 100%;
+	height: auto;
+	border-radius: var(--radius);
+}
+iframe {
+	aspect-ratio: 16/9;
+}
+
+/* === Typography === */
+p {
+	line-height: 1.75;
+	color: var(--text-secondary);
+}
+p:last-child {
+	margin-bottom: 0;
+}
+li {
+	line-height: 1.75;
+	color: var(--text-secondary);
+}
+
+h1, h2, h3, h4 {
+	color: var(--text-primary);
+	letter-spacing: -0.02em;
+}
+h1 {
+	font-size: 2em;
+	font-weight: 800;
+}
+h2 {
+	font-size: 1.5em;
+	margin-top: 2em;
+}
+
+/* === Links === */
+a[href] {
+	color: var(--accent-cyan);
+	text-decoration: none;
+	transition: var(--transition);
+}
+a[href]:visited {
+	color: var(--accent-cyan);
+	opacity: 0.85;
+}
+a[href]:hover,
+a[href]:active {
+	color: #fff;
+	text-shadow: 0 0 12px rgba(0, 212, 255, 0.4);
+}
+
+/* === Layout === */
+main {
+	padding: 2rem 1.5rem;
+	flex: 1;
+}
+main :first-child {
+	margin-top: 0;
+}
+footer {
+	padding: 1.5rem;
+}
+
+/* === Header / Nav === */
+header {
+	display: flex;
+	gap: 1em;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	align-items: center;
+	padding: 1.2em 1.5em;
+	background: var(--bg-glass);
+	backdrop-filter: blur(20px);
+	-webkit-backdrop-filter: blur(20px);
+	border-bottom: 1px solid var(--border-subtle);
+	position: sticky;
+	top: 0;
+	z-index: 100;
+}
+.home-link {
+	flex-grow: 1;
+	font-size: 1.15em;
+	font-weight: 800;
+	background: var(--accent-gradient);
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+	background-clip: text;
+	letter-spacing: -0.02em;
+}
+.home-link:link:not(:hover) {
+	text-decoration: none;
+}
+
+/* Nav */
+.nav {
+	display: flex;
+	gap: .5em 1em;
+	padding: 0;
+	margin: 0;
+	list-style: none;
+}
+.nav-item {
+	display: inline-block;
+}
+.nav-item a[href] {
+	text-decoration: none;
+	color: var(--text-secondary);
+	font-size: 0.9em;
+	font-weight: 500;
+	padding: 0.4em 0.8em;
+	border-radius: var(--radius-sm);
+	transition: var(--transition);
+}
+.nav-item a[href]:hover {
+	color: var(--accent-cyan);
+	background: rgba(0, 212, 255, 0.08);
+	text-shadow: none;
+}
+.nav a[href][aria-current="page"] {
+	color: var(--accent-cyan);
+	background: rgba(0, 212, 255, 0.1);
+	text-decoration: none;
+}
+
+/* === Skip Link === */
+#skip-link {
+	text-decoration: none;
+	background: var(--bg-secondary);
+	color: var(--text-primary);
+	padding: 0.5rem 1rem;
+	border: 1px solid var(--border-accent);
+	border-radius: var(--radius-sm);
+}
+#skip-link.visually-hidden:focus {
+	position: absolute;
+	top: 1rem;
+	left: 1rem;
+	z-index: 999;
+}
+
+/* === Hero Section === */
+.hero {
+	text-align: center;
+	padding: 3rem 1rem 2rem;
+	margin-bottom: 2rem;
+	position: relative;
+}
+.hero-emoji {
+	font-size: 3.5rem;
+	display: block;
+	margin-bottom: 0.5rem;
+	animation: float 3s ease-in-out infinite;
+}
+@keyframes float {
+	0%, 100% { transform: translateY(0); }
+	50% { transform: translateY(-8px); }
+}
+.hero h1 {
+	font-size: 2.2em;
+	font-weight: 800;
+	margin: 0 0 0.3em;
+	background: var(--accent-gradient);
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+	background-clip: text;
+}
+.hero-tagline {
+	font-size: 1.15em;
+	color: var(--text-secondary);
+	margin: 0 0 1.5em;
+	line-height: 1.6;
+}
+.hero-tags {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	gap: 0.5em;
+	list-style: none;
+	padding: 0;
+	margin: 0;
+}
+.hero-tag {
+	font-size: 0.78em;
+	font-weight: 500;
+	color: var(--accent-cyan);
+	background: rgba(0, 212, 255, 0.08);
+	border: 1px solid rgba(0, 212, 255, 0.15);
+	padding: 0.35em 0.85em;
+	border-radius: 100px;
+	letter-spacing: 0.02em;
+	transition: var(--transition);
+}
+.hero-tag:hover {
+	background: rgba(0, 212, 255, 0.15);
+	transform: translateY(-1px);
+}
+
+/* === Posts List === */
+.postlist {
+	counter-reset: start-from var(--postlist-index);
+	list-style: none;
+	padding: 0;
+}
+.postlist-item {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	counter-increment: start-from -1;
+	padding: 1.2em 1.4em;
+	margin-bottom: 0.75em;
+	background: var(--bg-card);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius);
+	transition: var(--transition);
+}
+.postlist-item:hover {
+	border-color: var(--border-accent);
+	transform: translateY(-2px);
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+.postlist-item:before {
+	display: inline-block;
+	pointer-events: none;
+	content: "" counter(start-from, decimal-leading-zero) ". ";
+	line-height: 100%;
+	text-align: right;
+	color: var(--text-muted);
+	font-size: 0.8em;
+	margin-right: 0.75em;
+}
+.postlist-date,
+.postlist-item:before {
+	font-size: 0.8125em;
+	color: var(--text-muted);
+}
+.postlist-date {
+	word-spacing: -0.5px;
+}
+.postlist-link {
+	font-size: 1.15em;
+	font-weight: 700;
+	flex-basis: calc(100% - 3rem);
+	padding-left: .25em;
+	padding-right: .5em;
+	text-underline-position: from-font;
+	text-underline-offset: 0;
+	text-decoration-thickness: 1px;
+	color: var(--text-primary);
+}
+.postlist-link:visited {
+	color: var(--text-primary);
+}
+.postlist-link:hover {
+	color: var(--accent-cyan);
+}
+.postlist-item-active .postlist-link {
+	font-weight: bold;
+}
+
+/* === Tags === */
+.post-tag {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 0.78em;
+	font-weight: 500;
+	font-style: normal;
+	color: var(--accent-purple);
+	background: rgba(124, 58, 237, 0.1);
+	border: 1px solid rgba(124, 58, 237, 0.2);
+	padding: 0.25em 0.7em;
+	border-radius: 100px;
+	text-transform: capitalize;
+	transition: var(--transition);
+}
+.post-tag:hover {
+	background: rgba(124, 58, 237, 0.2);
+	color: #a78bfa;
+	text-shadow: none;
+}
+.post-tag:visited {
+	color: var(--accent-purple);
+}
+.postlist-item > .post-tag {
+	align-self: center;
+}
+
+/* Post Metadata */
+.post-metadata {
+	display: inline-flex;
+	flex-wrap: wrap;
+	gap: .5em;
+	list-style: none;
+	padding: 0;
+	margin: 0;
+}
+.post-metadata time {
+	margin-right: 1em;
+	color: var(--text-muted);
+}
+
+/* === Prev/Next Navigation === */
+.links-nextprev {
+	display: flex;
+	justify-content: space-between;
+	gap: .5em 1em;
+	list-style: "";
+	border-top: 1px solid var(--border-subtle);
+	padding: 1.5em 0;
+	margin-top: 2em;
+}
+.links-nextprev > * {
+	flex-grow: 1;
+}
+.links-nextprev-next {
+	text-align: right;
+}
+
+/* === Tables === */
+table {
+	margin: 1em 0;
+	border-collapse: collapse;
+}
+table td,
+table th {
+	padding: 0.6em 1em;
+	border: 1px solid var(--border-subtle);
+}
+table th {
+	background: var(--bg-secondary);
+	color: var(--text-primary);
+}
+
+/* === Code Blocks === */
+pre,
+code {
+	font-family: var(--font-family-monospace);
+}
+code {
+	word-break: break-all;
+	font-size: 0.9em;
+	color: var(--accent-cyan);
+	background: rgba(0, 212, 255, 0.06);
+	padding: 0.15em 0.4em;
+	border-radius: 4px;
+}
+pre code {
+	background: none;
+	padding: 0;
+	color: inherit;
+}
+pre:not([class*="language-"]) {
+	margin: .5em 0;
+	line-height: 1.375;
+	-moz-tab-size: var(--syntax-tab-size);
+	-o-tab-size: var(--syntax-tab-size);
+	tab-size: var(--syntax-tab-size);
+	-webkit-hyphens: none;
+	-ms-hyphens: none;
+	hyphens: none;
+	direction: ltr;
+	text-align: left;
+	white-space: pre;
+	word-spacing: normal;
+	word-break: normal;
+	overflow-x: auto;
+	background: var(--bg-secondary);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius-sm);
+	padding: 1em;
+}
+
+/* === Footer === */
+footer {
+	border-top: 1px solid var(--border-subtle);
+	text-align: center;
+	padding: 2rem 1.5rem;
+}
+footer p {
+	margin: 0;
+	font-size: 0.85em;
+	color: var(--text-muted);
+}
+.footer-links {
+	display: flex;
+	justify-content: center;
+	gap: 1.5em;
+	margin-bottom: 0.75em;
+}
+.footer-links a {
+	color: var(--text-muted);
+	font-size: 0.85em;
+	font-weight: 500;
+	transition: var(--transition);
+}
+.footer-links a:hover {
+	color: var(--accent-cyan);
+}
+
+/* === Section Heading for Homepage === */
+.section-heading {
+	font-size: 1.3em;
+	font-weight: 700;
+	color: var(--text-primary);
+	margin: 2.5em 0 1em;
+	padding-bottom: 0.5em;
+	border-bottom: 1px solid var(--border-subtle);
+}
+
+/* === Fade-in Animation === */
+@keyframes fadeInUp {
+	from {
+		opacity: 0;
+		transform: translateY(16px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+main {
+	animation: fadeInUp 0.5s ease-out;
+}
+
+/* === Responsive === */
+@media (max-width: 600px) {
+	.hero h1 {
+		font-size: 1.6em;
+	}
+	.hero-tagline {
+		font-size: 1em;
+	}
+	header {
+		padding: 1em;
+	}
+	.postlist-item {
+		padding: 1em;
+	}
+}
+/**
+ * okaidia theme for JavaScript, CSS and HTML
+ * Loosely based on Monokai textmate theme by http://www.monokai.nl/
+ * @author ocodia
+ */
+
+code[class*="language-"],
+pre[class*="language-"] {
+	color: #f8f8f2;
+	background: none;
+	text-shadow: 0 1px rgba(0, 0, 0, 0.3);
+	font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+	font-size: 1em;
+	text-align: left;
+	white-space: pre;
+	word-spacing: normal;
+	word-break: normal;
+	word-wrap: normal;
+	line-height: 1.5;
+
+	-moz-tab-size: 4;
+	-o-tab-size: 4;
+	tab-size: 4;
+
+	-webkit-hyphens: none;
+	-moz-hyphens: none;
+	-ms-hyphens: none;
+	hyphens: none;
+}
+
+/* Code blocks */
+pre[class*="language-"] {
+	padding: 1em;
+	margin: .5em 0;
+	overflow: auto;
+	border-radius: 0.3em;
+}
+
+:not(pre) > code[class*="language-"],
+pre[class*="language-"] {
+	background: #272822;
+}
+
+/* Inline code */
+:not(pre) > code[class*="language-"] {
+	padding: .1em;
+	border-radius: .3em;
+	white-space: normal;
+}
+
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+	color: #8292a2;
+}
+
+.token.punctuation {
+	color: #f8f8f2;
+}
+
+.token.namespace {
+	opacity: .7;
+}
+
+.token.property,
+.token.tag,
+.token.constant,
+.token.symbol,
+.token.deleted {
+	color: #f92672;
+}
+
+.token.boolean,
+.token.number {
+	color: #ae81ff;
+}
+
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.inserted {
+	color: #a6e22e;
+}
+
+.token.operator,
+.token.entity,
+.token.url,
+.language-css .token.string,
+.style .token.string,
+.token.variable {
+	color: #f8f8f2;
+}
+
+.token.atrule,
+.token.attr-value,
+.token.function,
+.token.class-name {
+	color: #e6db74;
+}
+
+.token.keyword {
+	color: #66d9ef;
+}
+
+.token.regex,
+.token.important {
+	color: #fd971f;
+}
+
+.token.important,
+.token.bold {
+	font-weight: bold;
+}
+.token.italic {
+	font-style: italic;
+}
+
+.token.entity {
+	cursor: help;
+}
+/*
+ * New diff- syntax
+ */
+
+pre[class*="language-diff-"] {
+	--eleventy-code-padding: 1.25em;
+	padding-left: var(--eleventy-code-padding);
+	padding-right: var(--eleventy-code-padding);
+}
+.token.deleted {
+	background-color: hsl(0, 51%, 37%);
+	color: inherit;
+}
+.token.inserted {
+	background-color: hsl(126, 31%, 39%);
+	color: inherit;
+}
+
+/* Make the + and - characters unselectable for copy/paste */
+.token.prefix.unchanged,
+.token.prefix.inserted,
+.token.prefix.deleted {
+	-webkit-user-select: none;
+	user-select: none;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding-top: 2px;
+	padding-bottom: 2px;
+}
+.token.prefix.inserted,
+.token.prefix.deleted {
+	width: var(--eleventy-code-padding);
+	background-color: rgba(0,0,0,.2);
+}
+
+/* Optional: full-width background color */
+.token.inserted:not(.prefix),
+.token.deleted:not(.prefix) {
+	display: block;
+	margin-left: calc(-1 * var(--eleventy-code-padding));
+	margin-right: calc(-1 * var(--eleventy-code-padding));
+	text-decoration: none; /* override del, ins, mark defaults */
+	color: inherit; /* override del, ins, mark defaults */
+}</style>
+		
+	</head>
+	<body>
+		<a href="#main" id="skip-link" class="visually-hidden">Skip to main content</a>
+
+		<header>
+			<a href="/my-blog/" class="home-link">Rohit Marathe</a>
+			<nav>
+				<h2 class="visually-hidden" id="top-level-navigation-menu">Top level navigation menu</h2>
+				<ul class="nav">
+					<li class="nav-item"><a href="/my-blog/">Home</a></li>
+					<li class="nav-item"><a href="/my-blog/blog/">Archive</a></li>
+					<li class="nav-item"><a href="/my-blog/about/">About</a></li>
+					<li class="nav-item"><a href="/my-blog/feed/feed.xml">Feed</a></li>
+				</ul>
+			</nav>
+		</header>
+
+		<main id="main">
+			<heading-anchors>
+				
+
+
+<h1 id="essential-design-patterns-every-engineer-should-know">Essential Design Patterns Every Engineer Should Know</h1>
+
+<ul class="post-metadata">
+	<li><time datetime="2025-02-25">25 February 2025</time></li>
+	<li><a href="/my-blog/tags/design-patterns/" class="post-tag">design-patterns</a>, </li>
+	<li><a href="/my-blog/tags/software-engineering/" class="post-tag">software-engineering</a>, </li>
+	<li><a href="/my-blog/tags/architecture/" class="post-tag">architecture</a></li>
+</ul>
+
+<p>Design patterns are battle-tested solutions to recurring problems in software design. You don't need to memorize all 23 Gang of Four patterns — but knowing the essential ones will make you a significantly better engineer.</p>
+<p><picture><source type="image/avif" srcset="/my-blog/blog/design-patterns-every-engineer-should-know/vgtnQoDOwf-640.avif 640w"><source type="image/webp" srcset="/my-blog/blog/design-patterns-every-engineer-should-know/vgtnQoDOwf-640.webp 640w"><img loading="lazy" decoding="async" src="/my-blog/blog/design-patterns-every-engineer-should-know/vgtnQoDOwf-640.png" alt="Software design patterns illustrated as interconnected architectural components" width="640" height="640"></picture></p>
+<p>Here are the patterns I use most in production systems, with practical examples that go beyond textbook definitions.</p>
+<hr>
+<h2 id="1-factory-pattern-dont-new-things-directly">1. Factory Pattern — &quot;Don't <code>new</code> Things Directly&quot;</h2>
+<p>The Factory pattern delegates object creation to a separate method or class, so your code doesn't need to know the exact class it's creating.</p>
+<h3 id="why-it-matters">Why It Matters</h3>
+<p>Imagine you're building an AI system that needs to support multiple LLM providers — Claude, GPT-4, and Gemini. Without a factory, every place you create a provider is tightly coupled:</p>
+<pre class="language-python" tabindex="0"><code class="language-python"><span class="token comment"># ❌ Bad — tightly coupled</span>
+<span class="token keyword">if</span> provider_name <span class="token operator">==</span> <span class="token string">"claude"</span><span class="token punctuation">:</span>
+    client <span class="token operator">=</span> ClaudeClient<span class="token punctuation">(</span>api_key<span class="token operator">=</span>key<span class="token punctuation">,</span> model<span class="token operator">=</span><span class="token string">"claude-3"</span><span class="token punctuation">)</span>
+<span class="token keyword">elif</span> provider_name <span class="token operator">==</span> <span class="token string">"gpt4"</span><span class="token punctuation">:</span>
+    client <span class="token operator">=</span> OpenAIClient<span class="token punctuation">(</span>api_key<span class="token operator">=</span>key<span class="token punctuation">,</span> model<span class="token operator">=</span><span class="token string">"gpt-4"</span><span class="token punctuation">)</span>
+<span class="token keyword">elif</span> provider_name <span class="token operator">==</span> <span class="token string">"gemini"</span><span class="token punctuation">:</span>
+    client <span class="token operator">=</span> GeminiClient<span class="token punctuation">(</span>api_key<span class="token operator">=</span>key<span class="token punctuation">,</span> model<span class="token operator">=</span><span class="token string">"gemini-pro"</span><span class="token punctuation">)</span></code></pre>
+<p>With a factory, creation logic lives in one place:</p>
+<pre class="language-python" tabindex="0"><code class="language-python"><span class="token comment"># ✅ Good — Factory pattern</span>
+<span class="token keyword">class</span> <span class="token class-name">LLMFactory</span><span class="token punctuation">:</span>
+    _providers <span class="token operator">=</span> <span class="token punctuation">{</span>
+        <span class="token string">"claude"</span><span class="token punctuation">:</span> ClaudeClient<span class="token punctuation">,</span>
+        <span class="token string">"gpt4"</span><span class="token punctuation">:</span> OpenAIClient<span class="token punctuation">,</span>
+        <span class="token string">"gemini"</span><span class="token punctuation">:</span> GeminiClient<span class="token punctuation">,</span>
+    <span class="token punctuation">}</span>
+
+    <span class="token decorator annotation punctuation">@classmethod</span>
+    <span class="token keyword">def</span> <span class="token function">create</span><span class="token punctuation">(</span>cls<span class="token punctuation">,</span> provider<span class="token punctuation">:</span> <span class="token builtin">str</span><span class="token punctuation">,</span> <span class="token operator">**</span>kwargs<span class="token punctuation">)</span> <span class="token operator">-</span><span class="token operator">></span> LLMClient<span class="token punctuation">:</span>
+        <span class="token keyword">if</span> provider <span class="token keyword">not</span> <span class="token keyword">in</span> cls<span class="token punctuation">.</span>_providers<span class="token punctuation">:</span>
+            <span class="token keyword">raise</span> ValueError<span class="token punctuation">(</span><span class="token string-interpolation"><span class="token string">f"Unknown provider: </span><span class="token interpolation"><span class="token punctuation">{</span>provider<span class="token punctuation">}</span></span><span class="token string">"</span></span><span class="token punctuation">)</span>
+        <span class="token keyword">return</span> cls<span class="token punctuation">.</span>_providers<span class="token punctuation">[</span>provider<span class="token punctuation">]</span><span class="token punctuation">(</span><span class="token operator">**</span>kwargs<span class="token punctuation">)</span>
+
+<span class="token comment"># Usage — clean and extensible</span>
+client <span class="token operator">=</span> LLMFactory<span class="token punctuation">.</span>create<span class="token punctuation">(</span><span class="token string">"claude"</span><span class="token punctuation">,</span> api_key<span class="token operator">=</span>key<span class="token punctuation">,</span> model<span class="token operator">=</span><span class="token string">"claude-3"</span><span class="token punctuation">)</span></code></pre>
+<h3 id="when-to-use-it">When to Use It</h3>
+<ul>
+<li>You need to create objects without specifying their exact class</li>
+<li>You want to centralize complex creation logic</li>
+<li>You need to swap implementations easily (testing, A/B experiments)</li>
+</ul>
+<hr>
+<h2 id="2-observer-pattern-notify-everyone-who-cares">2. Observer Pattern — &quot;Notify Everyone Who Cares&quot;</h2>
+<p>The Observer pattern lets objects subscribe to events and get notified when something changes — without the publisher knowing who's listening.</p>
+<h3 id="real-world-example">Real-World Example</h3>
+<p>In a monitoring system, when a deployment completes, multiple systems need to react:</p>
+<pre class="language-python" tabindex="0"><code class="language-python"><span class="token keyword">class</span> <span class="token class-name">EventBus</span><span class="token punctuation">:</span>
+    <span class="token keyword">def</span> <span class="token function">__init__</span><span class="token punctuation">(</span>self<span class="token punctuation">)</span><span class="token punctuation">:</span>
+        self<span class="token punctuation">.</span>_subscribers<span class="token punctuation">:</span> <span class="token builtin">dict</span><span class="token punctuation">[</span><span class="token builtin">str</span><span class="token punctuation">,</span> <span class="token builtin">list</span><span class="token punctuation">[</span>Callable<span class="token punctuation">]</span><span class="token punctuation">]</span> <span class="token operator">=</span> <span class="token punctuation">{</span><span class="token punctuation">}</span>
+
+    <span class="token keyword">def</span> <span class="token function">subscribe</span><span class="token punctuation">(</span>self<span class="token punctuation">,</span> event<span class="token punctuation">:</span> <span class="token builtin">str</span><span class="token punctuation">,</span> callback<span class="token punctuation">:</span> Callable<span class="token punctuation">)</span><span class="token punctuation">:</span>
+        self<span class="token punctuation">.</span>_subscribers<span class="token punctuation">.</span>setdefault<span class="token punctuation">(</span>event<span class="token punctuation">,</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">)</span><span class="token punctuation">.</span>append<span class="token punctuation">(</span>callback<span class="token punctuation">)</span>
+
+    <span class="token keyword">def</span> <span class="token function">publish</span><span class="token punctuation">(</span>self<span class="token punctuation">,</span> event<span class="token punctuation">:</span> <span class="token builtin">str</span><span class="token punctuation">,</span> data<span class="token punctuation">:</span> <span class="token builtin">dict</span><span class="token punctuation">)</span><span class="token punctuation">:</span>
+        <span class="token keyword">for</span> callback <span class="token keyword">in</span> self<span class="token punctuation">.</span>_subscribers<span class="token punctuation">.</span>get<span class="token punctuation">(</span>event<span class="token punctuation">,</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">)</span><span class="token punctuation">:</span>
+            callback<span class="token punctuation">(</span>data<span class="token punctuation">)</span>
+
+<span class="token comment"># Set up observers</span>
+bus <span class="token operator">=</span> EventBus<span class="token punctuation">(</span><span class="token punctuation">)</span>
+bus<span class="token punctuation">.</span>subscribe<span class="token punctuation">(</span><span class="token string">"deploy.complete"</span><span class="token punctuation">,</span> send_slack_notification<span class="token punctuation">)</span>
+bus<span class="token punctuation">.</span>subscribe<span class="token punctuation">(</span><span class="token string">"deploy.complete"</span><span class="token punctuation">,</span> update_dashboard<span class="token punctuation">)</span>
+bus<span class="token punctuation">.</span>subscribe<span class="token punctuation">(</span><span class="token string">"deploy.complete"</span><span class="token punctuation">,</span> run_smoke_tests<span class="token punctuation">)</span>
+bus<span class="token punctuation">.</span>subscribe<span class="token punctuation">(</span><span class="token string">"deploy.failed"</span><span class="token punctuation">,</span> page_oncall_engineer<span class="token punctuation">)</span>
+
+<span class="token comment"># Publisher doesn't know or care who's listening</span>
+bus<span class="token punctuation">.</span>publish<span class="token punctuation">(</span><span class="token string">"deploy.complete"</span><span class="token punctuation">,</span> <span class="token punctuation">{</span><span class="token string">"service"</span><span class="token punctuation">:</span> <span class="token string">"api"</span><span class="token punctuation">,</span> <span class="token string">"version"</span><span class="token punctuation">:</span> <span class="token string">"2.1.0"</span><span class="token punctuation">}</span><span class="token punctuation">)</span></code></pre>
+<h3 id="when-to-use-it-2">When to Use It</h3>
+<ul>
+<li>Multiple components need to react to the same event</li>
+<li>You want loose coupling between event producers and consumers</li>
+<li>Building notification systems, event-driven architectures, or UI state management</li>
+</ul>
+<hr>
+<h2 id="3-strategy-pattern-swap-algorithms-at-runtime">3. Strategy Pattern — &quot;Swap Algorithms at Runtime&quot;</h2>
+<p>The Strategy pattern lets you define a family of algorithms, put each in its own class, and make them interchangeable.</p>
+<p><picture><source type="image/avif" srcset="/my-blog/blog/design-patterns-every-engineer-should-know/7kx96MCr20-640.avif 640w"><source type="image/webp" srcset="/my-blog/blog/design-patterns-every-engineer-should-know/7kx96MCr20-640.webp 640w"><img loading="lazy" decoding="async" src="/my-blog/blog/design-patterns-every-engineer-should-know/7kx96MCr20-640.png" alt="Three core design patterns: Factory, Observer, and Strategy" width="640" height="640"></picture></p>
+<h3 id="real-world-example-2">Real-World Example</h3>
+<p>Different documents need different chunking strategies for a RAG pipeline:</p>
+<pre class="language-python" tabindex="0"><code class="language-python"><span class="token keyword">from</span> abc <span class="token keyword">import</span> ABC<span class="token punctuation">,</span> abstractmethod
+
+<span class="token keyword">class</span> <span class="token class-name">ChunkingStrategy</span><span class="token punctuation">(</span>ABC<span class="token punctuation">)</span><span class="token punctuation">:</span>
+    <span class="token decorator annotation punctuation">@abstractmethod</span>
+    <span class="token keyword">def</span> <span class="token function">chunk</span><span class="token punctuation">(</span>self<span class="token punctuation">,</span> text<span class="token punctuation">:</span> <span class="token builtin">str</span><span class="token punctuation">)</span> <span class="token operator">-</span><span class="token operator">></span> <span class="token builtin">list</span><span class="token punctuation">[</span><span class="token builtin">str</span><span class="token punctuation">]</span><span class="token punctuation">:</span>
+        <span class="token keyword">pass</span>
+
+<span class="token keyword">class</span> <span class="token class-name">FixedSizeChunking</span><span class="token punctuation">(</span>ChunkingStrategy<span class="token punctuation">)</span><span class="token punctuation">:</span>
+    <span class="token keyword">def</span> <span class="token function">__init__</span><span class="token punctuation">(</span>self<span class="token punctuation">,</span> size<span class="token punctuation">:</span> <span class="token builtin">int</span> <span class="token operator">=</span> <span class="token number">512</span><span class="token punctuation">,</span> overlap<span class="token punctuation">:</span> <span class="token builtin">int</span> <span class="token operator">=</span> <span class="token number">50</span><span class="token punctuation">)</span><span class="token punctuation">:</span>
+        self<span class="token punctuation">.</span>size <span class="token operator">=</span> size
+        self<span class="token punctuation">.</span>overlap <span class="token operator">=</span> overlap
+
+    <span class="token keyword">def</span> <span class="token function">chunk</span><span class="token punctuation">(</span>self<span class="token punctuation">,</span> text<span class="token punctuation">:</span> <span class="token builtin">str</span><span class="token punctuation">)</span> <span class="token operator">-</span><span class="token operator">></span> <span class="token builtin">list</span><span class="token punctuation">[</span><span class="token builtin">str</span><span class="token punctuation">]</span><span class="token punctuation">:</span>
+        chunks <span class="token operator">=</span> <span class="token punctuation">[</span><span class="token punctuation">]</span>
+        <span class="token keyword">for</span> i <span class="token keyword">in</span> <span class="token builtin">range</span><span class="token punctuation">(</span><span class="token number">0</span><span class="token punctuation">,</span> <span class="token builtin">len</span><span class="token punctuation">(</span>text<span class="token punctuation">)</span><span class="token punctuation">,</span> self<span class="token punctuation">.</span>size <span class="token operator">-</span> self<span class="token punctuation">.</span>overlap<span class="token punctuation">)</span><span class="token punctuation">:</span>
+            chunks<span class="token punctuation">.</span>append<span class="token punctuation">(</span>text<span class="token punctuation">[</span>i<span class="token punctuation">:</span>i <span class="token operator">+</span> self<span class="token punctuation">.</span>size<span class="token punctuation">]</span><span class="token punctuation">)</span>
+        <span class="token keyword">return</span> chunks
+
+<span class="token keyword">class</span> <span class="token class-name">SemanticChunking</span><span class="token punctuation">(</span>ChunkingStrategy<span class="token punctuation">)</span><span class="token punctuation">:</span>
+    <span class="token keyword">def</span> <span class="token function">chunk</span><span class="token punctuation">(</span>self<span class="token punctuation">,</span> text<span class="token punctuation">:</span> <span class="token builtin">str</span><span class="token punctuation">)</span> <span class="token operator">-</span><span class="token operator">></span> <span class="token builtin">list</span><span class="token punctuation">[</span><span class="token builtin">str</span><span class="token punctuation">]</span><span class="token punctuation">:</span>
+        <span class="token comment"># Split on paragraph boundaries for semantic coherence</span>
+        <span class="token keyword">return</span> <span class="token punctuation">[</span>p<span class="token punctuation">.</span>strip<span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token keyword">for</span> p <span class="token keyword">in</span> text<span class="token punctuation">.</span>split<span class="token punctuation">(</span><span class="token string">"\n\n"</span><span class="token punctuation">)</span> <span class="token keyword">if</span> p<span class="token punctuation">.</span>strip<span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">]</span>
+
+<span class="token keyword">class</span> <span class="token class-name">DocumentProcessor</span><span class="token punctuation">:</span>
+    <span class="token keyword">def</span> <span class="token function">__init__</span><span class="token punctuation">(</span>self<span class="token punctuation">,</span> strategy<span class="token punctuation">:</span> ChunkingStrategy<span class="token punctuation">)</span><span class="token punctuation">:</span>
+        self<span class="token punctuation">.</span>strategy <span class="token operator">=</span> strategy
+
+    <span class="token keyword">def</span> <span class="token function">process</span><span class="token punctuation">(</span>self<span class="token punctuation">,</span> document<span class="token punctuation">:</span> <span class="token builtin">str</span><span class="token punctuation">)</span> <span class="token operator">-</span><span class="token operator">></span> <span class="token builtin">list</span><span class="token punctuation">[</span><span class="token builtin">str</span><span class="token punctuation">]</span><span class="token punctuation">:</span>
+        <span class="token keyword">return</span> self<span class="token punctuation">.</span>strategy<span class="token punctuation">.</span>chunk<span class="token punctuation">(</span>document<span class="token punctuation">)</span>
+
+<span class="token comment"># Swap strategies without changing the processor</span>
+processor <span class="token operator">=</span> DocumentProcessor<span class="token punctuation">(</span>SemanticChunking<span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">)</span>
+chunks <span class="token operator">=</span> processor<span class="token punctuation">.</span>process<span class="token punctuation">(</span>long_document<span class="token punctuation">)</span></code></pre>
+<h3 id="when-to-use-it-3">When to Use It</h3>
+<ul>
+<li>You have multiple algorithms for the same task</li>
+<li>You want to switch behavior at runtime based on context</li>
+<li>You're building configurable pipelines (data processing, ML, ETL)</li>
+</ul>
+<hr>
+<h2 id="4-singleton-pattern-one-instance-to-rule-them-all">4. Singleton Pattern — &quot;One Instance to Rule Them All&quot;</h2>
+<p>The Singleton pattern ensures a class has exactly one instance and provides a global access point to it.</p>
+<h3 id="when-its-actually-useful">When It's Actually Useful</h3>
+<p>Database connection pools, configuration managers, and logging services are legitimate Singleton use cases:</p>
+<pre class="language-python" tabindex="0"><code class="language-python"><span class="token keyword">class</span> <span class="token class-name">DatabasePool</span><span class="token punctuation">:</span>
+    _instance <span class="token operator">=</span> <span class="token boolean">None</span>
+
+    <span class="token keyword">def</span> <span class="token function">__new__</span><span class="token punctuation">(</span>cls<span class="token punctuation">)</span><span class="token punctuation">:</span>
+        <span class="token keyword">if</span> cls<span class="token punctuation">.</span>_instance <span class="token keyword">is</span> <span class="token boolean">None</span><span class="token punctuation">:</span>
+            cls<span class="token punctuation">.</span>_instance <span class="token operator">=</span> <span class="token builtin">super</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">.</span>__new__<span class="token punctuation">(</span>cls<span class="token punctuation">)</span>
+            cls<span class="token punctuation">.</span>_instance<span class="token punctuation">.</span>_pool <span class="token operator">=</span> create_connection_pool<span class="token punctuation">(</span>
+                host<span class="token operator">=</span><span class="token string">"db.example.com"</span><span class="token punctuation">,</span>
+                max_connections<span class="token operator">=</span><span class="token number">20</span>
+            <span class="token punctuation">)</span>
+        <span class="token keyword">return</span> cls<span class="token punctuation">.</span>_instance
+
+    <span class="token keyword">def</span> <span class="token function">get_connection</span><span class="token punctuation">(</span>self<span class="token punctuation">)</span><span class="token punctuation">:</span>
+        <span class="token keyword">return</span> self<span class="token punctuation">.</span>_pool<span class="token punctuation">.</span>acquire<span class="token punctuation">(</span><span class="token punctuation">)</span>
+
+<span class="token comment"># Both references point to the same pool</span>
+db1 <span class="token operator">=</span> DatabasePool<span class="token punctuation">(</span><span class="token punctuation">)</span>
+db2 <span class="token operator">=</span> DatabasePool<span class="token punctuation">(</span><span class="token punctuation">)</span>
+<span class="token keyword">assert</span> db1 <span class="token keyword">is</span> db2  <span class="token comment"># True — same instance</span></code></pre>
+<h3 id="the-singleton-warning">⚠️ The Singleton Warning</h3>
+<p>Singletons are heavily overused. Before reaching for one, ask yourself:</p>
+<ul>
+<li><strong>Could I use dependency injection instead?</strong> (Usually yes, and it's more testable)</li>
+<li><strong>Am I using this as a global variable?</strong> (That's a code smell)</li>
+<li><strong>Will this make testing harder?</strong> (Singletons carry state between tests)</li>
+</ul>
+<p>In modern Python, I prefer module-level instances or dependency injection over the classic Singleton pattern.</p>
+<hr>
+<h2 id="cheat-sheet">Cheat Sheet</h2>
+<table>
+<thead>
+<tr>
+<th>Pattern</th>
+<th>Problem It Solves</th>
+<th>Key Signal</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Factory</strong></td>
+<td>Complex object creation</td>
+<td><code>if/elif</code> chains creating objects</td>
+</tr>
+<tr>
+<td><strong>Observer</strong></td>
+<td>Multiple reactions to events</td>
+<td>Several components watching for changes</td>
+</tr>
+<tr>
+<td><strong>Strategy</strong></td>
+<td>Swappable algorithms</td>
+<td><code>if/elif</code> chains choosing behavior</td>
+</tr>
+<tr>
+<td><strong>Singleton</strong></td>
+<td>Exactly one shared instance</td>
+<td>Resource pools, config, logging</td>
+</tr>
+</tbody>
+</table>
+<h2 id="what-about-the-rest">What About the Rest?</h2>
+<p>These four cover probably 70% of the patterns I use day-to-day. Other patterns worth learning next:</p>
+<ul>
+<li><strong>Decorator</strong> — Add behavior to objects dynamically (Python has this built-in with <code>@decorators</code>)</li>
+<li><strong>Adapter</strong> — Make incompatible interfaces work together</li>
+<li><strong>Builder</strong> — Construct complex objects step by step</li>
+</ul>
+<p>The best way to learn patterns isn't memorization — it's recognizing the problems they solve in your own code. Next time you see a messy <code>if/elif</code> chain or tightly coupled components, that's your signal.</p>
+<hr>
+<p><em>Have a favorite pattern I didn't cover? <a href="https://linkedin.com/in/rohit-marathe-ucf">Let me know on LinkedIn</a>.</em></p>
+
+<ul class="links-nextprev"><li class="links-nextprev-prev">← Previous<br> <a href="/my-blog/blog/system-design-101/">System Design 101 — Building Blocks of Scalable Systems</a></li><li class="links-nextprev-next">Next →<br><a href="/my-blog/blog/building-multi-agent-systems/">Multi-Agent Orchestration — Patterns That Actually Work</a></li>
+</ul>
+
+			</heading-anchors>
+		</main>
+
+		<footer>
+			<div class="footer-links">
+				<a href="https://github.com/rpm360" target="_blank" rel="noopener">GitHub</a>
+				<a href="https://linkedin.com/in/rohit-marathe-ucf" target="_blank" rel="noopener">LinkedIn</a>
+				<a href="mailto:rohitmarathe1995@gmail.com">Email</a>
+			</div>
+			<p>&copy; 2025 Rohit Marathe · Built with <a href="https://www.11ty.dev/">Eleventy</a></p>
+		</footer>
+
+		<!-- This page `/blog/design-patterns-every-engineer-should-know/` was built on 2026-02-28T02:43:52.632Z -->
+		<script type="module" src="/my-blog/dist/cC8wS6ZjFU.js"></script>
+	</body>
+</html>
