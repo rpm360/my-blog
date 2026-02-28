@@ -1,91 +1,97 @@
 <?xml version="1.0" encoding="utf-8"?>
 <?xml-stylesheet href="pretty-atom-feed.xsl" type="text/xsl"?>
 <feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en">
-  <title>Blog Title</title>
-  <subtitle>This is a longer description about your blog.</subtitle>
-  <link href="https://example.com/my-blog/feed/feed.xml" rel="self" />
-  <link href="https://example.com/my-blog/" />
-  <updated>2018-09-30T00:00:00Z</updated>
-  <id>https://example.com/my-blog/</id>
+  <title>Rohit Marathe</title>
+  <subtitle>AI Systems Engineer crafting intelligent systems at scale.</subtitle>
+  <link href="https://rpm360.github.io/my-blog/feed/feed.xml" rel="self" />
+  <link href="https://rpm360.github.io/my-blog/my-blog/" />
+  <updated>2025-02-27T00:00:00Z</updated>
+  <id>https://rpm360.github.io/my-blog/my-blog/</id>
   <author>
-    <name>Your Name</name>
+    <name>Rohit Marathe</name>
   </author>
   <entry>
-    <title>This is my fourth post</title>
-    <link href="https://example.com/my-blog/blog/fourthpost/" />
-    <updated>2018-09-30T00:00:00Z</updated>
-    <id>https://example.com/my-blog/blog/fourthpost/</id>
-    <content type="html">&lt;p&gt;Leverage agile frameworks to provide a robust synopsis for high level overviews. Iterative approaches to corporate strategy foster collaborative thinking to further the overall value proposition. Organically grow the holistic world view of disruptive innovation via workplace diversity and empowerment.&lt;/p&gt;
-&lt;p&gt;Bring to the table win-win survival strategies to ensure proactive domination. At the end of the day, going forward, a new normal that has evolved from generation X is on the runway heading towards a streamlined cloud solution. User generated content in real-time will have multiple touchpoints for offshoring.&lt;/p&gt;
-&lt;picture&gt;&lt;source type=&quot;image/avif&quot; srcset=&quot;https://example.com/my-blog/blog/fourthpost/xbVnp_hAou-350.avif 350w&quot;&gt;&lt;source type=&quot;image/webp&quot; srcset=&quot;https://example.com/my-blog/blog/fourthpost/xbVnp_hAou-350.webp 350w&quot;&gt;&lt;img loading=&quot;lazy&quot; decoding=&quot;async&quot; src=&quot;https://example.com/my-blog/blog/fourthpost/xbVnp_hAou-350.png&quot; alt=&quot;A possum parent and two possum kids hanging from the iconic red balloon&quot; width=&quot;350&quot; height=&quot;685&quot;&gt;&lt;/picture&gt;
-&lt;h2 id=&quot;section-header&quot;&gt;Section Header&lt;/h2&gt;
-&lt;p&gt;Capitalize on low hanging fruit to identify a ballpark value added activity to beta test. Override the digital divide with additional clickthroughs from DevOps. Nanotechnology immersion along the information highway will close the loop on focusing solely on the bottom line.&lt;/p&gt;
+    <title>Hello World — Why I&#39;m Starting This Blog</title>
+    <link href="https://rpm360.github.io/my-blog/blog/firstpost/" />
+    <updated>2025-02-27T00:00:00Z</updated>
+    <id>https://rpm360.github.io/my-blog/blog/firstpost/</id>
+    <content type="html">&lt;p&gt;If you&#39;re reading this, welcome! I&#39;m Rohit — an AI Systems Engineer currently building intelligent systems at &lt;a href=&quot;https://www.rocketmortgage.com/&quot;&gt;Rocket Mortgage&lt;/a&gt; in Atlanta.&lt;/p&gt;
+&lt;p&gt;I&#39;ve spent the last 6+ years working at the intersection of software engineering and artificial intelligence, from building conversational AI bots at Kore.ai to architecting multi-agent systems that handle millions of requests in production.&lt;/p&gt;
+&lt;h2 id=&quot;why-a-blog&quot;&gt;Why a blog?&lt;/h2&gt;
+&lt;p&gt;I&#39;ve learned so much from engineers who share their knowledge openly — blog posts that saved me hours of debugging, architecture write-ups that shaped how I think about systems, and tutorials that helped me pick up new tools. It&#39;s time I give back.&lt;/p&gt;
+&lt;p&gt;This blog is where I&#39;ll write about:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Building AI systems in production&lt;/strong&gt; — not just the theory, but the messy reality of deploying LLMs at scale&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Multi-agent orchestration&lt;/strong&gt; — patterns, pitfalls, and what actually works when you need multiple AI agents to collaborate&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Cloud engineering&lt;/strong&gt; — AWS, Kubernetes, and the infrastructure that makes AI systems reliable&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Lessons from the field&lt;/strong&gt; — things I wish I knew earlier, debugging war stories, and career reflections&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&quot;what-i-wont-do&quot;&gt;What I won&#39;t do&lt;/h2&gt;
+&lt;p&gt;I&#39;m not going to write generic &amp;quot;What is AI?&amp;quot; explainers. There are plenty of those. Instead, I&#39;ll share the things I&#39;ve learned by actually building and operating these systems — the decisions, trade-offs, and hard-won insights that come from production experience.&lt;/p&gt;
+&lt;h2 id=&quot;lets-connect&quot;&gt;Let&#39;s connect&lt;/h2&gt;
+&lt;p&gt;If any of this resonates with you, I&#39;d love to connect. Find me on &lt;a href=&quot;https://github.com/rpm360&quot;&gt;GitHub&lt;/a&gt; or &lt;a href=&quot;https://linkedin.com/in/rohit-marathe-ucf&quot;&gt;LinkedIn&lt;/a&gt;, or just keep reading.&lt;/p&gt;
+&lt;p&gt;Let&#39;s build something cool. 🚀&lt;/p&gt;
 </content>
   </entry>
   <entry>
-    <title>This is my third post.</title>
-    <link href="https://example.com/my-blog/blog/thirdpost/" />
-    <updated>2018-08-24T00:00:00Z</updated>
-    <id>https://example.com/my-blog/blog/thirdpost/</id>
-    <content type="html">&lt;p&gt;Leverage agile frameworks to provide a robust synopsis for high level overviews. Iterative approaches to corporate strategy foster collaborative thinking to further the overall value proposition. Organically grow the holistic world view of disruptive innovation via workplace diversity and empowerment.&lt;/p&gt;
-&lt;h2 id=&quot;code&quot;&gt;Code&lt;/h2&gt;
-&lt;h3 id=&quot;this-is-a-very-long-heading-that-i-want-to-wrap-this-is-a-very-long-heading-that-i-want-to-wrap-this-is-a-very-long-heading-that-i-want-to-wrap-this-is-a-very-long-heading-that-i-want-to-wrap&quot;&gt;This is a very long heading that I want to wrap This is a very long heading that I want to wrap This is a very long heading that I want to wrap This is a very long heading that I want to wrap&lt;/h3&gt;
-&lt;p&gt;Bring to the table win-win survival strategies to ensure proactive domination. At the end of the day, going forward, a new normal that has evolved from generation X is on the runway heading towards a streamlined cloud solution. User generated content in real-time will have multiple touchpoints for offshoring.&lt;/p&gt;
-&lt;pre class=&quot;language-js&quot; tabindex=&quot;0&quot;&gt;&lt;code class=&quot;language-js&quot;&gt;&lt;span class=&quot;token comment&quot;&gt;// this is a command&lt;/span&gt;
-&lt;span class=&quot;token keyword&quot;&gt;function&lt;/span&gt; &lt;span class=&quot;token function&quot;&gt;myCommand&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;
-	&lt;span class=&quot;token keyword&quot;&gt;let&lt;/span&gt; counter &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;;&lt;/span&gt;
-	counter&lt;span class=&quot;token operator&quot;&gt;++&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;;&lt;/span&gt;
-&lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;
+    <title>Multi-Agent Orchestration — Patterns That Actually Work</title>
+    <link href="https://rpm360.github.io/my-blog/blog/building-multi-agent-systems/" />
+    <updated>2025-02-27T00:00:00Z</updated>
+    <id>https://rpm360.github.io/my-blog/blog/building-multi-agent-systems/</id>
+    <content type="html">&lt;p&gt;After spending the past year building multi-agent systems at Rocket Mortgage, I&#39;ve learned that the gap between a demo and production is enormous. Here are the patterns that actually survived contact with real traffic.&lt;/p&gt;
+&lt;h2 id=&quot;the-problem&quot;&gt;The Problem&lt;/h2&gt;
+&lt;p&gt;A single LLM prompt can answer simple questions. But when you need an AI system to handle mortgage calculations, search property databases, analyze banker performance, &lt;em&gt;and&lt;/em&gt; diagnose system alerts — you need specialization.&lt;/p&gt;
+&lt;p&gt;That&#39;s where multi-agent orchestration comes in: instead of one monolithic prompt, you build a system of specialized agents that collaborate.&lt;/p&gt;
+&lt;h2 id=&quot;pattern-1-router-based-orchestration&quot;&gt;Pattern 1: Router-Based Orchestration&lt;/h2&gt;
+&lt;p&gt;The simplest pattern that works. A central router agent classifies incoming requests and delegates to the appropriate specialist.&lt;/p&gt;
+&lt;pre class=&quot;language-python&quot; tabindex=&quot;0&quot;&gt;&lt;code class=&quot;language-python&quot;&gt;&lt;span class=&quot;token keyword&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;token class-name&quot;&gt;OrchestratorRouter&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;token keyword&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;token function&quot;&gt;__init__&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;self&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; agents&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token builtin&quot;&gt;dict&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;token builtin&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; Agent&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+        self&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;agents &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; agents
+        self&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;classifier &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; ClassifierAgent&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
 
-&lt;span class=&quot;token comment&quot;&gt;// Test with a line break above this line.&lt;/span&gt;
-console&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token function&quot;&gt;log&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&#39;Test&#39;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;h3 id=&quot;heading-with-a-link&quot;&gt;Heading with a &lt;a href=&quot;https://example.com/my-blog/blog/thirdpost/#code&quot;&gt;link&lt;/a&gt;&lt;/h3&gt;
-&lt;p&gt;Bring to the table win-win survival strategies to ensure proactive domination. At the end of the day, going forward, a new normal that has evolved from generation X is on the runway heading towards a streamlined cloud solution. User generated content in real-time will have multiple touchpoints for offshoring.&lt;/p&gt;
-&lt;pre&gt;&lt;code&gt;// this is a command
-function myCommand() {
-	let counter = 0;
-	counter++;
-}
+    &lt;span class=&quot;token keyword&quot;&gt;async&lt;/span&gt; &lt;span class=&quot;token keyword&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;token function&quot;&gt;handle&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;self&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; request&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; UserRequest&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;token operator&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;token operator&quot;&gt;&gt;&lt;/span&gt; Response&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+        intent &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;token keyword&quot;&gt;await&lt;/span&gt; self&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;classifier&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;classify&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;request&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+        agent &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; self&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;agents&lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;intent&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt;
+        &lt;span class=&quot;token keyword&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;token keyword&quot;&gt;await&lt;/span&gt; agent&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;execute&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;request&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;strong&gt;When to use it:&lt;/strong&gt; When your agents have clearly distinct domains and requests rarely need multiple agents.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;The catch:&lt;/strong&gt; Classification accuracy is everything. A misrouted request gives the user a completely wrong answer with full confidence. We found that adding a confidence threshold and falling back to a general agent for low-confidence classifications cut our error rate by 20%.&lt;/p&gt;
+&lt;h2 id=&quot;pattern-2-multi-llm-failover&quot;&gt;Pattern 2: Multi-LLM Failover&lt;/h2&gt;
+&lt;p&gt;Production systems can&#39;t go down. We built a failover architecture that routes between Claude and GPT-4 based on availability and rate limits.&lt;/p&gt;
+&lt;pre class=&quot;language-python&quot; tabindex=&quot;0&quot;&gt;&lt;code class=&quot;language-python&quot;&gt;&lt;span class=&quot;token keyword&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;token class-name&quot;&gt;MultiLLMClient&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;token keyword&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;token function&quot;&gt;__init__&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;self&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; providers&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token builtin&quot;&gt;list&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;LLMProvider&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+        self&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;providers &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; providers  &lt;span class=&quot;token comment&quot;&gt;# ordered by preference&lt;/span&gt;
 
-// Test with a line break above this line.
-console.log(&#39;Test&#39;);
-&lt;/code&gt;&lt;/pre&gt;
-&lt;h2 id=&quot;section-header&quot;&gt;Section Header&lt;/h2&gt;
-&lt;p&gt;Capitalize on low hanging fruit to identify a ballpark value added activity to beta test. Override the digital divide with additional clickthroughs from DevOps. Nanotechnology immersion along the information highway will close the loop on focusing solely on the bottom line.&lt;/p&gt;
-</content>
-  </entry>
-  <entry>
-    <title>This is my second post with a much longer title.</title>
-    <link href="https://example.com/my-blog/blog/secondpost/" />
-    <updated>2018-07-04T00:00:00Z</updated>
-    <id>https://example.com/my-blog/blog/secondpost/</id>
-    <content type="html">&lt;p&gt;Leverage agile frameworks to provide a robust synopsis for high level overviews. Iterative approaches to corporate strategy foster collaborative thinking to further the overall value proposition. Organically grow the holistic world view of disruptive innovation via workplace diversity and empowerment.&lt;/p&gt;
-&lt;h2 id=&quot;section-header&quot;&gt;Section Header&lt;/h2&gt;
-&lt;p&gt;&lt;a href=&quot;https://example.com/my-blog/blog/firstpost/&quot;&gt;First post&lt;/a&gt;
-&lt;a href=&quot;https://example.com/my-blog/blog/thirdpost/&quot;&gt;Third post&lt;/a&gt;&lt;/p&gt;
-&lt;p&gt;Bring to the table win-win survival strategies to ensure proactive domination. At the end of the day, going forward, a new normal that has evolved from generation X is on the runway heading towards a streamlined cloud solution. User generated content in real-time will have multiple touchpoints for offshoring.&lt;/p&gt;
-&lt;p&gt;Capitalize on low hanging fruit to identify a ballpark value added activity to beta test. Override the digital divide with additional clickthroughs from DevOps. Nanotechnology immersion along the information highway will close the loop on focusing solely on the bottom line.&lt;/p&gt;
-</content>
-  </entry>
-  <entry>
-    <title>This is my first post.</title>
-    <link href="https://example.com/my-blog/blog/firstpost/" />
-    <updated>2018-05-01T00:00:00Z</updated>
-    <id>https://example.com/my-blog/blog/firstpost/</id>
-    <content type="html">&lt;p&gt;Leverage agile frameworks to provide a robust synopsis for high level overviews. Iterative approaches to corporate strategy foster collaborative thinking to further the overall value proposition. Organically grow the holistic world view of disruptive innovation via workplace diversity and empowerment.&lt;/p&gt;
-&lt;p&gt;Bring to the table win-win survival strategies to ensure proactive domination. At the end of the day, going forward, a new normal that has evolved from generation X is on the runway heading towards a streamlined cloud solution. User generated content in real-time will have multiple touchpoints for offshoring.&lt;/p&gt;
-&lt;h2 id=&quot;section-header&quot;&gt;Section Header&lt;/h2&gt;
-&lt;p&gt;Capitalize on low hanging fruit to identify a ballpark value added activity to beta test. Override the digital divide with additional clickthroughs from DevOps. Nanotechnology immersion along the information highway will close the loop on focusing solely on the bottom line.&lt;/p&gt;
-&lt;pre class=&quot;language-diff-js&quot; tabindex=&quot;0&quot;&gt;&lt;code class=&quot;language-diff-js&quot;&gt;&lt;span class=&quot;token unchanged language-js&quot;&gt;&lt;span class=&quot;token prefix unchanged&quot;&gt; &lt;/span&gt;&lt;span class=&quot;token comment&quot;&gt;// this is a command&lt;/span&gt;
-&lt;span class=&quot;token prefix unchanged&quot;&gt; &lt;/span&gt;&lt;span class=&quot;token keyword&quot;&gt;function&lt;/span&gt; &lt;span class=&quot;token function&quot;&gt;myCommand&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&quot;token inserted-sign inserted language-js&quot;&gt;&lt;span class=&quot;token prefix inserted&quot;&gt;+&lt;/span&gt;  &lt;span class=&quot;token keyword&quot;&gt;let&lt;/span&gt; counter &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&quot;token deleted-sign deleted language-js&quot;&gt;&lt;span class=&quot;token prefix deleted&quot;&gt;-&lt;/span&gt;  &lt;span class=&quot;token keyword&quot;&gt;let&lt;/span&gt; counter &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;;&lt;/span&gt;
-&lt;/span&gt;&lt;span class=&quot;token unchanged language-js&quot;&gt;&lt;span class=&quot;token prefix unchanged&quot;&gt; &lt;/span&gt;  counter&lt;span class=&quot;token operator&quot;&gt;++&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;;&lt;/span&gt;
-&lt;span class=&quot;token prefix unchanged&quot;&gt; &lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;
-&lt;/span&gt;
-&lt;span class=&quot;token unchanged language-js&quot;&gt;&lt;span class=&quot;token prefix unchanged&quot;&gt; &lt;/span&gt;&lt;span class=&quot;token comment&quot;&gt;// Test with a line break above this line.&lt;/span&gt;
-&lt;span class=&quot;token prefix unchanged&quot;&gt; &lt;/span&gt;console&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;token function&quot;&gt;log&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&#39;Test&#39;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;;&lt;/span&gt;
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+    &lt;span class=&quot;token keyword&quot;&gt;async&lt;/span&gt; &lt;span class=&quot;token keyword&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;token function&quot;&gt;complete&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;self&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; prompt&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token builtin&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;token operator&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;token operator&quot;&gt;&gt;&lt;/span&gt; &lt;span class=&quot;token builtin&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;token keyword&quot;&gt;for&lt;/span&gt; provider &lt;span class=&quot;token keyword&quot;&gt;in&lt;/span&gt; self&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;providers&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;token keyword&quot;&gt;if&lt;/span&gt; provider&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;is_available&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+                &lt;span class=&quot;token keyword&quot;&gt;try&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+                    &lt;span class=&quot;token keyword&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;token keyword&quot;&gt;await&lt;/span&gt; provider&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;complete&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;prompt&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+                &lt;span class=&quot;token keyword&quot;&gt;except&lt;/span&gt; RateLimitError&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+                    provider&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;mark_limited&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+                    &lt;span class=&quot;token keyword&quot;&gt;continue&lt;/span&gt;
+        &lt;span class=&quot;token keyword&quot;&gt;raise&lt;/span&gt; AllProvidersExhaustedError&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The key insight: &lt;strong&gt;rate-limiting guardrails must be proactive, not reactive.&lt;/strong&gt; By the time you get a 429 response, you&#39;ve already wasted latency. We track token consumption in real-time and start routing to the backup provider &lt;em&gt;before&lt;/em&gt; hitting the limit.&lt;/p&gt;
+&lt;h2 id=&quot;pattern-3-self-healing-agents&quot;&gt;Pattern 3: Self-Healing Agents&lt;/h2&gt;
+&lt;p&gt;This is the one I&#39;m most proud of. We built an agent that monitors system alerts, diagnoses root causes using RAG over our runbooks, and executes remediation scripts autonomously.&lt;/p&gt;
+&lt;p&gt;The architecture:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;Alert ingestion&lt;/strong&gt; — System alert comes in via webhook&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Context retrieval&lt;/strong&gt; — RAG searches our knowledge base of past incidents and runbooks&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Diagnosis&lt;/strong&gt; — LLM analyzes the alert + retrieved context to identify root cause&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Action planning&lt;/strong&gt; — Agent proposes remediation steps using function calling&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Execution&lt;/strong&gt; — Approved actions are executed via MCP server integration&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;The critical guardrail: &lt;strong&gt;never auto-execute destructive actions.&lt;/strong&gt; Our agent can restart services and clear caches autonomously, but anything involving data modification requires human approval.&lt;/p&gt;
+&lt;h2 id=&quot;what-i-d-do-differently&quot;&gt;What I&#39;d Do Differently&lt;/h2&gt;
+&lt;p&gt;If I were starting over, I&#39;d invest more in &lt;strong&gt;observability from day one&lt;/strong&gt;. We eventually built an LLM-as-a-Judge pipeline with Langfuse that continuously evaluates agent responses, but we should have had that from the start. When you have multiple agents in a pipeline, debugging &amp;quot;why did the system give a wrong answer?&amp;quot; becomes a multi-step investigation. Good tracing makes this 10x easier.&lt;/p&gt;
+&lt;h2 id=&quot;key-takeaways&quot;&gt;Key Takeaways&lt;/h2&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;Start simple&lt;/strong&gt; — Router-based orchestration handles 80% of use cases&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Build for failure&lt;/strong&gt; — Multi-LLM failover is not optional in production&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Observe everything&lt;/strong&gt; — You can&#39;t improve what you can&#39;t measure&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Guardrails are features&lt;/strong&gt; — The best agent is one that knows when &lt;em&gt;not&lt;/em&gt; to act&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;I&#39;ll dive deeper into each of these patterns in future posts. If you&#39;re building something similar, I&#39;d love to hear about your approach — &lt;a href=&quot;https://linkedin.com/in/rohit-marathe-ucf&quot;&gt;reach out on LinkedIn&lt;/a&gt;.&lt;/p&gt;
 </content>
   </entry>
 </feed>

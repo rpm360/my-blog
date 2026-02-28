@@ -3,8 +3,8 @@
 	<head>
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
-		<title>Hello World — Why I&#39;m Starting This Blog</title>
-		<meta name="description" content="An introduction to who I am, what I do as an AI Systems Engineer, and what you can expect from this blog.">
+		<title>Multi-Agent Orchestration — Patterns That Actually Work</title>
+		<meta name="description" content="Practical patterns for building multi-agent AI systems in production, from routing strategies to failover architecture.">
 		<meta name="author" content="Rohit Marathe">
 		<link rel="alternate" href="/my-blog/feed/feed.xml" type="application/atom+xml" title="Rohit Marathe">
 		<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
@@ -755,32 +755,71 @@ pre[class*="language-diff-"] {
 				
 
 
-<h1 id="hello-world-why-i-m-starting-this-blog">Hello World — Why I&#39;m Starting This Blog</h1>
+<h1 id="multi-agent-orchestration-patterns-that-actually-work">Multi-Agent Orchestration — Patterns That Actually Work</h1>
 
 <ul class="post-metadata">
 	<li><time datetime="2025-02-27">27 February 2025</time></li>
-	<li><a href="/my-blog/tags/personal/" class="post-tag">personal</a>, </li>
-	<li><a href="/my-blog/tags/ai/" class="post-tag">ai</a></li>
+	<li><a href="/my-blog/tags/ai/" class="post-tag">ai</a>, </li>
+	<li><a href="/my-blog/tags/multi-agent/" class="post-tag">multi-agent</a>, </li>
+	<li><a href="/my-blog/tags/architecture/" class="post-tag">architecture</a></li>
 </ul>
 
-<p>If you're reading this, welcome! I'm Rohit — an AI Systems Engineer currently building intelligent systems at <a href="https://www.rocketmortgage.com/">Rocket Mortgage</a> in Atlanta.</p>
-<p>I've spent the last 6+ years working at the intersection of software engineering and artificial intelligence, from building conversational AI bots at Kore.ai to architecting multi-agent systems that handle millions of requests in production.</p>
-<h2 id="why-a-blog">Why a blog?</h2>
-<p>I've learned so much from engineers who share their knowledge openly — blog posts that saved me hours of debugging, architecture write-ups that shaped how I think about systems, and tutorials that helped me pick up new tools. It's time I give back.</p>
-<p>This blog is where I'll write about:</p>
-<ul>
-<li><strong>Building AI systems in production</strong> — not just the theory, but the messy reality of deploying LLMs at scale</li>
-<li><strong>Multi-agent orchestration</strong> — patterns, pitfalls, and what actually works when you need multiple AI agents to collaborate</li>
-<li><strong>Cloud engineering</strong> — AWS, Kubernetes, and the infrastructure that makes AI systems reliable</li>
-<li><strong>Lessons from the field</strong> — things I wish I knew earlier, debugging war stories, and career reflections</li>
-</ul>
-<h2 id="what-i-wont-do">What I won't do</h2>
-<p>I'm not going to write generic &quot;What is AI?&quot; explainers. There are plenty of those. Instead, I'll share the things I've learned by actually building and operating these systems — the decisions, trade-offs, and hard-won insights that come from production experience.</p>
-<h2 id="lets-connect">Let's connect</h2>
-<p>If any of this resonates with you, I'd love to connect. Find me on <a href="https://github.com/rpm360">GitHub</a> or <a href="https://linkedin.com/in/rohit-marathe-ucf">LinkedIn</a>, or just keep reading.</p>
-<p>Let's build something cool. 🚀</p>
+<p>After spending the past year building multi-agent systems at Rocket Mortgage, I've learned that the gap between a demo and production is enormous. Here are the patterns that actually survived contact with real traffic.</p>
+<h2 id="the-problem">The Problem</h2>
+<p>A single LLM prompt can answer simple questions. But when you need an AI system to handle mortgage calculations, search property databases, analyze banker performance, <em>and</em> diagnose system alerts — you need specialization.</p>
+<p>That's where multi-agent orchestration comes in: instead of one monolithic prompt, you build a system of specialized agents that collaborate.</p>
+<h2 id="pattern-1-router-based-orchestration">Pattern 1: Router-Based Orchestration</h2>
+<p>The simplest pattern that works. A central router agent classifies incoming requests and delegates to the appropriate specialist.</p>
+<pre class="language-python" tabindex="0"><code class="language-python"><span class="token keyword">class</span> <span class="token class-name">OrchestratorRouter</span><span class="token punctuation">:</span>
+    <span class="token keyword">def</span> <span class="token function">__init__</span><span class="token punctuation">(</span>self<span class="token punctuation">,</span> agents<span class="token punctuation">:</span> <span class="token builtin">dict</span><span class="token punctuation">[</span><span class="token builtin">str</span><span class="token punctuation">,</span> Agent<span class="token punctuation">]</span><span class="token punctuation">)</span><span class="token punctuation">:</span>
+        self<span class="token punctuation">.</span>agents <span class="token operator">=</span> agents
+        self<span class="token punctuation">.</span>classifier <span class="token operator">=</span> ClassifierAgent<span class="token punctuation">(</span><span class="token punctuation">)</span>
 
-<ul class="links-nextprev"><li class="links-nextprev-prev">← Previous<br> <a href="/my-blog/blog/building-multi-agent-systems/">Multi-Agent Orchestration — Patterns That Actually Work</a></li>
+    <span class="token keyword">async</span> <span class="token keyword">def</span> <span class="token function">handle</span><span class="token punctuation">(</span>self<span class="token punctuation">,</span> request<span class="token punctuation">:</span> UserRequest<span class="token punctuation">)</span> <span class="token operator">-</span><span class="token operator">></span> Response<span class="token punctuation">:</span>
+        intent <span class="token operator">=</span> <span class="token keyword">await</span> self<span class="token punctuation">.</span>classifier<span class="token punctuation">.</span>classify<span class="token punctuation">(</span>request<span class="token punctuation">)</span>
+        agent <span class="token operator">=</span> self<span class="token punctuation">.</span>agents<span class="token punctuation">[</span>intent<span class="token punctuation">]</span>
+        <span class="token keyword">return</span> <span class="token keyword">await</span> agent<span class="token punctuation">.</span>execute<span class="token punctuation">(</span>request<span class="token punctuation">)</span></code></pre>
+<p><strong>When to use it:</strong> When your agents have clearly distinct domains and requests rarely need multiple agents.</p>
+<p><strong>The catch:</strong> Classification accuracy is everything. A misrouted request gives the user a completely wrong answer with full confidence. We found that adding a confidence threshold and falling back to a general agent for low-confidence classifications cut our error rate by 20%.</p>
+<h2 id="pattern-2-multi-llm-failover">Pattern 2: Multi-LLM Failover</h2>
+<p>Production systems can't go down. We built a failover architecture that routes between Claude and GPT-4 based on availability and rate limits.</p>
+<pre class="language-python" tabindex="0"><code class="language-python"><span class="token keyword">class</span> <span class="token class-name">MultiLLMClient</span><span class="token punctuation">:</span>
+    <span class="token keyword">def</span> <span class="token function">__init__</span><span class="token punctuation">(</span>self<span class="token punctuation">,</span> providers<span class="token punctuation">:</span> <span class="token builtin">list</span><span class="token punctuation">[</span>LLMProvider<span class="token punctuation">]</span><span class="token punctuation">)</span><span class="token punctuation">:</span>
+        self<span class="token punctuation">.</span>providers <span class="token operator">=</span> providers  <span class="token comment"># ordered by preference</span>
+
+    <span class="token keyword">async</span> <span class="token keyword">def</span> <span class="token function">complete</span><span class="token punctuation">(</span>self<span class="token punctuation">,</span> prompt<span class="token punctuation">:</span> <span class="token builtin">str</span><span class="token punctuation">)</span> <span class="token operator">-</span><span class="token operator">></span> <span class="token builtin">str</span><span class="token punctuation">:</span>
+        <span class="token keyword">for</span> provider <span class="token keyword">in</span> self<span class="token punctuation">.</span>providers<span class="token punctuation">:</span>
+            <span class="token keyword">if</span> provider<span class="token punctuation">.</span>is_available<span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">:</span>
+                <span class="token keyword">try</span><span class="token punctuation">:</span>
+                    <span class="token keyword">return</span> <span class="token keyword">await</span> provider<span class="token punctuation">.</span>complete<span class="token punctuation">(</span>prompt<span class="token punctuation">)</span>
+                <span class="token keyword">except</span> RateLimitError<span class="token punctuation">:</span>
+                    provider<span class="token punctuation">.</span>mark_limited<span class="token punctuation">(</span><span class="token punctuation">)</span>
+                    <span class="token keyword">continue</span>
+        <span class="token keyword">raise</span> AllProvidersExhaustedError<span class="token punctuation">(</span><span class="token punctuation">)</span></code></pre>
+<p>The key insight: <strong>rate-limiting guardrails must be proactive, not reactive.</strong> By the time you get a 429 response, you've already wasted latency. We track token consumption in real-time and start routing to the backup provider <em>before</em> hitting the limit.</p>
+<h2 id="pattern-3-self-healing-agents">Pattern 3: Self-Healing Agents</h2>
+<p>This is the one I'm most proud of. We built an agent that monitors system alerts, diagnoses root causes using RAG over our runbooks, and executes remediation scripts autonomously.</p>
+<p>The architecture:</p>
+<ol>
+<li><strong>Alert ingestion</strong> — System alert comes in via webhook</li>
+<li><strong>Context retrieval</strong> — RAG searches our knowledge base of past incidents and runbooks</li>
+<li><strong>Diagnosis</strong> — LLM analyzes the alert + retrieved context to identify root cause</li>
+<li><strong>Action planning</strong> — Agent proposes remediation steps using function calling</li>
+<li><strong>Execution</strong> — Approved actions are executed via MCP server integration</li>
+</ol>
+<p>The critical guardrail: <strong>never auto-execute destructive actions.</strong> Our agent can restart services and clear caches autonomously, but anything involving data modification requires human approval.</p>
+<h2 id="what-i-d-do-differently">What I'd Do Differently</h2>
+<p>If I were starting over, I'd invest more in <strong>observability from day one</strong>. We eventually built an LLM-as-a-Judge pipeline with Langfuse that continuously evaluates agent responses, but we should have had that from the start. When you have multiple agents in a pipeline, debugging &quot;why did the system give a wrong answer?&quot; becomes a multi-step investigation. Good tracing makes this 10x easier.</p>
+<h2 id="key-takeaways">Key Takeaways</h2>
+<ol>
+<li><strong>Start simple</strong> — Router-based orchestration handles 80% of use cases</li>
+<li><strong>Build for failure</strong> — Multi-LLM failover is not optional in production</li>
+<li><strong>Observe everything</strong> — You can't improve what you can't measure</li>
+<li><strong>Guardrails are features</strong> — The best agent is one that knows when <em>not</em> to act</li>
+</ol>
+<p>I'll dive deeper into each of these patterns in future posts. If you're building something similar, I'd love to hear about your approach — <a href="https://linkedin.com/in/rohit-marathe-ucf">reach out on LinkedIn</a>.</p>
+
+<ul class="links-nextprev"><li class="links-nextprev-next">Next →<br><a href="/my-blog/blog/firstpost/">Hello World — Why I&#39;m Starting This Blog</a></li>
 </ul>
 
 			</heading-anchors>
@@ -795,7 +834,7 @@ pre[class*="language-diff-"] {
 			<p>&copy; 2025 Rohit Marathe · Built with <a href="https://www.11ty.dev/">Eleventy</a></p>
 		</footer>
 
-		<!-- This page `/blog/firstpost/` was built on 2026-02-28T02:32:09.693Z -->
+		<!-- This page `/blog/building-multi-agent-systems/` was built on 2026-02-28T02:32:09.693Z -->
 		<script type="module" src="/my-blog/dist/cC8wS6ZjFU.js"></script>
 	</body>
 </html>
