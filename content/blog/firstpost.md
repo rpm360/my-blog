@@ -1,25 +1,33 @@
 ---
-title: This is my first post.
-description: This is a post on My Blog about agile frameworks.
-date: 2018-05-01
-tags: another tag
+title: "Hello World — Why I'm Starting This Blog"
+description: "An introduction to who I am, what I do as an AI Systems Engineer, and what you can expect from this blog."
+date: 2025-02-27
+tags:
+  - personal
+  - ai
 ---
-Leverage agile frameworks to provide a robust synopsis for high level overviews. Iterative approaches to corporate strategy foster collaborative thinking to further the overall value proposition. Organically grow the holistic world view of disruptive innovation via workplace diversity and empowerment.
 
-Bring to the table win-win survival strategies to ensure proactive domination. At the end of the day, going forward, a new normal that has evolved from generation X is on the runway heading towards a streamlined cloud solution. User generated content in real-time will have multiple touchpoints for offshoring.
+If you're reading this, welcome! I'm Rohit — an AI Systems Engineer currently building intelligent systems at [Rocket Mortgage](https://www.rocketmortgage.com/) in Atlanta.
 
-## Section Header
+I've spent the last 6+ years working at the intersection of software engineering and artificial intelligence, from building conversational AI bots at Kore.ai to architecting multi-agent systems that handle millions of requests in production.
 
-Capitalize on low hanging fruit to identify a ballpark value added activity to beta test. Override the digital divide with additional clickthroughs from DevOps. Nanotechnology immersion along the information highway will close the loop on focusing solely on the bottom line.
+## Why a blog?
 
-```diff-js
- // this is a command
- function myCommand() {
-+  let counter = 0;
--  let counter = 1;
-   counter++;
- }
+I've learned so much from engineers who share their knowledge openly — blog posts that saved me hours of debugging, architecture write-ups that shaped how I think about systems, and tutorials that helped me pick up new tools. It's time I give back.
 
- // Test with a line break above this line.
- console.log('Test');
-```
+This blog is where I'll write about:
+
+- **Building AI systems in production** — not just the theory, but the messy reality of deploying LLMs at scale
+- **Multi-agent orchestration** — patterns, pitfalls, and what actually works when you need multiple AI agents to collaborate
+- **Cloud engineering** — AWS, Kubernetes, and the infrastructure that makes AI systems reliable
+- **Lessons from the field** — things I wish I knew earlier, debugging war stories, and career reflections
+
+## What I won't do
+
+I'm not going to write generic "What is AI?" explainers. There are plenty of those. Instead, I'll share the things I've learned by actually building and operating these systems — the decisions, trade-offs, and hard-won insights that come from production experience.
+
+## Let's connect
+
+If any of this resonates with you, I'd love to connect. Find me on [GitHub](https://github.com/rpm360) or [LinkedIn](https://linkedin.com/in/rohit-marathe-ucf), or just keep reading.
+
+Let's build something cool. 🚀

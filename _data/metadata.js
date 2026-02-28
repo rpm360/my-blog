@@ -1,11 +1,11 @@
 export default {
-	title: "Eleventy Base Blog v9",
-	url: "https://example.com/",
+	title: "Rohit Marathe",
+	url: "https://rpm360.github.io/my-blog/",
 	language: "en",
-	description: "I am writing about my experiences as a naval navel-gazer.",
+	description: "AI Systems Engineer crafting intelligent systems at scale. Writing about Multi-Agent Systems, LLM Orchestration, and Cloud Engineering.",
 	author: {
-		name: "Your Name Here",
-		email: "youremailaddress@example.com",
-		url: "https://example.com/about-me/"
+		name: "Rohit Marathe",
+		email: "rohitmarathe1995@gmail.com",
+		url: "https://linkedin.com/in/rohit-marathe-ucf"
 	}
 }
