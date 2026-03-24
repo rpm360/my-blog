@@ -3,8 +3,8 @@
 	<head>
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
-		<title>Multi-Agent Orchestration — Patterns That Actually Work</title>
-		<meta name="description" content="Practical patterns for building multi-agent AI systems in production, from routing strategies to failover architecture.">
+		<title>Multi-Turn Conversation with LLM</title>
+		<meta name="description" content="A detailed guide on structuring multi-turn conversations with Large Language Models for optimal results, focusing on topic management and framework design.">
 		<meta name="author" content="Rohit Marathe">
 		<link rel="alternate" href="/my-blog/feed/feed.xml" type="application/atom+xml" title="Rohit Marathe">
 		<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
@@ -755,71 +755,126 @@ pre[class*="language-diff-"] {
 				
 
 
-<h1 id="multi-agent-orchestration-patterns-that-actually-work">Multi-Agent Orchestration — Patterns That Actually Work</h1>
+<h1 id="multi-turn-conversation-with-llm">Multi-Turn Conversation with LLM</h1>
 
 <ul class="post-metadata">
-	<li><time datetime="2025-02-27">27 February 2025</time></li>
-	<li><a href="/my-blog/tags/ai/" class="post-tag">ai</a>, </li>
-	<li><a href="/my-blog/tags/multi-agent/" class="post-tag">multi-agent</a>, </li>
-	<li><a href="/my-blog/tags/architecture/" class="post-tag">architecture</a></li>
+	<li><time datetime="2026-03-24">24 March 2026</time></li>
+	<li><a href="/my-blog/tags/llm/" class="post-tag">llm</a>, </li>
+	<li><a href="/my-blog/tags/prompt-engineering/" class="post-tag">prompt-engineering</a>, </li>
+	<li><a href="/my-blog/tags/multi-turn/" class="post-tag">multi-turn</a>, </li>
+	<li><a href="/my-blog/tags/dialog-management/" class="post-tag">dialog-management</a></li>
 </ul>
 
-<p>After spending the past year building multi-agent systems at Rocket Mortgage, I've learned that the gap between a demo and production is enormous. Here are the patterns that actually survived contact with real traffic.</p>
-<h2 id="the-problem">The Problem</h2>
-<p>A single LLM prompt can answer simple questions. But when you need an AI system to handle mortgage calculations, search property databases, analyze banker performance, <em>and</em> diagnose system alerts — you need specialization.</p>
-<p>That's where multi-agent orchestration comes in: instead of one monolithic prompt, you build a system of specialized agents that collaborate.</p>
-<h2 id="pattern-1-router-based-orchestration">Pattern 1: Router-Based Orchestration</h2>
-<p>The simplest pattern that works. A central router agent classifies incoming requests and delegates to the appropriate specialist.</p>
-<pre class="language-python" tabindex="0"><code class="language-python"><span class="token keyword">class</span> <span class="token class-name">OrchestratorRouter</span><span class="token punctuation">:</span>
-    <span class="token keyword">def</span> <span class="token function">__init__</span><span class="token punctuation">(</span>self<span class="token punctuation">,</span> agents<span class="token punctuation">:</span> <span class="token builtin">dict</span><span class="token punctuation">[</span><span class="token builtin">str</span><span class="token punctuation">,</span> Agent<span class="token punctuation">]</span><span class="token punctuation">)</span><span class="token punctuation">:</span>
-        self<span class="token punctuation">.</span>agents <span class="token operator">=</span> agents
-        self<span class="token punctuation">.</span>classifier <span class="token operator">=</span> ClassifierAgent<span class="token punctuation">(</span><span class="token punctuation">)</span>
-
-    <span class="token keyword">async</span> <span class="token keyword">def</span> <span class="token function">handle</span><span class="token punctuation">(</span>self<span class="token punctuation">,</span> request<span class="token punctuation">:</span> UserRequest<span class="token punctuation">)</span> <span class="token operator">-</span><span class="token operator">></span> Response<span class="token punctuation">:</span>
-        intent <span class="token operator">=</span> <span class="token keyword">await</span> self<span class="token punctuation">.</span>classifier<span class="token punctuation">.</span>classify<span class="token punctuation">(</span>request<span class="token punctuation">)</span>
-        agent <span class="token operator">=</span> self<span class="token punctuation">.</span>agents<span class="token punctuation">[</span>intent<span class="token punctuation">]</span>
-        <span class="token keyword">return</span> <span class="token keyword">await</span> agent<span class="token punctuation">.</span>execute<span class="token punctuation">(</span>request<span class="token punctuation">)</span></code></pre>
-<p><strong>When to use it:</strong> When your agents have clearly distinct domains and requests rarely need multiple agents.</p>
-<p><strong>The catch:</strong> Classification accuracy is everything. A misrouted request gives the user a completely wrong answer with full confidence. We found that adding a confidence threshold and falling back to a general agent for low-confidence classifications cut our error rate by 20%.</p>
-<h2 id="pattern-2-multi-llm-failover">Pattern 2: Multi-LLM Failover</h2>
-<p>Production systems can't go down. We built a failover architecture that routes between Claude and GPT-4 based on availability and rate limits.</p>
-<pre class="language-python" tabindex="0"><code class="language-python"><span class="token keyword">class</span> <span class="token class-name">MultiLLMClient</span><span class="token punctuation">:</span>
-    <span class="token keyword">def</span> <span class="token function">__init__</span><span class="token punctuation">(</span>self<span class="token punctuation">,</span> providers<span class="token punctuation">:</span> <span class="token builtin">list</span><span class="token punctuation">[</span>LLMProvider<span class="token punctuation">]</span><span class="token punctuation">)</span><span class="token punctuation">:</span>
-        self<span class="token punctuation">.</span>providers <span class="token operator">=</span> providers  <span class="token comment"># ordered by preference</span>
-
-    <span class="token keyword">async</span> <span class="token keyword">def</span> <span class="token function">complete</span><span class="token punctuation">(</span>self<span class="token punctuation">,</span> prompt<span class="token punctuation">:</span> <span class="token builtin">str</span><span class="token punctuation">)</span> <span class="token operator">-</span><span class="token operator">></span> <span class="token builtin">str</span><span class="token punctuation">:</span>
-        <span class="token keyword">for</span> provider <span class="token keyword">in</span> self<span class="token punctuation">.</span>providers<span class="token punctuation">:</span>
-            <span class="token keyword">if</span> provider<span class="token punctuation">.</span>is_available<span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">:</span>
-                <span class="token keyword">try</span><span class="token punctuation">:</span>
-                    <span class="token keyword">return</span> <span class="token keyword">await</span> provider<span class="token punctuation">.</span>complete<span class="token punctuation">(</span>prompt<span class="token punctuation">)</span>
-                <span class="token keyword">except</span> RateLimitError<span class="token punctuation">:</span>
-                    provider<span class="token punctuation">.</span>mark_limited<span class="token punctuation">(</span><span class="token punctuation">)</span>
-                    <span class="token keyword">continue</span>
-        <span class="token keyword">raise</span> AllProvidersExhaustedError<span class="token punctuation">(</span><span class="token punctuation">)</span></code></pre>
-<p>The key insight: <strong>rate-limiting guardrails must be proactive, not reactive.</strong> By the time you get a 429 response, you've already wasted latency. We track token consumption in real-time and start routing to the backup provider <em>before</em> hitting the limit.</p>
-<h2 id="pattern-3-self-healing-agents">Pattern 3: Self-Healing Agents</h2>
-<p>This is the one I'm most proud of. We built an agent that monitors system alerts, diagnoses root causes using RAG over our runbooks, and executes remediation scripts autonomously.</p>
-<p>The architecture:</p>
+<h1 id="multi-turn-conversation-with-llm-2">Multi-Turn Conversation with LLM</h1>
+<p>In this post, we will discuss various methods available for handling multi-turn conversations with Large Language Models (LLMs).</p>
+<p>With the release of early systems like &quot;Launch Pad,&quot; we achieved some level of multi-turn conversation. However, a key question remains: How should the system act and interact?</p>
+<p>Currently, most LLM-based experiences act by collecting client information and acknowledging the user with specific responses. Guardrails often prevent the LLM from going off-topic, sticking rigidly to engineered prompts. However, there are limitations:</p>
+<ul>
+<li><strong>Time limits</strong>: Often limited to 2 minutes; increasing this can make the LLM go &quot;off the rails.&quot;</li>
+<li><strong>Task/Goal support</strong>: Current implementations often lack clear task or goal handling.</li>
+<li><strong>Topic handling</strong>: There's often no explicit mechanism for topic switching or management.</li>
+</ul>
+<p>Let's explore ways to tackle these limitations and achieve longer, more coherent conversations using <strong>Dialog Management</strong>.</p>
+<hr>
+<h2 id="llm-based-agent-framework">LLM-Based Agent Framework</h2>
+<p>One promising approach is a specialized Large Language Model (LLM) tailored for <strong>Goal-Oriented Dialogue (GOD)</strong>, which is particularly effective in complex diagnostic scenarios like medical or legal consultations. Unlike general chatbots, a specialized system can proactively guide users toward specific outcomes by managing dialogue topics and maintaining state.</p>
+<h3 id="the-framework">The Framework</h3>
+<p>The framework consists of four main components:</p>
 <ol>
-<li><strong>Alert ingestion</strong> — System alert comes in via webhook</li>
-<li><strong>Context retrieval</strong> — RAG searches our knowledge base of past incidents and runbooks</li>
-<li><strong>Diagnosis</strong> — LLM analyzes the alert + retrieved context to identify root cause</li>
-<li><strong>Action planning</strong> — Agent proposes remediation steps using function calling</li>
-<li><strong>Execution</strong> — Approved actions are executed via MCP server integration</li>
+<li><strong>Thinking Topic Development</strong></li>
+<li><strong>Maintaining Topic Stack</strong></li>
+<li><strong>Enriching Topic</strong></li>
+<li><strong>Generating Response</strong></li>
 </ol>
-<p>The critical guardrail: <strong>never auto-execute destructive actions.</strong> Our agent can restart services and clear caches autonomously, but anything involving data modification requires human approval.</p>
-<h2 id="what-i-d-do-differently">What I'd Do Differently</h2>
-<p>If I were starting over, I'd invest more in <strong>observability from day one</strong>. We eventually built an LLM-as-a-Judge pipeline with Langfuse that continuously evaluates agent responses, but we should have had that from the start. When you have multiple agents in a pipeline, debugging &quot;why did the system give a wrong answer?&quot; becomes a multi-step investigation. Good tracing makes this 10x easier.</p>
-<h2 id="key-takeaways">Key Takeaways</h2>
-<ol>
-<li><strong>Start simple</strong> — Router-based orchestration handles 80% of use cases</li>
-<li><strong>Build for failure</strong> — Multi-LLM failover is not optional in production</li>
-<li><strong>Observe everything</strong> — You can't improve what you can't measure</li>
-<li><strong>Guardrails are features</strong> — The best agent is one that knows when <em>not</em> to act</li>
-</ol>
-<p>I'll dive deeper into each of these patterns in future posts. If you're building something similar, I'd love to hear about your approach — <a href="https://linkedin.com/in/rohit-marathe-ucf">reach out on LinkedIn</a>.</p>
+<h4 id="1-thinking-topic-development">1. Thinking Topic Development</h4>
+<p>When starting a conversation, the first step is picking a topic. The system analyzes the user's query and decides the main topic for the current round of dialogue.</p>
+<p><strong>How it works:</strong></p>
+<ul>
+<li>Receives user query.</li>
+<li>Analyzes previous dialogue context to identify user interest.</li>
+<li>Influences conversation direction for a relevant, engaging response.</li>
+</ul>
+<h4 id="2-maintaining-topic-stack">2. Maintaining Topic Stack</h4>
+<p>Imagine juggling several conversation threads—talking about a project, planning a meetup, and discussing a movie. Maintaining a &quot;stack&quot; allows the system to track these threads and switch between them without losing context.</p>
+<p><strong>How it works:</strong></p>
+<ul>
+<li>Maintains a &quot;stack&quot; of topics discussed.</li>
+<li>Adds new topics to the top; removes resolved or irrelevant ones.</li>
+<li>Manages the flow, ensuring all points are addressed smoothly.</li>
+</ul>
+<h4 id="3-enriching-topic">3. Enriching Topic</h4>
+<p>This adds details to make the conversation more engaging. For example, if discussing soccer, enrichment might include player stats or notable moments.</p>
+<p><strong>How it works:</strong></p>
+<ul>
+<li>Looks for ways to add relevant details to a chosen topic.</li>
+<li>Pulls in background info, related topics, or deeper insights.</li>
+<li>Keeps the user engaged with comprehensive context.</li>
+</ul>
+<h4 id="4-generating-response">4. Generating Response</h4>
+<p>The final step is forming the reply based on the topic, enriched information, and context.</p>
+<p><strong>How it works:</strong></p>
+<ul>
+<li>Combines the current topic, enriched info, and history.</li>
+<li>Uses rules and models to advance the conversation toward user goals.</li>
+<li>Considers user preferences and tone for a natural feel.</li>
+</ul>
+<hr>
+<h2 id="example-collect-basic-user-information">Example: Collect Basic User Information</h2>
+<h3 id="task-definition">Task Definition</h3>
+<pre class="language-json" tabindex="0"><code class="language-json"><span class="token punctuation">{</span>
+    <span class="token property">"task_name"</span><span class="token operator">:</span> <span class="token string">"Collect Basic User Information"</span><span class="token punctuation">,</span>
+    <span class="token property">"overview"</span><span class="token operator">:</span> <span class="token string">"Collecting essential personal and contact information from a user to create or update their profile."</span><span class="token punctuation">,</span>
+    <span class="token property">"goal"</span><span class="token operator">:</span> <span class="token string">"Accurately collect and record all necessary user information"</span><span class="token punctuation">,</span>
+    <span class="token property">"checklist"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
+        <span class="token string">"Ask for user's full name"</span><span class="token punctuation">,</span>
+        <span class="token string">"Request date of birth for eligibility"</span><span class="token punctuation">,</span>
+        <span class="token string">"Inquire about email address"</span><span class="token punctuation">,</span>
+        <span class="token string">"Collect phone number for urgent queries"</span><span class="token punctuation">,</span>
+        <span class="token string">"Ask for home address"</span><span class="token punctuation">,</span>
+        <span class="token string">"Confirm data consent"</span><span class="token punctuation">,</span>
+        <span class="token string">"Summarize info for verification"</span><span class="token punctuation">,</span>
+        <span class="token string">"Provide confirmation number"</span>
+    <span class="token punctuation">]</span>
+<span class="token punctuation">}</span></code></pre>
+<h3 id="sample-chat-history">Sample Chat History</h3>
+<blockquote>
+<p><strong>User:</strong> Collect Basic User Information</p>
+<p><strong>Virtual Assistant:</strong> Thank you for reaching out. May I have your full name, please?</p>
+<p><strong>User:</strong> My full name is Rohit Marathe</p>
+<p><strong>Virtual Assistant:</strong> Thank you, Rohit. May I also ask for your date of birth for eligibility verification?</p>
+<p><strong>User:</strong> Yeah sure, I was born on 25 Aug 1995</p>
+<p><strong>Virtual Assistant:</strong> Thank you. May I have your email address for communication?</p>
+<p><strong>User:</strong> rt@gmail.com</p>
+<p><strong>Virtual Assistant:</strong> And your phone number for urgent inquiries?</p>
+<p><strong>User:</strong> 407-666-7637</p>
+<p><strong>Virtual Assistant:</strong> Lastly, what is your residential address?</p>
+<p><strong>User:</strong> 520 E Church St, Orlando 32801</p>
+</blockquote>
+<hr>
+<h2 id="agent-prompt-templates">Agent Prompt Templates</h2>
+<h3 id="topic-manager-prompt">Topic Manager Prompt</h3>
+<pre class="language-text" tabindex="0"><code class="language-text">MANAGE_TOPIC_PROMPT = """Your objective is to manage dialogue topics between an AI expert and a user.
+The topics should stay within the relevant field.
+You have a topic list: {topic_list}.
+Current topic: {current_topic}.
+Tools: {tool_description}.
+"""</code></pre>
+<h3 id="enricher-prompt">Enricher Prompt</h3>
+<pre class="language-text" tabindex="0"><code class="language-text">ENRICH_TOPIC_PROMPT = """Your objective is to enrich dialogue topics.
+I will give an original topic and you will provide an enriched version (max 120 words).
+Ensure the AI expert can understand it easily to improve the dialogue.
+"""</code></pre>
+<h3 id="chat-prompt-template">Chat Prompt Template</h3>
+<pre class="language-text" tabindex="0"><code class="language-text">CHAT_PROMPT_TEMPLATE = """You are a famous expert who guides users through their demands.
+Focus on the current topic: {current_topic}.
+- If topic starts with 'Ask user:', ask concretely.
+- If topic starts with 'Answer user:', provide a theoretical answer, specific suggestions, and follow-up clarification questions.
+- If 'Complete goal:', give a comprehensive final answer.
+"""</code></pre>
+<hr>
+<p><em>Multi-turn conversation remains a challenging but exciting field in LLM development. By implementing structured topic management, we can move beyond simple Q&amp;A to truly intelligent, goal-oriented assistants.</em></p>
 
-<ul class="links-nextprev"><li class="links-nextprev-prev">← Previous<br> <a href="/my-blog/blog/design-patterns-every-engineer-should-know/">Essential Design Patterns Every Engineer Should Know</a></li><li class="links-nextprev-next">Next →<br><a href="/my-blog/blog/firstpost/">Hello World — Why I&#39;m Starting This Blog</a></li>
+<ul class="links-nextprev"><li class="links-nextprev-prev">← Previous<br> <a href="/my-blog/blog/firstpost/">Hello World — Why I&#39;m Starting This Blog</a></li>
 </ul>
 
 			</heading-anchors>
@@ -834,7 +889,7 @@ pre[class*="language-diff-"] {
 			<p>&copy; 2025 Rohit Marathe · Built with <a href="https://www.11ty.dev/">Eleventy</a></p>
 		</footer>
 
-		<!-- This page `/blog/building-multi-agent-systems/` was built on 2026-03-24T16:38:47.010Z -->
+		<!-- This page `/blog/multi-turn-conversation-with-llm/` was built on 2026-03-24T16:38:47.010Z -->
 		<script type="module" src="/my-blog/dist/cC8wS6ZjFU.js"></script>
 	</body>
 </html>

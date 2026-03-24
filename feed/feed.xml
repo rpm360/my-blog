@@ -5,11 +5,126 @@
   <subtitle>AI Systems Engineer crafting intelligent systems at scale.</subtitle>
   <link href="https://rpm360.github.io/my-blog/feed/feed.xml" rel="self" />
   <link href="https://rpm360.github.io/my-blog/my-blog/" />
-  <updated>2025-02-27T00:00:00Z</updated>
+  <updated>2026-03-24T00:00:00Z</updated>
   <id>https://rpm360.github.io/my-blog/my-blog/</id>
   <author>
     <name>Rohit Marathe</name>
   </author>
+  <entry>
+    <title>Multi-Turn Conversation with LLM</title>
+    <link href="https://rpm360.github.io/my-blog/blog/multi-turn-conversation-with-llm/" />
+    <updated>2026-03-24T00:00:00Z</updated>
+    <id>https://rpm360.github.io/my-blog/blog/multi-turn-conversation-with-llm/</id>
+    <content type="html">&lt;h1 id=&quot;multi-turn-conversation-with-llm&quot;&gt;Multi-Turn Conversation with LLM&lt;/h1&gt;
+&lt;p&gt;In this post, we will discuss various methods available for handling multi-turn conversations with Large Language Models (LLMs).&lt;/p&gt;
+&lt;p&gt;With the release of early systems like &amp;quot;Launch Pad,&amp;quot; we achieved some level of multi-turn conversation. However, a key question remains: How should the system act and interact?&lt;/p&gt;
+&lt;p&gt;Currently, most LLM-based experiences act by collecting client information and acknowledging the user with specific responses. Guardrails often prevent the LLM from going off-topic, sticking rigidly to engineered prompts. However, there are limitations:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Time limits&lt;/strong&gt;: Often limited to 2 minutes; increasing this can make the LLM go &amp;quot;off the rails.&amp;quot;&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Task/Goal support&lt;/strong&gt;: Current implementations often lack clear task or goal handling.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Topic handling&lt;/strong&gt;: There&#39;s often no explicit mechanism for topic switching or management.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Let&#39;s explore ways to tackle these limitations and achieve longer, more coherent conversations using &lt;strong&gt;Dialog Management&lt;/strong&gt;.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id=&quot;llm-based-agent-framework&quot;&gt;LLM-Based Agent Framework&lt;/h2&gt;
+&lt;p&gt;One promising approach is a specialized Large Language Model (LLM) tailored for &lt;strong&gt;Goal-Oriented Dialogue (GOD)&lt;/strong&gt;, which is particularly effective in complex diagnostic scenarios like medical or legal consultations. Unlike general chatbots, a specialized system can proactively guide users toward specific outcomes by managing dialogue topics and maintaining state.&lt;/p&gt;
+&lt;h3 id=&quot;the-framework&quot;&gt;The Framework&lt;/h3&gt;
+&lt;p&gt;The framework consists of four main components:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;Thinking Topic Development&lt;/strong&gt;&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Maintaining Topic Stack&lt;/strong&gt;&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Enriching Topic&lt;/strong&gt;&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Generating Response&lt;/strong&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;h4 id=&quot;1-thinking-topic-development&quot;&gt;1. Thinking Topic Development&lt;/h4&gt;
+&lt;p&gt;When starting a conversation, the first step is picking a topic. The system analyzes the user&#39;s query and decides the main topic for the current round of dialogue.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;How it works:&lt;/strong&gt;&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Receives user query.&lt;/li&gt;
+&lt;li&gt;Analyzes previous dialogue context to identify user interest.&lt;/li&gt;
+&lt;li&gt;Influences conversation direction for a relevant, engaging response.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h4 id=&quot;2-maintaining-topic-stack&quot;&gt;2. Maintaining Topic Stack&lt;/h4&gt;
+&lt;p&gt;Imagine juggling several conversation threads—talking about a project, planning a meetup, and discussing a movie. Maintaining a &amp;quot;stack&amp;quot; allows the system to track these threads and switch between them without losing context.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;How it works:&lt;/strong&gt;&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Maintains a &amp;quot;stack&amp;quot; of topics discussed.&lt;/li&gt;
+&lt;li&gt;Adds new topics to the top; removes resolved or irrelevant ones.&lt;/li&gt;
+&lt;li&gt;Manages the flow, ensuring all points are addressed smoothly.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h4 id=&quot;3-enriching-topic&quot;&gt;3. Enriching Topic&lt;/h4&gt;
+&lt;p&gt;This adds details to make the conversation more engaging. For example, if discussing soccer, enrichment might include player stats or notable moments.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;How it works:&lt;/strong&gt;&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Looks for ways to add relevant details to a chosen topic.&lt;/li&gt;
+&lt;li&gt;Pulls in background info, related topics, or deeper insights.&lt;/li&gt;
+&lt;li&gt;Keeps the user engaged with comprehensive context.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h4 id=&quot;4-generating-response&quot;&gt;4. Generating Response&lt;/h4&gt;
+&lt;p&gt;The final step is forming the reply based on the topic, enriched information, and context.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;How it works:&lt;/strong&gt;&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Combines the current topic, enriched info, and history.&lt;/li&gt;
+&lt;li&gt;Uses rules and models to advance the conversation toward user goals.&lt;/li&gt;
+&lt;li&gt;Considers user preferences and tone for a natural feel.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;hr&gt;
+&lt;h2 id=&quot;example-collect-basic-user-information&quot;&gt;Example: Collect Basic User Information&lt;/h2&gt;
+&lt;h3 id=&quot;task-definition&quot;&gt;Task Definition&lt;/h3&gt;
+&lt;pre class=&quot;language-json&quot; tabindex=&quot;0&quot;&gt;&lt;code class=&quot;language-json&quot;&gt;&lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;token property&quot;&gt;&quot;task_name&quot;&lt;/span&gt;&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;Collect Basic User Information&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;token property&quot;&gt;&quot;overview&quot;&lt;/span&gt;&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;Collecting essential personal and contact information from a user to create or update their profile.&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;token property&quot;&gt;&quot;goal&quot;&lt;/span&gt;&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;Accurately collect and record all necessary user information&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;token property&quot;&gt;&quot;checklist&quot;&lt;/span&gt;&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;
+        &lt;span class=&quot;token string&quot;&gt;&quot;Ask for user&#39;s full name&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+        &lt;span class=&quot;token string&quot;&gt;&quot;Request date of birth for eligibility&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+        &lt;span class=&quot;token string&quot;&gt;&quot;Inquire about email address&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+        &lt;span class=&quot;token string&quot;&gt;&quot;Collect phone number for urgent queries&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+        &lt;span class=&quot;token string&quot;&gt;&quot;Ask for home address&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+        &lt;span class=&quot;token string&quot;&gt;&quot;Confirm data consent&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+        &lt;span class=&quot;token string&quot;&gt;&quot;Summarize info for verification&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+        &lt;span class=&quot;token string&quot;&gt;&quot;Provide confirmation number&quot;&lt;/span&gt;
+    &lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt;
+&lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;h3 id=&quot;sample-chat-history&quot;&gt;Sample Chat History&lt;/h3&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;strong&gt;User:&lt;/strong&gt; Collect Basic User Information&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Virtual Assistant:&lt;/strong&gt; Thank you for reaching out. May I have your full name, please?&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;User:&lt;/strong&gt; My full name is Rohit Marathe&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Virtual Assistant:&lt;/strong&gt; Thank you, Rohit. May I also ask for your date of birth for eligibility verification?&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;User:&lt;/strong&gt; Yeah sure, I was born on 25 Aug 1995&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Virtual Assistant:&lt;/strong&gt; Thank you. May I have your email address for communication?&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;User:&lt;/strong&gt; rt@gmail.com&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Virtual Assistant:&lt;/strong&gt; And your phone number for urgent inquiries?&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;User:&lt;/strong&gt; 407-666-7637&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Virtual Assistant:&lt;/strong&gt; Lastly, what is your residential address?&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;User:&lt;/strong&gt; 520 E Church St, Orlando 32801&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;hr&gt;
+&lt;h2 id=&quot;agent-prompt-templates&quot;&gt;Agent Prompt Templates&lt;/h2&gt;
+&lt;h3 id=&quot;topic-manager-prompt&quot;&gt;Topic Manager Prompt&lt;/h3&gt;
+&lt;pre class=&quot;language-text&quot; tabindex=&quot;0&quot;&gt;&lt;code class=&quot;language-text&quot;&gt;MANAGE_TOPIC_PROMPT = &quot;&quot;&quot;Your objective is to manage dialogue topics between an AI expert and a user.
+The topics should stay within the relevant field.
+You have a topic list: {topic_list}.
+Current topic: {current_topic}.
+Tools: {tool_description}.
+&quot;&quot;&quot;&lt;/code&gt;&lt;/pre&gt;
+&lt;h3 id=&quot;enricher-prompt&quot;&gt;Enricher Prompt&lt;/h3&gt;
+&lt;pre class=&quot;language-text&quot; tabindex=&quot;0&quot;&gt;&lt;code class=&quot;language-text&quot;&gt;ENRICH_TOPIC_PROMPT = &quot;&quot;&quot;Your objective is to enrich dialogue topics.
+I will give an original topic and you will provide an enriched version (max 120 words).
+Ensure the AI expert can understand it easily to improve the dialogue.
+&quot;&quot;&quot;&lt;/code&gt;&lt;/pre&gt;
+&lt;h3 id=&quot;chat-prompt-template&quot;&gt;Chat Prompt Template&lt;/h3&gt;
+&lt;pre class=&quot;language-text&quot; tabindex=&quot;0&quot;&gt;&lt;code class=&quot;language-text&quot;&gt;CHAT_PROMPT_TEMPLATE = &quot;&quot;&quot;You are a famous expert who guides users through their demands.
+Focus on the current topic: {current_topic}.
+- If topic starts with &#39;Ask user:&#39;, ask concretely.
+- If topic starts with &#39;Answer user:&#39;, provide a theoretical answer, specific suggestions, and follow-up clarification questions.
+- If &#39;Complete goal:&#39;, give a comprehensive final answer.
+&quot;&quot;&quot;&lt;/code&gt;&lt;/pre&gt;
+&lt;hr&gt;
+&lt;p&gt;&lt;em&gt;Multi-turn conversation remains a challenging but exciting field in LLM development. By implementing structured topic management, we can move beyond simple Q&amp;amp;A to truly intelligent, goal-oriented assistants.&lt;/em&gt;&lt;/p&gt;
+</content>
+  </entry>
   <entry>
     <title>Hello World — Why I&#39;m Starting This Blog</title>
     <link href="https://rpm360.github.io/my-blog/blog/firstpost/" />
