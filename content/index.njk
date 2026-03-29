@@ -4,11 +4,13 @@ const eleventyNavigation = {
 	order: 1
 };
 
-const numberOfLatestPostsToShow = 3;
+const numberOfLatestPostsToShow = 8;
 ---
 <div class="hero">
 	<span class="hero-emoji">🚀</span>
-	<h1>Rohit Marathe</h1>
+	<div class="kinetic-container">
+		<h1 class="kinetic-text-layer">Rohit Marathe</h1>
+	</div>
 	<p class="hero-tagline">AI Systems Engineer building intelligent systems at scale.<br>Multi-Agent Systems · LLM Orchestration · Cloud Engineering</p>
 	<ul class="hero-tags">
 		<li class="hero-tag">Python</li>
@@ -26,11 +28,39 @@ const numberOfLatestPostsToShow = 3;
 {% set latestPostsCount = postsCount | min(numberOfLatestPostsToShow) %}
 <h2 class="section-heading">Latest Post{% if latestPostsCount != 1 %}s{% endif %}</h2>
 
-{% set postslist = collections.posts | head(-1 * numberOfLatestPostsToShow) %}
-{% set postslistCounter = postsCount %}
-{% include "postslist.njk" %}
+<div class="bento-grid">
+	{% set postslist = collections.posts | head(-1 * numberOfLatestPostsToShow) | reverse %}
+	{% for post in postslist %}
+	<div class="bento-item">
+		<div class="bento-title"><a href="{{ post.url }}">{{ post.data.title }}</a></div>
+		<div class="bento-desc">{{ post.data.description or post.content | striptags | truncate(120) }}</div>
+		<div class="post-metadata mt-auto">
+			<time datetime="{{ post.date | htmlDateString }}">{{ post.date | readableDate("LLLL yyyy") }}</time>
+			<span class="reading-time">{{ post.data.readingTime }}</span>
+			{% for tag in post.data.tags | filterTagList %}
+				{% set tagUrl %}/tags/{{ tag | slugify }}/{% endset %}
+				<a href="{{ tagUrl }}" class="post-tag">{{ tag }}</a>{% if not loop.last %}, {% endif %}
+			{% endfor %}
+		</div>
+	</div>
+	{% endfor %}
+</div>
 
 {% set morePosts = postsCount - numberOfLatestPostsToShow %}
 {% if morePosts > 0 %}
-<p>{{ morePosts }} more post{% if morePosts != 1 %}s{% endif %} can be found in <a href="blog.njk">the archive</a>.</p>
+<p class="mt-4">{{ morePosts }} more post{% if morePosts != 1 %}s{% endif %} can be found in <a href="blog.njk">the archive</a>.</p>
 {% endif %}
+
+<h2 class="section-heading">Featured Projects</h2>
+<div class="bento-grid">
+	<div class="bento-item featured">
+		<div class="bento-title">OpenClaw Gateway</div>
+		<div class="bento-desc">Secure gateway node handling telemetry, authentication, and tunneling for agent endpoints.</div>
+		<a href="#" class="btn btn-primary">Learn More</a>
+	</div>
+	<div class="bento-item">
+		<div class="bento-title">Hiring Patterns Model</div>
+		<div class="bento-desc">Data analysis pipeline extracting AI SDE hiring patterns across the Atlanta region.</div>
+		<a href="#" class="btn">View Data</a>
+	</div>
+</div>
