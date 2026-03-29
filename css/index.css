@@ -200,3 +200,19 @@ main { animation: fadeInUp 0.5s ease-out; }
         grid-column: span 2;
     }
 }
+
+
+header, .intro-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+h1 {
+    margin-bottom: 0.5rem;
+}
+.description {
+    display: block;
+    width: 100%;
+}
+
