@@ -213,6 +213,21 @@ main { animation: fadeInUp 0.5s ease-out; }
     .bento-item.featured {
         grid-column: span 2;
     }
+}
+
+
+header, .intro-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+h1 {
+    margin-bottom: 0.5rem;
+}
+.description {
+    display: block;
+    width: 100%;
 }</style>
 		
 	</head>
@@ -250,25 +265,6 @@ main { animation: fadeInUp 0.5s ease-out; }
 		<li class="hero-tag">Kubernetes</li>
 		<li class="hero-tag">TypeScript</li>
 	</ul>
-</div>
-
-<h2 class="section-heading" id="featured-projects">Featured Projects</h2>
-<div class="bento-grid">
-	<div class="bento-item featured">
-		<div class="bento-title">Sema4.ai Architecture</div>
-		<div class="bento-desc">A robust AI-driven architecture for multi-agent workflows and enterprise scale operations, leveraging LangChain and specialized knowledge graphs.</div>
-		<a href="#" class="btn btn-primary">View Project</a>
-	</div>
-	<div class="bento-item">
-		<div class="bento-title">OpenClaw Gateway</div>
-		<div class="bento-desc">Secure gateway node handling telemetry, authentication, and tunneling for agent endpoints.</div>
-		<a href="#" class="btn">Learn More</a>
-	</div>
-	<div class="bento-item">
-		<div class="bento-title">Hiring Patterns Model</div>
-		<div class="bento-desc">Data analysis pipeline extracting AI SDE hiring patterns across the Atlanta region.</div>
-		<a href="#" class="btn">View Data</a>
-	</div>
 </div>
 
 
@@ -341,13 +337,81 @@ main { animation: fadeInUp 0.5s ease-out; }
 		</div>
 	</div>
 	
+	<div class="bento-item">
+		<div class="bento-title"><a href="/my-blog/blog/building-multi-agent-systems/">Multi-Agent Orchestration — Patterns That Actually Work</a></div>
+		<div class="bento-desc">Practical patterns for building multi-agent AI systems in production, from routing strategies to failover architecture.</div>
+		<div class="post-metadata mt-auto">
+			<time datetime="2025-02-27">February 2025</time>
+			<span class="reading-time">3 min read</span>
+			
+				
+				<a href="/my-blog/tags/ai/" class="post-tag">ai</a>, 
+			
+				
+				<a href="/my-blog/tags/multi-agent/" class="post-tag">multi-agent</a>, 
+			
+				
+				<a href="/my-blog/tags/architecture/" class="post-tag">architecture</a>
+			
+		</div>
+	</div>
+	
+	<div class="bento-item">
+		<div class="bento-title"><a href="/my-blog/blog/design-patterns-every-engineer-should-know/">Essential Design Patterns Every Engineer Should Know</a></div>
+		<div class="bento-desc">A practical guide to the most important software design patterns — Factory, Observer, Strategy, and Singleton — with real-world examples and when to use each.</div>
+		<div class="post-metadata mt-auto">
+			<time datetime="2025-02-25">February 2025</time>
+			<span class="reading-time">5 min read</span>
+			
+				
+				<a href="/my-blog/tags/design-patterns/" class="post-tag">design-patterns</a>, 
+			
+				
+				<a href="/my-blog/tags/software-engineering/" class="post-tag">software-engineering</a>, 
+			
+				
+				<a href="/my-blog/tags/architecture/" class="post-tag">architecture</a>
+			
+		</div>
+	</div>
+	
+	<div class="bento-item">
+		<div class="bento-title"><a href="/my-blog/blog/system-design-101/">System Design 101 — Building Blocks of Scalable Systems</a></div>
+		<div class="bento-desc">A beginner-friendly guide to the fundamental building blocks of system design: load balancers, caching, databases, message queues, and CDNs.</div>
+		<div class="post-metadata mt-auto">
+			<time datetime="2025-02-24">February 2025</time>
+			<span class="reading-time">6 min read</span>
+			
+				
+				<a href="/my-blog/tags/system-design/" class="post-tag">system-design</a>, 
+			
+				
+				<a href="/my-blog/tags/architecture/" class="post-tag">architecture</a>, 
+			
+				
+				<a href="/my-blog/tags/cloud/" class="post-tag">cloud</a>
+			
+		</div>
+	</div>
+	
 </div>
 
 
 
-<p class="mt-4">3 more posts can be found in <a href="/my-blog/blog/">the archive</a>.</p>
 
-
+<h2 class="section-heading" id="featured-projects">Featured Projects</h2>
+<div class="bento-grid">
+	<div class="bento-item featured">
+		<div class="bento-title">OpenClaw Gateway</div>
+		<div class="bento-desc">Secure gateway node handling telemetry, authentication, and tunneling for agent endpoints.</div>
+		<a href="#" class="btn btn-primary">Learn More</a>
+	</div>
+	<div class="bento-item">
+		<div class="bento-title">Hiring Patterns Model</div>
+		<div class="bento-desc">Data analysis pipeline extracting AI SDE hiring patterns across the Atlanta region.</div>
+		<a href="#" class="btn">View Data</a>
+	</div>
+</div>
 
 			</heading-anchors>
 		</main>
@@ -361,7 +425,7 @@ main { animation: fadeInUp 0.5s ease-out; }
 			<p>&copy; 2025 Rohit Marathe · Built with <a href="https://www.11ty.dev/">Eleventy</a></p>
 		</footer>
 
-		<!-- This page `/` was built on 2026-03-29T19:29:07.525Z -->
+		<!-- This page `/` was built on 2026-03-29T19:37:38.271Z -->
 		<script type="module" src="/my-blog/dist/cC8wS6ZjFU.js"></script>
 	</body>
 </html>
