@@ -3,8 +3,8 @@
 	<head>
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
-		<title>Multi-Agent Orchestration — Patterns That Actually Work</title>
-		<meta name="description" content="Practical patterns for building multi-agent AI systems in production, from routing strategies to failover architecture.">
+		<title>LangChain vs LangGraph: Architecting Stateful Multi-Agent Systems</title>
+		<meta name="description" content="A deep dive into the architectural differences between LangChain and LangGraph, including state management, cycles, and multi-agent coordination.">
 		<meta name="author" content="Rohit Marathe">
 		<link rel="alternate" href="/my-blog/feed/feed.xml" type="application/atom+xml" title="Rohit Marathe">
 		<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
@@ -405,71 +405,109 @@ pre[class*="language-diff-"] {
 				
 
 
-<h1 id="multi-agent-orchestration-patterns-that-actually-work">Multi-Agent Orchestration — Patterns That Actually Work</h1>
+<h1 id="langchain-vs-langgraph-architecting-stateful-multi-agent-systems">LangChain vs LangGraph: Architecting Stateful Multi-Agent Systems</h1>
 
 <ul class="post-metadata">
-	<li><time datetime="2025-02-27">27 February 2025</time></li>
+	<li><time datetime="2026-03-29">29 March 2026</time></li>
 	<li><a href="/my-blog/tags/ai/" class="post-tag">ai</a>, </li>
-	<li><a href="/my-blog/tags/multi-agent/" class="post-tag">multi-agent</a>, </li>
-	<li><a href="/my-blog/tags/architecture/" class="post-tag">architecture</a></li>
+	<li><a href="/my-blog/tags/agents/" class="post-tag">agents</a>, </li>
+	<li><a href="/my-blog/tags/langchain/" class="post-tag">langchain</a>, </li>
+	<li><a href="/my-blog/tags/langgraph/" class="post-tag">langgraph</a>, </li>
+	<li><a href="/my-blog/tags/system-design/" class="post-tag">system-design</a></li>
 </ul>
 
-<p>After spending the past year building multi-agent systems at Rocket Mortgage, I've learned that the gap between a demo and production is enormous. Here are the patterns that actually survived contact with real traffic.</p>
-<h2 id="the-problem">The Problem</h2>
-<p>A single LLM prompt can answer simple questions. But when you need an AI system to handle mortgage calculations, search property databases, analyze banker performance, <em>and</em> diagnose system alerts — you need specialization.</p>
-<p>That's where multi-agent orchestration comes in: instead of one monolithic prompt, you build a system of specialized agents that collaborate.</p>
-<h2 id="pattern-1-router-based-orchestration">Pattern 1: Router-Based Orchestration</h2>
-<p>The simplest pattern that works. A central router agent classifies incoming requests and delegates to the appropriate specialist.</p>
-<pre class="language-python" tabindex="0"><code class="language-python"><span class="token keyword">class</span> <span class="token class-name">OrchestratorRouter</span><span class="token punctuation">:</span>
-    <span class="token keyword">def</span> <span class="token function">__init__</span><span class="token punctuation">(</span>self<span class="token punctuation">,</span> agents<span class="token punctuation">:</span> <span class="token builtin">dict</span><span class="token punctuation">[</span><span class="token builtin">str</span><span class="token punctuation">,</span> Agent<span class="token punctuation">]</span><span class="token punctuation">)</span><span class="token punctuation">:</span>
-        self<span class="token punctuation">.</span>agents <span class="token operator">=</span> agents
-        self<span class="token punctuation">.</span>classifier <span class="token operator">=</span> ClassifierAgent<span class="token punctuation">(</span><span class="token punctuation">)</span>
-
-    <span class="token keyword">async</span> <span class="token keyword">def</span> <span class="token function">handle</span><span class="token punctuation">(</span>self<span class="token punctuation">,</span> request<span class="token punctuation">:</span> UserRequest<span class="token punctuation">)</span> <span class="token operator">-</span><span class="token operator">></span> Response<span class="token punctuation">:</span>
-        intent <span class="token operator">=</span> <span class="token keyword">await</span> self<span class="token punctuation">.</span>classifier<span class="token punctuation">.</span>classify<span class="token punctuation">(</span>request<span class="token punctuation">)</span>
-        agent <span class="token operator">=</span> self<span class="token punctuation">.</span>agents<span class="token punctuation">[</span>intent<span class="token punctuation">]</span>
-        <span class="token keyword">return</span> <span class="token keyword">await</span> agent<span class="token punctuation">.</span>execute<span class="token punctuation">(</span>request<span class="token punctuation">)</span></code></pre>
-<p><strong>When to use it:</strong> When your agents have clearly distinct domains and requests rarely need multiple agents.</p>
-<p><strong>The catch:</strong> Classification accuracy is everything. A misrouted request gives the user a completely wrong answer with full confidence. We found that adding a confidence threshold and falling back to a general agent for low-confidence classifications cut our error rate by 20%.</p>
-<h2 id="pattern-2-multi-llm-failover">Pattern 2: Multi-LLM Failover</h2>
-<p>Production systems can't go down. We built a failover architecture that routes between Claude and GPT-4 based on availability and rate limits.</p>
-<pre class="language-python" tabindex="0"><code class="language-python"><span class="token keyword">class</span> <span class="token class-name">MultiLLMClient</span><span class="token punctuation">:</span>
-    <span class="token keyword">def</span> <span class="token function">__init__</span><span class="token punctuation">(</span>self<span class="token punctuation">,</span> providers<span class="token punctuation">:</span> <span class="token builtin">list</span><span class="token punctuation">[</span>LLMProvider<span class="token punctuation">]</span><span class="token punctuation">)</span><span class="token punctuation">:</span>
-        self<span class="token punctuation">.</span>providers <span class="token operator">=</span> providers  <span class="token comment"># ordered by preference</span>
-
-    <span class="token keyword">async</span> <span class="token keyword">def</span> <span class="token function">complete</span><span class="token punctuation">(</span>self<span class="token punctuation">,</span> prompt<span class="token punctuation">:</span> <span class="token builtin">str</span><span class="token punctuation">)</span> <span class="token operator">-</span><span class="token operator">></span> <span class="token builtin">str</span><span class="token punctuation">:</span>
-        <span class="token keyword">for</span> provider <span class="token keyword">in</span> self<span class="token punctuation">.</span>providers<span class="token punctuation">:</span>
-            <span class="token keyword">if</span> provider<span class="token punctuation">.</span>is_available<span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">:</span>
-                <span class="token keyword">try</span><span class="token punctuation">:</span>
-                    <span class="token keyword">return</span> <span class="token keyword">await</span> provider<span class="token punctuation">.</span>complete<span class="token punctuation">(</span>prompt<span class="token punctuation">)</span>
-                <span class="token keyword">except</span> RateLimitError<span class="token punctuation">:</span>
-                    provider<span class="token punctuation">.</span>mark_limited<span class="token punctuation">(</span><span class="token punctuation">)</span>
-                    <span class="token keyword">continue</span>
-        <span class="token keyword">raise</span> AllProvidersExhaustedError<span class="token punctuation">(</span><span class="token punctuation">)</span></code></pre>
-<p>The key insight: <strong>rate-limiting guardrails must be proactive, not reactive.</strong> By the time you get a 429 response, you've already wasted latency. We track token consumption in real-time and start routing to the backup provider <em>before</em> hitting the limit.</p>
-<h2 id="pattern-3-self-healing-agents">Pattern 3: Self-Healing Agents</h2>
-<p>This is the one I'm most proud of. We built an agent that monitors system alerts, diagnoses root causes using RAG over our runbooks, and executes remediation scripts autonomously.</p>
-<p>The architecture:</p>
+<p>The landscape of building LLM-powered applications is evolving rapidly. We've moved from simple prompt engineering to complex &quot;chains,&quot; and now we're entering the era of truly agentic, multi-agent systems.</p>
+<p>When you're architecting these systems, the choice between <strong>LangChain</strong> and <strong>LangGraph</strong> is critical. While they share a lineage, their architectural foundations are built for fundamentally different use cases.</p>
+<h2 id="the-architectural-divide-linear-vs-cyclic">The Architectural Divide: Linear vs. Cyclic</h2>
+<p>At its core, the difference is one of topology: <strong>Linear Chains vs. Cyclic Graphs.</strong></p>
+<p><picture><source type="image/avif" srcset="/my-blog/blog/langchain-vs-langgraph/EwZhlR2PZi-1376.avif 1376w"><source type="image/webp" srcset="/my-blog/blog/langchain-vs-langgraph/EwZhlR2PZi-1376.webp 1376w"><img loading="lazy" decoding="async" src="/my-blog/blog/langchain-vs-langgraph/EwZhlR2PZi-1376.png" alt="LangChain vs LangGraph Architecture" width="1376" height="768"></picture></p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Feature</th>
+<th style="text-align:left">LangChain (Chains)</th>
+<th style="text-align:left">LangGraph (Graphs)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><strong>Topology</strong></td>
+<td style="text-align:left">Directed Acyclic Graph (DAG)</td>
+<td style="text-align:left">Cyclic Graph</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>Flow</strong></td>
+<td style="text-align:left">Linear / Sequential</td>
+<td style="text-align:left">Looping / Iterative</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>State</strong></td>
+<td style="text-align:left">Implicit / Append-only</td>
+<td style="text-align:left">Explicit / Schema-based</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>Cycles</strong></td>
+<td style="text-align:left">Not natively supported</td>
+<td style="text-align:left">First-class citizen</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>Persistence</strong></td>
+<td style="text-align:left">Basic memory buffers</td>
+<td style="text-align:left">Checkpointing / Time Travel</td>
+</tr>
+</tbody>
+</table>
+<h3 id="langchain-the-linear-evolution">LangChain: The Linear Evolution</h3>
+<p>LangChain is built around the concept of a DAG. You define a sequence of steps—a &quot;chain&quot;—where data flows from one component to the next in a predetermined path. It’s excellent for straightforward transformations and simple RAG (Retrieval-Augmented Generation).</p>
+<h3 id="langgraph-the-agentic-revolution">LangGraph: The Agentic Revolution</h3>
+<p>LangGraph is designed for <strong>stateful, cyclic workflows</strong>. Instead of a fixed sequence, you define a graph where <strong>Nodes</strong> represent actions (LLM calls, tools) and <strong>Edges</strong> define transitions.</p>
+<h4 id="control-flow-and-decision-making">Control Flow &amp; Decision Making</h4>
+<p>Transitions in LangGraph aren't just direct; you use <strong>Conditional Edges</strong> (routers) to make real-time decisions. For example, a router node can analyze an LLM's output and decide whether to call a tool or move to a final response node.</p>
+<h2 id="advanced-state-management">Advanced State Management</h2>
+<p>One of the most significant upgrades in LangGraph is how it treats state.</p>
+<h3 id="explicit-state-schemas">Explicit State Schemas</h3>
+<p>In LangGraph, you define a <code>State</code> object (using <code>TypedDict</code> or <code>Pydantic</code>). This provides a single source of truth that is passed between every node in the graph.</p>
+<ul>
+<li><strong><code>ReducedValue</code>:</strong> Allows you to define custom state reducers (e.g., merging a list of messages instead of overwriting).</li>
+<li><strong><code>UntrackedValue</code>:</strong> Useful for transient data that needs to be accessible within a node but shouldn't be persisted in the graph's history.</li>
+</ul>
+<h2 id="reliability-persistence-and-human-in-the-loop">Reliability: Persistence &amp; Human-in-the-Loop</h2>
+<h3 id="checkpoints-and-time-travel">Checkpoints and Time Travel</h3>
+<p>LangGraph includes built-in <strong>Persistence</strong>. Every step of the graph is checkpointed. If a system crashes, you can resume exactly where you left off. This also enables <strong>Time Travel</strong>, allowing you to &quot;rewind&quot; to a previous state, inspect what the agent was thinking, and even branch into a new execution path.</p>
+<h3 id="interrupts">Interrupts</h3>
+<p>For sensitive actions (like executing a shell command or making a transaction), LangGraph supports <strong>Interrupts</strong>. You can pause the graph, wait for a human to approve the action, and then resume.</p>
+<h2 id="multi-agent-architecture-patterns">Multi-Agent Architecture Patterns</h2>
+<p>When scaling to multiple agents, LangGraph supports three primary patterns:</p>
 <ol>
-<li><strong>Alert ingestion</strong> — System alert comes in via webhook</li>
-<li><strong>Context retrieval</strong> — RAG searches our knowledge base of past incidents and runbooks</li>
-<li><strong>Diagnosis</strong> — LLM analyzes the alert + retrieved context to identify root cause</li>
-<li><strong>Action planning</strong> — Agent proposes remediation steps using function calling</li>
-<li><strong>Execution</strong> — Approved actions are executed via MCP server integration</li>
+<li><strong>Supervisor:</strong> A central manager agent delegates tasks to specialized workers.</li>
+<li><strong>Collaborative:</strong> Agents share a common state and pass control back and forth directly.</li>
+<li><strong>Swarm:</strong> A decentralized collection of agents that coordinate through shared memory and triggers.</li>
 </ol>
-<p>The critical guardrail: <strong>never auto-execute destructive actions.</strong> Our agent can restart services and clear caches autonomously, but anything involving data modification requires human approval.</p>
-<h2 id="what-i-d-do-differently">What I'd Do Differently</h2>
-<p>If I were starting over, I'd invest more in <strong>observability from day one</strong>. We eventually built an LLM-as-a-Judge pipeline with Langfuse that continuously evaluates agent responses, but we should have had that from the start. When you have multiple agents in a pipeline, debugging &quot;why did the system give a wrong answer?&quot; becomes a multi-step investigation. Good tracing makes this 10x easier.</p>
-<h2 id="key-takeaways">Key Takeaways</h2>
+<h3 id="practical-example-the-self-correction-loop">Practical Example: The Self-Correction Loop</h3>
+<p>A classic use case for LangGraph is a <strong>Self-Correction Loop</strong>:</p>
 <ol>
-<li><strong>Start simple</strong> — Router-based orchestration handles 80% of use cases</li>
-<li><strong>Build for failure</strong> — Multi-LLM failover is not optional in production</li>
-<li><strong>Observe everything</strong> — You can't improve what you can't measure</li>
-<li><strong>Guardrails are features</strong> — The best agent is one that knows when <em>not</em> to act</li>
+<li><strong>Agent Node</strong>: Generates code.</li>
+<li><strong>Test Node</strong>: Executes the code and runs unit tests.</li>
+<li><strong>Conditional Edge</strong>: If tests pass, move to <strong>End</strong>. If they fail, route back to the <strong>Agent Node</strong> with the error log for a fix.</li>
 </ol>
-<p>I'll dive deeper into each of these patterns in future posts. If you're building something similar, I'd love to hear about your approach — <a href="https://linkedin.com/in/rohit-marathe-ucf">reach out on LinkedIn</a>.</p>
+<h2 id="security-and-stability-march-2026-update">Security &amp; Stability (March 2026 Update)</h2>
+<p>Stability is as important as architecture. As of March 2026, several critical security advisories have been released concerning AI framework vulnerabilities:</p>
+<ul>
+<li><strong>CVE-2026-34070</strong>: Path Traversal in legacy prompt loading.</li>
+<li><strong>CVE-2025-68664</strong>: Serialization injection in <code>dumps()</code> and <code>load()</code>.</li>
+<li><strong>CVE-2025-67644</strong>: Unsafe deserialization of LLM-influenced metadata.</li>
+</ul>
+<p>To mitigate these, ensure your systems are running <strong><code>langchain-core</code> (1.2.22+)</strong> and <strong><code>langgraph-checkpoint-sqlite</code> (3.0.1+)</strong>. These versions deprecate unsafe legacy functions and introduce stricter validation for deserialized objects.</p>
+<h2 id="choosing-the-right-tool">Choosing the Right Tool</h2>
+<ul>
+<li><strong>Choose LangChain</strong> if your workflow is a clear, step-by-step process. It’s faster to prototype and easier for simple tasks.</li>
+<li><strong>Choose LangGraph</strong> if your application needs to handle complex decisions, requires cycles/looping, or needs persistent, reliable execution.</li>
+</ul>
+<p>The future of AI is about the sophisticated architectures we build around them. Moving from chains to graphs is the first step toward building truly intelligent systems.</p>
+<hr>
+<p><em>About the author: Rohit Marathe is an AI Systems Engineer specializing in multi-agent orchestration and large-scale LLM deployments.</em></p>
 
-<ul class="links-nextprev"><li class="links-nextprev-prev">← Previous<br> <a href="/my-blog/blog/design-patterns-every-engineer-should-know/">Essential Design Patterns Every Engineer Should Know</a></li><li class="links-nextprev-next">Next →<br><a href="/my-blog/blog/firstpost/">Hello World — Why I&#39;m Starting This Blog</a></li>
+<ul class="links-nextprev"><li class="links-nextprev-prev">← Previous<br> <a href="/my-blog/blog/multi-turn-conversation-with-llm/">Multi-Turn Conversation with LLM</a></li>
 </ul>
 
 			</heading-anchors>
@@ -484,7 +522,7 @@ pre[class*="language-diff-"] {
 			<p>&copy; 2025 Rohit Marathe · Built with <a href="https://www.11ty.dev/">Eleventy</a></p>
 		</footer>
 
-		<!-- This page `/blog/building-multi-agent-systems/` was built on 2026-03-29T19:29:07.526Z -->
+		<!-- This page `/blog/langchain-vs-langgraph/` was built on 2026-03-29T19:29:07.526Z -->
 		<script type="module" src="/my-blog/dist/cC8wS6ZjFU.js"></script>
 	</body>
 </html>
