@@ -3,8 +3,8 @@
 	<head>
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
-		<title>Tagged &#39;personal&#39;</title>
-		<meta name="description" content="AI Systems Engineer crafting intelligent systems at scale. Writing about Multi-Agent Systems, LLM Orchestration, and Cloud Engineering.">
+		<title>LangChain vs LangGraph: Architecting Stateful Multi-Agent Systems</title>
+		<meta name="description" content="A deep dive into the architectural differences between LangChain and LangGraph, including state management, cycles, and multi-agent coordination.">
 		<meta name="author" content="Rohit Marathe">
 		<link rel="alternate" href="/my-blog/feed/feed.xml" type="application/atom+xml" title="Rohit Marathe">
 		<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
@@ -563,6 +563,174 @@ main {
 	.postlist-item {
 		padding: 1em;
 	}
+}
+/**
+ * okaidia theme for JavaScript, CSS and HTML
+ * Loosely based on Monokai textmate theme by http://www.monokai.nl/
+ * @author ocodia
+ */
+
+code[class*="language-"],
+pre[class*="language-"] {
+	color: #f8f8f2;
+	background: none;
+	text-shadow: 0 1px rgba(0, 0, 0, 0.3);
+	font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+	font-size: 1em;
+	text-align: left;
+	white-space: pre;
+	word-spacing: normal;
+	word-break: normal;
+	word-wrap: normal;
+	line-height: 1.5;
+
+	-moz-tab-size: 4;
+	-o-tab-size: 4;
+	tab-size: 4;
+
+	-webkit-hyphens: none;
+	-moz-hyphens: none;
+	-ms-hyphens: none;
+	hyphens: none;
+}
+
+/* Code blocks */
+pre[class*="language-"] {
+	padding: 1em;
+	margin: .5em 0;
+	overflow: auto;
+	border-radius: 0.3em;
+}
+
+:not(pre) > code[class*="language-"],
+pre[class*="language-"] {
+	background: #272822;
+}
+
+/* Inline code */
+:not(pre) > code[class*="language-"] {
+	padding: .1em;
+	border-radius: .3em;
+	white-space: normal;
+}
+
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+	color: #8292a2;
+}
+
+.token.punctuation {
+	color: #f8f8f2;
+}
+
+.token.namespace {
+	opacity: .7;
+}
+
+.token.property,
+.token.tag,
+.token.constant,
+.token.symbol,
+.token.deleted {
+	color: #f92672;
+}
+
+.token.boolean,
+.token.number {
+	color: #ae81ff;
+}
+
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.inserted {
+	color: #a6e22e;
+}
+
+.token.operator,
+.token.entity,
+.token.url,
+.language-css .token.string,
+.style .token.string,
+.token.variable {
+	color: #f8f8f2;
+}
+
+.token.atrule,
+.token.attr-value,
+.token.function,
+.token.class-name {
+	color: #e6db74;
+}
+
+.token.keyword {
+	color: #66d9ef;
+}
+
+.token.regex,
+.token.important {
+	color: #fd971f;
+}
+
+.token.important,
+.token.bold {
+	font-weight: bold;
+}
+.token.italic {
+	font-style: italic;
+}
+
+.token.entity {
+	cursor: help;
+}
+/*
+ * New diff- syntax
+ */
+
+pre[class*="language-diff-"] {
+	--eleventy-code-padding: 1.25em;
+	padding-left: var(--eleventy-code-padding);
+	padding-right: var(--eleventy-code-padding);
+}
+.token.deleted {
+	background-color: hsl(0, 51%, 37%);
+	color: inherit;
+}
+.token.inserted {
+	background-color: hsl(126, 31%, 39%);
+	color: inherit;
+}
+
+/* Make the + and - characters unselectable for copy/paste */
+.token.prefix.unchanged,
+.token.prefix.inserted,
+.token.prefix.deleted {
+	-webkit-user-select: none;
+	user-select: none;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding-top: 2px;
+	padding-bottom: 2px;
+}
+.token.prefix.inserted,
+.token.prefix.deleted {
+	width: var(--eleventy-code-padding);
+	background-color: rgba(0,0,0,.2);
+}
+
+/* Optional: full-width background color */
+.token.inserted:not(.prefix),
+.token.deleted:not(.prefix) {
+	display: block;
+	margin-left: calc(-1 * var(--eleventy-code-padding));
+	margin-right: calc(-1 * var(--eleventy-code-padding));
+	text-decoration: none; /* override del, ins, mark defaults */
+	color: inherit; /* override del, ins, mark defaults */
 }</style>
 		
 	</head>
@@ -584,19 +752,113 @@ main {
 
 		<main id="main">
 			<heading-anchors>
-				<h1 id="tagged-personal">Tagged “personal”</h1>
+				
 
 
-<ol reversed="" class="postlist" style="--postlist-index: 2">
-	<li class="postlist-item">
-		<a href="/my-blog/blog/firstpost/" class="postlist-link">Hello World — Why I&#39;m Starting This Blog</a>
-		<time class="postlist-date" datetime="2025-02-27">February 2025</time>
-	</li>
+<h1 id="langchain-vs-langgraph-architecting-stateful-multi-agent-systems">LangChain vs LangGraph: Architecting Stateful Multi-Agent Systems</h1>
+
+<ul class="post-metadata">
+	<li><time datetime="2026-03-29">29 March 2026</time></li>
+	<li><a href="/my-blog/tags/ai/" class="post-tag">ai</a>, </li>
+	<li><a href="/my-blog/tags/agents/" class="post-tag">agents</a>, </li>
+	<li><a href="/my-blog/tags/langchain/" class="post-tag">langchain</a>, </li>
+	<li><a href="/my-blog/tags/langgraph/" class="post-tag">langgraph</a>, </li>
+	<li><a href="/my-blog/tags/system-design/" class="post-tag">system-design</a></li>
+</ul>
+
+<p>The landscape of building LLM-powered applications is evolving rapidly. We've moved from simple prompt engineering to complex &quot;chains,&quot; and now we're entering the era of truly agentic, multi-agent systems.</p>
+<p>When you're architecting these systems, the choice between <strong>LangChain</strong> and <strong>LangGraph</strong> is critical. While they share a lineage, their architectural foundations are built for fundamentally different use cases.</p>
+<h2 id="the-architectural-divide-linear-vs-cyclic">The Architectural Divide: Linear vs. Cyclic</h2>
+<p>At its core, the difference is one of topology: <strong>Linear Chains vs. Cyclic Graphs.</strong></p>
+<p><picture><source type="image/avif" srcset="/my-blog/blog/langchain-vs-langgraph/EwZhlR2PZi-1376.avif 1376w"><source type="image/webp" srcset="/my-blog/blog/langchain-vs-langgraph/EwZhlR2PZi-1376.webp 1376w"><img loading="lazy" decoding="async" src="/my-blog/blog/langchain-vs-langgraph/EwZhlR2PZi-1376.png" alt="LangChain vs LangGraph Architecture" width="1376" height="768"></picture></p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Feature</th>
+<th style="text-align:left">LangChain (Chains)</th>
+<th style="text-align:left">LangGraph (Graphs)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><strong>Topology</strong></td>
+<td style="text-align:left">Directed Acyclic Graph (DAG)</td>
+<td style="text-align:left">Cyclic Graph</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>Flow</strong></td>
+<td style="text-align:left">Linear / Sequential</td>
+<td style="text-align:left">Looping / Iterative</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>State</strong></td>
+<td style="text-align:left">Implicit / Append-only</td>
+<td style="text-align:left">Explicit / Schema-based</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>Cycles</strong></td>
+<td style="text-align:left">Not natively supported</td>
+<td style="text-align:left">First-class citizen</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>Persistence</strong></td>
+<td style="text-align:left">Basic memory buffers</td>
+<td style="text-align:left">Checkpointing / Time Travel</td>
+</tr>
+</tbody>
+</table>
+<h3 id="langchain-the-linear-evolution">LangChain: The Linear Evolution</h3>
+<p>LangChain is built around the concept of a DAG. You define a sequence of steps—a &quot;chain&quot;—where data flows from one component to the next in a predetermined path. It’s excellent for straightforward transformations and simple RAG (Retrieval-Augmented Generation).</p>
+<h3 id="langgraph-the-agentic-revolution">LangGraph: The Agentic Revolution</h3>
+<p>LangGraph is designed for <strong>stateful, cyclic workflows</strong>. Instead of a fixed sequence, you define a graph where <strong>Nodes</strong> represent actions (LLM calls, tools) and <strong>Edges</strong> define transitions.</p>
+<h4 id="control-flow-and-decision-making">Control Flow &amp; Decision Making</h4>
+<p>Transitions in LangGraph aren't just direct; you use <strong>Conditional Edges</strong> (routers) to make real-time decisions. For example, a router node can analyze an LLM's output and decide whether to call a tool or move to a final response node.</p>
+<h2 id="advanced-state-management">Advanced State Management</h2>
+<p>One of the most significant upgrades in LangGraph is how it treats state.</p>
+<h3 id="explicit-state-schemas">Explicit State Schemas</h3>
+<p>In LangGraph, you define a <code>State</code> object (using <code>TypedDict</code> or <code>Pydantic</code>). This provides a single source of truth that is passed between every node in the graph.</p>
+<ul>
+<li><strong><code>ReducedValue</code>:</strong> Allows you to define custom state reducers (e.g., merging a list of messages instead of overwriting).</li>
+<li><strong><code>UntrackedValue</code>:</strong> Useful for transient data that needs to be accessible within a node but shouldn't be persisted in the graph's history.</li>
+</ul>
+<h2 id="reliability-persistence-and-human-in-the-loop">Reliability: Persistence &amp; Human-in-the-Loop</h2>
+<h3 id="checkpoints-and-time-travel">Checkpoints and Time Travel</h3>
+<p>LangGraph includes built-in <strong>Persistence</strong>. Every step of the graph is checkpointed. If a system crashes, you can resume exactly where you left off. This also enables <strong>Time Travel</strong>, allowing you to &quot;rewind&quot; to a previous state, inspect what the agent was thinking, and even branch into a new execution path.</p>
+<h3 id="interrupts">Interrupts</h3>
+<p>For sensitive actions (like executing a shell command or making a transaction), LangGraph supports <strong>Interrupts</strong>. You can pause the graph, wait for a human to approve the action, and then resume.</p>
+<h2 id="multi-agent-architecture-patterns">Multi-Agent Architecture Patterns</h2>
+<p>When scaling to multiple agents, LangGraph supports three primary patterns:</p>
+<ol>
+<li><strong>Supervisor:</strong> A central manager agent delegates tasks to specialized workers.</li>
+<li><strong>Collaborative:</strong> Agents share a common state and pass control back and forth directly.</li>
+<li><strong>Swarm:</strong> A decentralized collection of agents that coordinate through shared memory and triggers.</li>
 </ol>
+<h3 id="practical-example-the-self-correction-loop">Practical Example: The Self-Correction Loop</h3>
+<p>A classic use case for LangGraph is a <strong>Self-Correction Loop</strong>:</p>
+<ol>
+<li><strong>Agent Node</strong>: Generates code.</li>
+<li><strong>Test Node</strong>: Executes the code and runs unit tests.</li>
+<li><strong>Conditional Edge</strong>: If tests pass, move to <strong>End</strong>. If they fail, route back to the <strong>Agent Node</strong> with the error log for a fix.</li>
+</ol>
+<h2 id="security-and-stability-march-2026-update">Security &amp; Stability (March 2026 Update)</h2>
+<p>Stability is as important as architecture. As of March 2026, several critical security advisories have been released concerning AI framework vulnerabilities:</p>
+<ul>
+<li><strong>CVE-2026-34070</strong>: Path Traversal in legacy prompt loading.</li>
+<li><strong>CVE-2025-68664</strong>: Serialization injection in <code>dumps()</code> and <code>load()</code>.</li>
+<li><strong>CVE-2025-67644</strong>: Unsafe deserialization of LLM-influenced metadata.</li>
+</ul>
+<p>To mitigate these, ensure your systems are running <strong><code>langchain-core</code> (1.2.22+)</strong> and <strong><code>langgraph-checkpoint-sqlite</code> (3.0.1+)</strong>. These versions deprecate unsafe legacy functions and introduce stricter validation for deserialized objects.</p>
+<h2 id="choosing-the-right-tool">Choosing the Right Tool</h2>
+<ul>
+<li><strong>Choose LangChain</strong> if your workflow is a clear, step-by-step process. It’s faster to prototype and easier for simple tasks.</li>
+<li><strong>Choose LangGraph</strong> if your application needs to handle complex decisions, requires cycles/looping, or needs persistent, reliable execution.</li>
+</ul>
+<p>The future of AI is about the sophisticated architectures we build around them. Moving from chains to graphs is the first step toward building truly intelligent systems.</p>
+<hr>
+<p><em>About the author: Rohit Marathe is an AI Systems Engineer specializing in multi-agent orchestration and large-scale LLM deployments.</em></p>
 
-
-<p>See <a href="/my-blog/tags/">all tags</a>.</p>
-
+<ul class="links-nextprev"><li class="links-nextprev-prev">← Previous<br> <a href="/my-blog/blog/multi-turn-conversation-with-llm/">Multi-Turn Conversation with LLM</a></li>
+</ul>
 
 			</heading-anchors>
 		</main>
@@ -610,7 +872,7 @@ main {
 			<p>&copy; 2025 Rohit Marathe · Built with <a href="https://www.11ty.dev/">Eleventy</a></p>
 		</footer>
 
-		<!-- This page `/tags/personal/` was built on 2026-03-29T18:55:55.424Z -->
+		<!-- This page `/blog/langchain-vs-langgraph/` was built on 2026-03-29T18:55:55.327Z -->
 		<script type="module" src="/my-blog/dist/cC8wS6ZjFU.js"></script>
 	</body>
 </html>
