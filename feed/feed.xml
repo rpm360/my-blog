@@ -5,108 +5,11 @@
   <subtitle>AI Systems Engineer crafting intelligent systems at scale.</subtitle>
   <link href="https://rpm360.github.io/my-blog/feed/feed.xml" rel="self" />
   <link href="https://rpm360.github.io/my-blog/my-blog/" />
-  <updated>2026-03-29T00:00:00Z</updated>
+  <updated>2026-03-24T00:00:00Z</updated>
   <id>https://rpm360.github.io/my-blog/my-blog/</id>
   <author>
     <name>Rohit Marathe</name>
   </author>
-  <entry>
-    <title>LangChain vs LangGraph: Architecting Stateful Multi-Agent Systems</title>
-    <link href="https://rpm360.github.io/my-blog/blog/langchain-vs-langgraph/" />
-    <updated>2026-03-29T00:00:00Z</updated>
-    <id>https://rpm360.github.io/my-blog/blog/langchain-vs-langgraph/</id>
-    <content type="html">&lt;p&gt;The landscape of building LLM-powered applications is evolving rapidly. We&#39;ve moved from simple prompt engineering to complex &amp;quot;chains,&amp;quot; and now we&#39;re entering the era of truly agentic, multi-agent systems.&lt;/p&gt;
-&lt;p&gt;When you&#39;re architecting these systems, the choice between &lt;strong&gt;LangChain&lt;/strong&gt; and &lt;strong&gt;LangGraph&lt;/strong&gt; is critical. While they share a lineage, their architectural foundations are built for fundamentally different use cases.&lt;/p&gt;
-&lt;h2 id=&quot;the-architectural-divide-linear-vs-cyclic&quot;&gt;The Architectural Divide: Linear vs. Cyclic&lt;/h2&gt;
-&lt;p&gt;At its core, the difference is one of topology: &lt;strong&gt;Linear Chains vs. Cyclic Graphs.&lt;/strong&gt;&lt;/p&gt;
-&lt;p&gt;&lt;picture&gt;&lt;source type=&quot;image/avif&quot; srcset=&quot;https://rpm360.github.io/my-blog/blog/langchain-vs-langgraph/EwZhlR2PZi-1376.avif 1376w&quot;&gt;&lt;source type=&quot;image/webp&quot; srcset=&quot;https://rpm360.github.io/my-blog/blog/langchain-vs-langgraph/EwZhlR2PZi-1376.webp 1376w&quot;&gt;&lt;img loading=&quot;lazy&quot; decoding=&quot;async&quot; src=&quot;https://rpm360.github.io/my-blog/blog/langchain-vs-langgraph/EwZhlR2PZi-1376.png&quot; alt=&quot;LangChain vs LangGraph Architecture&quot; width=&quot;1376&quot; height=&quot;768&quot;&gt;&lt;/picture&gt;&lt;/p&gt;
-&lt;table&gt;
-&lt;thead&gt;
-&lt;tr&gt;
-&lt;th style=&quot;text-align:left&quot;&gt;Feature&lt;/th&gt;
-&lt;th style=&quot;text-align:left&quot;&gt;LangChain (Chains)&lt;/th&gt;
-&lt;th style=&quot;text-align:left&quot;&gt;LangGraph (Graphs)&lt;/th&gt;
-&lt;/tr&gt;
-&lt;/thead&gt;
-&lt;tbody&gt;
-&lt;tr&gt;
-&lt;td style=&quot;text-align:left&quot;&gt;&lt;strong&gt;Topology&lt;/strong&gt;&lt;/td&gt;
-&lt;td style=&quot;text-align:left&quot;&gt;Directed Acyclic Graph (DAG)&lt;/td&gt;
-&lt;td style=&quot;text-align:left&quot;&gt;Cyclic Graph&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td style=&quot;text-align:left&quot;&gt;&lt;strong&gt;Flow&lt;/strong&gt;&lt;/td&gt;
-&lt;td style=&quot;text-align:left&quot;&gt;Linear / Sequential&lt;/td&gt;
-&lt;td style=&quot;text-align:left&quot;&gt;Looping / Iterative&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td style=&quot;text-align:left&quot;&gt;&lt;strong&gt;State&lt;/strong&gt;&lt;/td&gt;
-&lt;td style=&quot;text-align:left&quot;&gt;Implicit / Append-only&lt;/td&gt;
-&lt;td style=&quot;text-align:left&quot;&gt;Explicit / Schema-based&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td style=&quot;text-align:left&quot;&gt;&lt;strong&gt;Cycles&lt;/strong&gt;&lt;/td&gt;
-&lt;td style=&quot;text-align:left&quot;&gt;Not natively supported&lt;/td&gt;
-&lt;td style=&quot;text-align:left&quot;&gt;First-class citizen&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td style=&quot;text-align:left&quot;&gt;&lt;strong&gt;Persistence&lt;/strong&gt;&lt;/td&gt;
-&lt;td style=&quot;text-align:left&quot;&gt;Basic memory buffers&lt;/td&gt;
-&lt;td style=&quot;text-align:left&quot;&gt;Checkpointing / Time Travel&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;
-&lt;/table&gt;
-&lt;h3 id=&quot;langchain-the-linear-evolution&quot;&gt;LangChain: The Linear Evolution&lt;/h3&gt;
-&lt;p&gt;LangChain is built around the concept of a DAG. You define a sequence of steps—a &amp;quot;chain&amp;quot;—where data flows from one component to the next in a predetermined path. It’s excellent for straightforward transformations and simple RAG (Retrieval-Augmented Generation).&lt;/p&gt;
-&lt;h3 id=&quot;langgraph-the-agentic-revolution&quot;&gt;LangGraph: The Agentic Revolution&lt;/h3&gt;
-&lt;p&gt;LangGraph is designed for &lt;strong&gt;stateful, cyclic workflows&lt;/strong&gt;. Instead of a fixed sequence, you define a graph where &lt;strong&gt;Nodes&lt;/strong&gt; represent actions (LLM calls, tools) and &lt;strong&gt;Edges&lt;/strong&gt; define transitions.&lt;/p&gt;
-&lt;h4 id=&quot;control-flow-and-decision-making&quot;&gt;Control Flow &amp;amp; Decision Making&lt;/h4&gt;
-&lt;p&gt;Transitions in LangGraph aren&#39;t just direct; you use &lt;strong&gt;Conditional Edges&lt;/strong&gt; (routers) to make real-time decisions. For example, a router node can analyze an LLM&#39;s output and decide whether to call a tool or move to a final response node.&lt;/p&gt;
-&lt;h2 id=&quot;advanced-state-management&quot;&gt;Advanced State Management&lt;/h2&gt;
-&lt;p&gt;One of the most significant upgrades in LangGraph is how it treats state.&lt;/p&gt;
-&lt;h3 id=&quot;explicit-state-schemas&quot;&gt;Explicit State Schemas&lt;/h3&gt;
-&lt;p&gt;In LangGraph, you define a &lt;code&gt;State&lt;/code&gt; object (using &lt;code&gt;TypedDict&lt;/code&gt; or &lt;code&gt;Pydantic&lt;/code&gt;). This provides a single source of truth that is passed between every node in the graph.&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;strong&gt;&lt;code&gt;ReducedValue&lt;/code&gt;:&lt;/strong&gt; Allows you to define custom state reducers (e.g., merging a list of messages instead of overwriting).&lt;/li&gt;
-&lt;li&gt;&lt;strong&gt;&lt;code&gt;UntrackedValue&lt;/code&gt;:&lt;/strong&gt; Useful for transient data that needs to be accessible within a node but shouldn&#39;t be persisted in the graph&#39;s history.&lt;/li&gt;
-&lt;/ul&gt;
-&lt;h2 id=&quot;reliability-persistence-and-human-in-the-loop&quot;&gt;Reliability: Persistence &amp;amp; Human-in-the-Loop&lt;/h2&gt;
-&lt;h3 id=&quot;checkpoints-and-time-travel&quot;&gt;Checkpoints and Time Travel&lt;/h3&gt;
-&lt;p&gt;LangGraph includes built-in &lt;strong&gt;Persistence&lt;/strong&gt;. Every step of the graph is checkpointed. If a system crashes, you can resume exactly where you left off. This also enables &lt;strong&gt;Time Travel&lt;/strong&gt;, allowing you to &amp;quot;rewind&amp;quot; to a previous state, inspect what the agent was thinking, and even branch into a new execution path.&lt;/p&gt;
-&lt;h3 id=&quot;interrupts&quot;&gt;Interrupts&lt;/h3&gt;
-&lt;p&gt;For sensitive actions (like executing a shell command or making a transaction), LangGraph supports &lt;strong&gt;Interrupts&lt;/strong&gt;. You can pause the graph, wait for a human to approve the action, and then resume.&lt;/p&gt;
-&lt;h2 id=&quot;multi-agent-architecture-patterns&quot;&gt;Multi-Agent Architecture Patterns&lt;/h2&gt;
-&lt;p&gt;When scaling to multiple agents, LangGraph supports three primary patterns:&lt;/p&gt;
-&lt;ol&gt;
-&lt;li&gt;&lt;strong&gt;Supervisor:&lt;/strong&gt; A central manager agent delegates tasks to specialized workers.&lt;/li&gt;
-&lt;li&gt;&lt;strong&gt;Collaborative:&lt;/strong&gt; Agents share a common state and pass control back and forth directly.&lt;/li&gt;
-&lt;li&gt;&lt;strong&gt;Swarm:&lt;/strong&gt; A decentralized collection of agents that coordinate through shared memory and triggers.&lt;/li&gt;
-&lt;/ol&gt;
-&lt;h3 id=&quot;practical-example-the-self-correction-loop&quot;&gt;Practical Example: The Self-Correction Loop&lt;/h3&gt;
-&lt;p&gt;A classic use case for LangGraph is a &lt;strong&gt;Self-Correction Loop&lt;/strong&gt;:&lt;/p&gt;
-&lt;ol&gt;
-&lt;li&gt;&lt;strong&gt;Agent Node&lt;/strong&gt;: Generates code.&lt;/li&gt;
-&lt;li&gt;&lt;strong&gt;Test Node&lt;/strong&gt;: Executes the code and runs unit tests.&lt;/li&gt;
-&lt;li&gt;&lt;strong&gt;Conditional Edge&lt;/strong&gt;: If tests pass, move to &lt;strong&gt;End&lt;/strong&gt;. If they fail, route back to the &lt;strong&gt;Agent Node&lt;/strong&gt; with the error log for a fix.&lt;/li&gt;
-&lt;/ol&gt;
-&lt;h2 id=&quot;security-and-stability-march-2026-update&quot;&gt;Security &amp;amp; Stability (March 2026 Update)&lt;/h2&gt;
-&lt;p&gt;Stability is as important as architecture. As of March 2026, several critical security advisories have been released concerning AI framework vulnerabilities:&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;strong&gt;CVE-2026-34070&lt;/strong&gt;: Path Traversal in legacy prompt loading.&lt;/li&gt;
-&lt;li&gt;&lt;strong&gt;CVE-2025-68664&lt;/strong&gt;: Serialization injection in &lt;code&gt;dumps()&lt;/code&gt; and &lt;code&gt;load()&lt;/code&gt;.&lt;/li&gt;
-&lt;li&gt;&lt;strong&gt;CVE-2025-67644&lt;/strong&gt;: Unsafe deserialization of LLM-influenced metadata.&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;To mitigate these, ensure your systems are running &lt;strong&gt;&lt;code&gt;langchain-core&lt;/code&gt; (1.2.22+)&lt;/strong&gt; and &lt;strong&gt;&lt;code&gt;langgraph-checkpoint-sqlite&lt;/code&gt; (3.0.1+)&lt;/strong&gt;. These versions deprecate unsafe legacy functions and introduce stricter validation for deserialized objects.&lt;/p&gt;
-&lt;h2 id=&quot;choosing-the-right-tool&quot;&gt;Choosing the Right Tool&lt;/h2&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;strong&gt;Choose LangChain&lt;/strong&gt; if your workflow is a clear, step-by-step process. It’s faster to prototype and easier for simple tasks.&lt;/li&gt;
-&lt;li&gt;&lt;strong&gt;Choose LangGraph&lt;/strong&gt; if your application needs to handle complex decisions, requires cycles/looping, or needs persistent, reliable execution.&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;The future of AI is about the sophisticated architectures we build around them. Moving from chains to graphs is the first step toward building truly intelligent systems.&lt;/p&gt;
-&lt;hr&gt;
-&lt;p&gt;&lt;em&gt;About the author: Rohit Marathe is an AI Systems Engineer specializing in multi-agent orchestration and large-scale LLM deployments.&lt;/em&gt;&lt;/p&gt;
-</content>
-  </entry>
   <entry>
     <title>Multi-Turn Conversation with LLM</title>
     <link href="https://rpm360.github.io/my-blog/blog/multi-turn-conversation-with-llm/" />
