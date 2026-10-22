@@ -1,0 +1,1116 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>Enterprise Claude Code on AWS Bedrock: Multi-User SSO, Governance, and AI Admin Playbook</title>
+		<meta name="description" content="A complete engineering guide to deploying Anthropic&#39;s Claude Code across enterprise developer teams using AWS Bedrock, IAM Identity Center SSO, Bedrock Guardrails, and audit-ready governance.">
+		<meta name="author" content="Rohit Marathe">
+		<meta name="theme-color" content="#0b0f19">
+		<meta property="og:title" content="Enterprise Claude Code on AWS Bedrock: Multi-User SSO, Governance, and AI Admin Playbook">
+		<meta property="og:description" content="A complete engineering guide to deploying Anthropic&#39;s Claude Code across enterprise developer teams using AWS Bedrock, IAM Identity Center SSO, Bedrock Guardrails, and audit-ready governance.">
+		<meta property="og:type" content="article">
+		<link rel="alternate" href="/my-blog/feed/feed.xml" type="application/atom+xml" title="Rohit Marathe">
+		<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
+		<script>
+			(function () {
+				var t = localStorage.getItem('theme');
+				if (!t) t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+				document.documentElement.setAttribute('data-theme', t);
+			})();
+		</script>
+		<link rel="preconnect" href="https://fonts.googleapis.com">
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+		<link href="https://fonts.googleapis.com/css2?family=Geist&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+		
+		<style>/* ============================================
+   Rohit Marathe — Personal Blog Theme
+   Editorial reading experience · light + dark
+   ============================================ */
+
+/* === Design Tokens === */
+:root {
+	--font-family: 'Inter', -apple-system, system-ui, sans-serif;
+	--font-family-serif: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+	--font-family-monospace: 'JetBrains Mono', Consolas, Menlo, Monaco, monospace;
+
+	--accent: #0ea5e9;
+	--accent-2: #8b5cf6;
+	--accent-gradient: linear-gradient(120deg, #0ea5e9, #8b5cf6 60%, #ec4899);
+
+	--radius: 16px;
+	--radius-sm: 10px;
+	--transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+	--syntax-tab-size: 2;
+
+	--container: 1080px;
+	--reading: 700px;
+	color-scheme: dark;
+
+	/* Dark (default) */
+	--bg-primary: #0b0f19;
+	--bg-secondary: #111827;
+	--bg-card: rgba(255, 255, 255, 0.035);
+	--bg-card-hover: rgba(255, 255, 255, 0.06);
+	--bg-glass: rgba(11, 15, 25, 0.72);
+	--text-primary: #f1f5f9;
+	--text-body: #cbd5e1;
+	--text-secondary: #94a3b8;
+	--text-muted: #64748b;
+	--border-subtle: rgba(255, 255, 255, 0.08);
+	--border-accent: rgba(14, 165, 233, 0.4);
+	--accent-text: #38bdf8;
+	--code-bg: #0f172a;
+	--shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+	--glow-1: rgba(14, 165, 233, 0.12);
+	--glow-2: rgba(139, 92, 246, 0.1);
+}
+
+:root[data-theme="light"] {
+	color-scheme: light;
+	--bg-primary: #fbfbfd;
+	--bg-secondary: #f1f5f9;
+	--bg-card: #ffffff;
+	--bg-card-hover: #ffffff;
+	--bg-glass: rgba(251, 251, 253, 0.8);
+	--text-primary: #0f172a;
+	--text-body: #1e293b;
+	--text-secondary: #475569;
+	--text-muted: #64748b;
+	--border-subtle: rgba(15, 23, 42, 0.09);
+	--border-accent: rgba(14, 165, 233, 0.5);
+	--accent-text: #0369a1;
+	--code-bg: #f1f5f9;
+	--shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+	--glow-1: rgba(14, 165, 233, 0.1);
+	--glow-2: rgba(139, 92, 246, 0.08);
+}
+
+/* === Reset === */
+* { box-sizing: border-box; }
+@view-transition { navigation: auto; }
+
+html, body {
+	padding: 0;
+	margin: 0;
+	font-family: var(--font-family);
+	color: var(--text-primary);
+	background-color: var(--bg-primary);
+	-webkit-font-smoothing: antialiased;
+}
+html { overflow-y: scroll; scroll-behavior: smooth; scroll-padding-top: 90px; }
+body {
+	min-height: 100vh;
+	display: flex;
+	flex-direction: column;
+	transition: background-color 0.3s, color 0.3s;
+}
+
+/* Ambient glow */
+body::before {
+	content: '';
+	position: fixed;
+	inset: 0;
+	background:
+		radial-gradient(600px circle at 8% -5%, var(--glow-1), transparent 70%),
+		radial-gradient(700px circle at 100% 100%, var(--glow-2), transparent 70%);
+	pointer-events: none;
+	z-index: -1;
+}
+
+::selection { background: rgba(14, 165, 233, 0.3); }
+
+/* === Accessibility === */
+.visually-hidden:not(:focus):not(:active) {
+	clip: rect(0 0 0 0);
+	clip-path: inset(50%);
+	height: 1px;
+	overflow: hidden;
+	position: absolute;
+	white-space: nowrap;
+	width: 1px;
+}
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+@media (prefers-reduced-motion: reduce) {
+	* { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+
+/* === Media === */
+img { max-width: 100%; border-radius: var(--radius-sm); }
+img[width][height] { height: auto; }
+img[src$=".svg"] { width: 100%; height: auto; max-width: none; }
+video, iframe { width: 100%; height: auto; border-radius: var(--radius); }
+iframe { aspect-ratio: 16/9; }
+
+/* === Typography === */
+p { line-height: 1.75; color: var(--text-body); }
+li { line-height: 1.75; color: var(--text-body); }
+h1, h2, h3, h4 { color: var(--text-primary); letter-spacing: -0.025em; line-height: 1.2; }
+h1 { font-size: 2.2rem; font-weight: 800; }
+h2 { font-size: 1.55rem; margin-top: 2em; font-weight: 700; }
+h3 { font-size: 1.2rem; margin-top: 1.8em; font-weight: 650; }
+hr { border: 0; border-top: 1px solid var(--border-subtle); margin: 3rem 0; }
+
+a[href] { color: var(--accent-text); text-decoration: none; transition: var(--transition); }
+a[href]:hover { color: var(--text-primary); }
+
+/* === Layout === */
+.container { width: 100%; max-width: var(--container); margin: 0 auto; padding: 0 1.5rem; }
+main { flex: 1; padding: 2.5rem 0 4rem; animation: fadeInUp 0.45s ease-out; }
+main > heading-anchors > :first-child { margin-top: 0; }
+@keyframes fadeInUp {
+	from { opacity: 0; transform: translateY(14px); }
+	to { opacity: 1; transform: translateY(0); }
+}
+
+/* === Header === */
+.site-header {
+	position: sticky;
+	top: 0;
+	z-index: 100;
+	background: var(--bg-glass);
+	backdrop-filter: saturate(180%) blur(16px);
+	-webkit-backdrop-filter: saturate(180%) blur(16px);
+	border-bottom: 1px solid var(--border-subtle);
+}
+.site-header .container {
+	display: flex;
+	align-items: center;
+	gap: 1rem;
+	height: 64px;
+}
+.home-link {
+	flex-grow: 1;
+	font-size: 1.1rem;
+	font-weight: 800;
+	letter-spacing: -0.03em;
+	background: var(--accent-gradient);
+	-webkit-background-clip: text;
+	background-clip: text;
+	-webkit-text-fill-color: transparent;
+}
+.home-link:hover { opacity: 0.8; color: transparent !important; }
+.nav { display: flex; gap: 0.25rem; padding: 0; margin: 0; list-style: none; }
+.nav-item a[href] {
+	color: var(--text-secondary);
+	font-size: 0.9rem;
+	font-weight: 500;
+	padding: 0.45em 0.85em;
+	border-radius: 999px;
+}
+.nav-item a[href]:hover { color: var(--text-primary); background: var(--bg-card-hover); }
+.nav a[href][aria-current="page"] { color: var(--text-primary); background: var(--bg-card); box-shadow: inset 0 0 0 1px var(--border-subtle); }
+
+.header-actions { display: flex; gap: 0.5rem; align-items: center; }
+.icon-btn, .search-trigger {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	height: 36px;
+	padding: 0 0.7rem;
+	border: 1px solid var(--border-subtle);
+	background: var(--bg-card);
+	color: var(--text-secondary);
+	border-radius: 999px;
+	font: inherit;
+	font-size: 0.85rem;
+	cursor: pointer;
+	transition: var(--transition);
+}
+.icon-btn { width: 36px; justify-content: center; padding: 0; }
+.icon-btn:hover, .search-trigger:hover { color: var(--text-primary); border-color: var(--border-accent); }
+.search-trigger kbd {
+	font: 500 0.7rem var(--font-family);
+	padding: 0.1rem 0.4rem;
+	border-radius: 5px;
+	border: 1px solid var(--border-subtle);
+	color: var(--text-muted);
+}
+.theme-toggle .sun { display: none; }
+:root[data-theme="light"] .theme-toggle .sun { display: block; }
+:root[data-theme="light"] .theme-toggle .moon { display: none; }
+
+#skip-link {
+	background: var(--bg-secondary);
+	color: var(--text-primary);
+	padding: 0.5rem 1rem;
+	border: 1px solid var(--border-accent);
+	border-radius: var(--radius-sm);
+}
+#skip-link.visually-hidden:focus { position: absolute; top: 1rem; left: 1rem; z-index: 999; }
+
+/* Reading progress */
+.progress {
+	position: fixed;
+	top: 0; left: 0;
+	height: 3px;
+	width: 100%;
+	transform-origin: 0 50%;
+	transform: scaleX(0);
+	background: var(--accent-gradient);
+	z-index: 200;
+}
+
+/* === Hero === */
+.hero { padding: 4rem 0 3rem; max-width: 780px; }
+.hero-eyebrow {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	font-size: 0.8rem;
+	font-weight: 600;
+	color: var(--text-secondary);
+	padding: 0.35rem 0.8rem;
+	border: 1px solid var(--border-subtle);
+	background: var(--bg-card);
+	border-radius: 999px;
+	margin-bottom: 1.5rem;
+}
+.hero-eyebrow .dot {
+	width: 8px; height: 8px; border-radius: 50%;
+	background: #22c55e;
+	box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.6);
+	animation: pulse 2s infinite;
+}
+@keyframes pulse {
+	70% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
+	100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+}
+.hero h1 {
+	font-size: clamp(2.4rem, 6vw, 3.8rem);
+	font-weight: 800;
+	line-height: 1.05;
+	margin: 0 0 1rem;
+	letter-spacing: -0.04em;
+}
+.gradient-text {
+	background: var(--accent-gradient);
+	-webkit-background-clip: text;
+	background-clip: text;
+	-webkit-text-fill-color: transparent;
+}
+.hero-tagline { font-size: 1.2rem; color: var(--text-secondary); margin: 0 0 1.75rem; line-height: 1.6; }
+.hero-tags { display: flex; flex-wrap: wrap; gap: 0.5rem; list-style: none; padding: 0; margin: 0; }
+.hero-tag {
+	font-size: 0.8rem;
+	font-weight: 500;
+	line-height: 1.4;
+	color: var(--text-secondary);
+	background: var(--bg-card);
+	border: 1px solid var(--border-subtle);
+	padding: 0.3em 0.85em;
+	border-radius: 999px;
+}
+
+/* === Section headings === */
+.section-heading {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	font-size: 0.8rem;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.12em;
+	color: var(--text-muted);
+	margin: 3rem 0 1.25rem;
+}
+.section-heading a { text-transform: none; letter-spacing: 0; font-size: 0.9rem; font-weight: 500; }
+
+/* === Post cards === */
+.postlist {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+	gap: 1.25rem;
+}
+.postlist-item {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+	padding: 1.5rem;
+	background: var(--bg-card);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius);
+	transition: var(--transition);
+}
+.postlist-item:hover {
+	border-color: var(--border-accent);
+	transform: translateY(-4px);
+	box-shadow: var(--shadow);
+	background: var(--bg-card-hover);
+}
+.postlist-meta { display: flex; gap: 0.5rem; align-items: center; font-size: 0.78rem; color: var(--text-muted); }
+.postlist-link {
+	font-size: 1.2rem;
+	font-weight: 700;
+	line-height: 1.3;
+	letter-spacing: -0.02em;
+	color: var(--text-primary) !important;
+}
+/* Whole card is clickable */
+.postlist-link::after { content: ''; position: absolute; inset: 0; border-radius: var(--radius); }
+.postlist-item:hover .postlist-link { color: var(--accent-text) !important; }
+.postlist-desc {
+	margin: 0;
+	font-size: 0.93rem;
+	line-height: 1.6;
+	color: var(--text-secondary);
+	display: -webkit-box;
+	-webkit-line-clamp: 3;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+.postlist-tags { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: auto; padding-top: 0.25rem; position: relative; z-index: 1; }
+
+/* Featured (first) card spans the grid on wide screens */
+.postlist.featured .postlist-item:first-child { grid-column: 1 / -1; padding: 2rem; }
+.postlist.featured .postlist-item:first-child .postlist-link { font-size: 1.75rem; }
+.postlist.featured .postlist-item:first-child .postlist-desc { font-size: 1.05rem; -webkit-line-clamp: 2; max-width: 60ch; }
+
+/* === Tags === */
+.post-tag {
+	display: inline-flex;
+	align-items: center;
+	font-size: 0.75rem;
+	font-weight: 500;
+	color: var(--text-secondary);
+	background: var(--bg-secondary);
+	border: 1px solid var(--border-subtle);
+	padding: 0.2em 0.7em;
+	border-radius: 999px;
+	text-transform: capitalize;
+}
+a.post-tag:hover { color: var(--accent-text); border-color: var(--border-accent); }
+
+/* === Article === */
+.article { max-width: var(--reading); margin: 0 auto; }
+.article-header { margin-bottom: 2.5rem; }
+.article-header h1 {
+	font-size: clamp(2rem, 5vw, 3rem);
+	line-height: 1.1;
+	letter-spacing: -0.035em;
+	margin: 0 0 1rem;
+}
+.article-desc { font-size: 1.2rem; color: var(--text-secondary); line-height: 1.55; margin: 0 0 1.5rem; }
+.post-metadata {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5rem 1rem;
+	list-style: none;
+	padding: 1rem 0 0;
+	margin: 0;
+	border-top: 1px solid var(--border-subtle);
+	font-size: 0.88rem;
+	color: var(--text-muted);
+}
+.post-metadata li { color: var(--text-muted); line-height: 1.5; }
+.post-metadata .tags { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-left: auto; }
+
+/* Comfortable long-form body */
+.article-body { font-size: 1.125rem; }
+.article-body p, .article-body li { font-size: 1.125rem; line-height: 1.85; color: var(--text-body); }
+.article-body p { margin: 1.4em 0; }
+.article-body h2 { margin-top: 2.6em; padding-top: 0.2em; }
+.article-body a[href]:not(.heading-anchor) {
+	text-decoration: underline;
+	text-decoration-color: color-mix(in srgb, var(--accent-text) 40%, transparent);
+	text-underline-offset: 3px;
+}
+.article-body a[href]:hover { text-decoration-color: currentColor; }
+.article-body blockquote {
+	margin: 1.8em 0;
+	padding: 0.2em 0 0.2em 1.4em;
+	border-left: 3px solid var(--accent);
+	color: var(--text-secondary);
+	font-style: italic;
+}
+.article-body blockquote p { color: inherit; margin: 0.6em 0; }
+.article-body ul, .article-body ol { padding-left: 1.4em; }
+.article-body li::marker { color: var(--accent); }
+.article-body img { display: block; margin: 2em auto; border: 1px solid var(--border-subtle); }
+
+/* Table of contents */
+.toc {
+	margin: 0 0 2.5rem;
+	padding: 1.1rem 1.4rem;
+	background: var(--bg-card);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius);
+}
+.toc[hidden] { display: none; }
+.toc-title { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); margin: 0 0 0.6rem; }
+.toc ol { list-style: none; margin: 0; padding: 0; }
+.toc li { line-height: 1.4; margin: 0.15rem 0; }
+.toc li.l3 { padding-left: 1rem; }
+.toc a[href] { display: block; padding: 0.25rem 0; font-size: 0.92rem; color: var(--text-secondary); }
+.toc a[href]:hover, .toc a[href].active { color: var(--accent-text); }
+
+/* Prev/Next */
+.links-nextprev {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 1rem;
+	list-style: none;
+	padding: 0;
+	margin: 4rem 0 0;
+}
+.links-nextprev li {
+	padding: 1.1rem 1.3rem;
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius);
+	background: var(--bg-card);
+	transition: var(--transition);
+	font-size: 0.8rem;
+	color: var(--text-muted);
+}
+.links-nextprev li:hover { border-color: var(--border-accent); transform: translateY(-2px); }
+.links-nextprev li a { display: block; margin-top: 0.3rem; font-size: 1rem; font-weight: 600; color: var(--text-primary); line-height: 1.35; }
+.links-nextprev-next { text-align: right; grid-column: 2; }
+.links-nextprev-prev { grid-column: 1; }
+
+/* === Tables === */
+table { margin: 1.5em 0; border-collapse: collapse; width: 100%; display: block; overflow-x: auto; font-size: 0.95rem; }
+table td, table th { padding: 0.6em 1em; border: 1px solid var(--border-subtle); text-align: left; }
+table th { background: var(--bg-secondary); color: var(--text-primary); }
+
+/* === Code === */
+pre, code { font-family: var(--font-family-monospace); }
+code {
+	font-size: 0.86em;
+	color: var(--accent-text);
+	background: var(--bg-secondary);
+	padding: 0.15em 0.4em;
+	border-radius: 6px;
+}
+pre code { background: none; padding: 0; color: inherit; word-break: normal; }
+pre {
+	position: relative;
+	margin: 1.8em 0;
+	line-height: 1.6;
+	tab-size: var(--syntax-tab-size);
+	hyphens: none;
+	direction: ltr;
+	text-align: left;
+	white-space: pre;
+	overflow-x: auto;
+	background: var(--code-bg);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius-sm);
+	padding: 1.1em 1.3em;
+	font-size: 0.88rem;
+}
+pre[class*="language-"] { background: #0d1117 !important; border-radius: var(--radius-sm); }
+.copy-btn {
+	position: absolute;
+	top: 0.6rem;
+	right: 0.6rem;
+	font: 500 0.72rem var(--font-family);
+	padding: 0.3rem 0.65rem;
+	border-radius: 6px;
+	border: 1px solid rgba(255, 255, 255, 0.12);
+	background: rgba(255, 255, 255, 0.07);
+	color: #cbd5e1;
+	cursor: pointer;
+	opacity: 0;
+	transition: var(--transition);
+}
+pre:hover .copy-btn, .copy-btn:focus-visible { opacity: 1; }
+.copy-btn:hover { background: rgba(255, 255, 255, 0.15); }
+
+/* === Footer === */
+footer { border-top: 1px solid var(--border-subtle); padding: 2.5rem 0; }
+footer .container { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
+footer p { margin: 0; font-size: 0.85rem; color: var(--text-muted); }
+.footer-links { display: flex; gap: 1.5rem; }
+.footer-links a { color: var(--text-secondary); font-size: 0.88rem; font-weight: 500; }
+.footer-links a:hover { color: var(--accent-text); }
+
+/* === Search palette === */
+.search-dialog {
+	width: min(640px, calc(100vw - 2rem));
+	margin: 12vh auto auto;
+	padding: 0;
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius);
+	background: var(--bg-secondary);
+	color: var(--text-primary);
+	box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+	overflow: hidden;
+}
+.search-dialog::backdrop { background: rgba(2, 6, 23, 0.6); backdrop-filter: blur(4px); }
+.search-input {
+	width: 100%;
+	padding: 1.1rem 1.4rem;
+	background: transparent;
+	border: 0;
+	border-bottom: 1px solid var(--border-subtle);
+	color: var(--text-primary);
+	font: inherit;
+	font-size: 1.05rem;
+	outline: none;
+}
+.search-results { list-style: none; margin: 0; padding: 0.5rem; max-height: 50vh; overflow-y: auto; }
+.search-results li { padding: 0; }
+.search-results a[href] {
+	display: block;
+	padding: 0.7rem 0.9rem;
+	border-radius: var(--radius-sm);
+	color: var(--text-primary);
+}
+.search-results a[href]:hover, .search-results a[href].selected { background: var(--bg-card-hover); box-shadow: inset 0 0 0 1px var(--border-accent); }
+.search-results .s-title { font-weight: 600; font-size: 0.97rem; }
+.search-results .s-desc { display: block; font-size: 0.82rem; color: var(--text-secondary); margin-top: 0.15rem; }
+.search-empty { padding: 1.2rem; text-align: center; color: var(--text-muted); font-size: 0.9rem; }
+
+/* === Chat (homepage) === */
+.chat-container {
+	background: var(--bg-card);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius);
+	overflow: hidden;
+	margin-bottom: 2rem;
+}
+.chat-header { padding: 0.9rem 1.4rem; border-bottom: 1px solid var(--border-subtle); display: flex; align-items: center; gap: 0.6rem; font-weight: 600; font-size: 0.95rem; }
+.chat-header .dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; }
+.chat-body { height: 320px; overflow-y: auto; padding: 1.4rem; display: flex; flex-direction: column; gap: 0.9rem; }
+.msg { max-width: 85%; padding: 0.7rem 1rem; border-radius: 14px; font-size: 0.95rem; line-height: 1.55; white-space: pre-wrap; }
+.msg-ai { align-self: flex-start; background: var(--bg-secondary); border: 1px solid var(--border-subtle); color: var(--text-primary); border-bottom-left-radius: 4px; }
+.msg-user { align-self: flex-end; background: var(--accent-gradient); color: #fff; border-bottom-right-radius: 4px; }
+.chat-form { display: flex; gap: 0.6rem; padding: 0.9rem 1.2rem; border-top: 1px solid var(--border-subtle); }
+.chat-form input {
+	flex: 1;
+	padding: 0.65rem 1rem;
+	background: var(--bg-primary);
+	border: 1px solid var(--border-subtle);
+	border-radius: 999px;
+	color: var(--text-primary);
+	font: inherit;
+	font-size: 0.95rem;
+	outline: none;
+}
+.chat-form input:focus { border-color: var(--border-accent); }
+.chat-form button {
+	padding: 0.6rem 1.3rem;
+	border: 0;
+	border-radius: 999px;
+	background: var(--accent-gradient);
+	color: #fff;
+	font: inherit;
+	font-weight: 600;
+	font-size: 0.9rem;
+	cursor: pointer;
+	transition: var(--transition);
+}
+.chat-form button:hover { filter: brightness(1.1); }
+.chat-form button:disabled { opacity: 0.5; cursor: wait; }
+
+/* === Responsive === */
+@media (max-width: 700px) {
+	.container { padding: 0 1.1rem; }
+	.nav-item a[href] { padding: 0.4em 0.6em; font-size: 0.85rem; }
+	.search-trigger span, .search-trigger kbd { display: none; }
+	.search-trigger { width: 36px; padding: 0; justify-content: center; }
+	.hero { padding: 2.5rem 0 2rem; }
+	.article-body, .article-body p, .article-body li { font-size: 1.05rem; }
+	.links-nextprev { grid-template-columns: 1fr; }
+	.links-nextprev-next, .links-nextprev-prev { grid-column: 1; }
+	.post-metadata .tags { margin-left: 0; }
+}
+@media (max-width: 520px) {
+	.site-header .container { height: auto; padding-top: 0.7rem; padding-bottom: 0.7rem; flex-wrap: wrap; }
+	.home-link { flex-basis: 60%; }
+}
+
+@media print {
+	.site-header, .progress, footer, .toc, .copy-btn, .links-nextprev { display: none !important; }
+	body::before { display: none; }
+}
+/**
+ * okaidia theme for JavaScript, CSS and HTML
+ * Loosely based on Monokai textmate theme by http://www.monokai.nl/
+ * @author ocodia
+ */
+
+code[class*="language-"],
+pre[class*="language-"] {
+	color: #f8f8f2;
+	background: none;
+	text-shadow: 0 1px rgba(0, 0, 0, 0.3);
+	font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+	font-size: 1em;
+	text-align: left;
+	white-space: pre;
+	word-spacing: normal;
+	word-break: normal;
+	word-wrap: normal;
+	line-height: 1.5;
+
+	-moz-tab-size: 4;
+	-o-tab-size: 4;
+	tab-size: 4;
+
+	-webkit-hyphens: none;
+	-moz-hyphens: none;
+	-ms-hyphens: none;
+	hyphens: none;
+}
+
+/* Code blocks */
+pre[class*="language-"] {
+	padding: 1em;
+	margin: .5em 0;
+	overflow: auto;
+	border-radius: 0.3em;
+}
+
+:not(pre) > code[class*="language-"],
+pre[class*="language-"] {
+	background: #272822;
+}
+
+/* Inline code */
+:not(pre) > code[class*="language-"] {
+	padding: .1em;
+	border-radius: .3em;
+	white-space: normal;
+}
+
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+	color: #8292a2;
+}
+
+.token.punctuation {
+	color: #f8f8f2;
+}
+
+.token.namespace {
+	opacity: .7;
+}
+
+.token.property,
+.token.tag,
+.token.constant,
+.token.symbol,
+.token.deleted {
+	color: #f92672;
+}
+
+.token.boolean,
+.token.number {
+	color: #ae81ff;
+}
+
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.inserted {
+	color: #a6e22e;
+}
+
+.token.operator,
+.token.entity,
+.token.url,
+.language-css .token.string,
+.style .token.string,
+.token.variable {
+	color: #f8f8f2;
+}
+
+.token.atrule,
+.token.attr-value,
+.token.function,
+.token.class-name {
+	color: #e6db74;
+}
+
+.token.keyword {
+	color: #66d9ef;
+}
+
+.token.regex,
+.token.important {
+	color: #fd971f;
+}
+
+.token.important,
+.token.bold {
+	font-weight: bold;
+}
+.token.italic {
+	font-style: italic;
+}
+
+.token.entity {
+	cursor: help;
+}
+/*
+ * New diff- syntax
+ */
+
+pre[class*="language-diff-"] {
+	--eleventy-code-padding: 1.25em;
+	padding-left: var(--eleventy-code-padding);
+	padding-right: var(--eleventy-code-padding);
+}
+.token.deleted {
+	background-color: hsl(0, 51%, 37%);
+	color: inherit;
+}
+.token.inserted {
+	background-color: hsl(126, 31%, 39%);
+	color: inherit;
+}
+
+/* Make the + and - characters unselectable for copy/paste */
+.token.prefix.unchanged,
+.token.prefix.inserted,
+.token.prefix.deleted {
+	-webkit-user-select: none;
+	user-select: none;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding-top: 2px;
+	padding-bottom: 2px;
+}
+.token.prefix.inserted,
+.token.prefix.deleted {
+	width: var(--eleventy-code-padding);
+	background-color: rgba(0,0,0,.2);
+}
+
+/* Optional: full-width background color */
+.token.inserted:not(.prefix),
+.token.deleted:not(.prefix) {
+	display: block;
+	margin-left: calc(-1 * var(--eleventy-code-padding));
+	margin-right: calc(-1 * var(--eleventy-code-padding));
+	text-decoration: none; /* override del, ins, mark defaults */
+	color: inherit; /* override del, ins, mark defaults */
+}</style>
+		
+	</head>
+	<body>
+		<a href="#main" id="skip-link" class="visually-hidden">Skip to main content</a>
+		<div class="progress" id="progress" aria-hidden="true"></div>
+
+		<header class="site-header">
+			<div class="container">
+				<a href="/my-blog/" class="home-link">Rohit Marathe</a>
+				<nav aria-label="Primary">
+					<ul class="nav">
+						<li class="nav-item"><a href="/my-blog/">Home</a></li>
+						<li class="nav-item"><a href="/my-blog/blog/">Archive</a></li>
+						<li class="nav-item"><a href="/my-blog/about/">About</a></li>
+						<li class="nav-item"><a href="/my-blog/feed/feed.xml">Feed</a></li>
+					</ul>
+				</nav>
+
+				<div class="header-actions">
+					<button class="search-trigger" id="search-open" type="button" aria-label="Search posts" data-index="/my-blog/search.json">
+						<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+						<span>Search</span><kbd>⌘K</kbd>
+					</button>
+					<button class="icon-btn theme-toggle" id="theme-toggle" type="button" aria-label="Toggle light/dark theme">
+						<svg class="moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path></svg>
+						<svg class="sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+					</button>
+				</div>
+			</div>
+		</header>
+
+		<main id="main">
+			<div class="container">
+				<heading-anchors>
+					
+
+
+<article class="article">
+	<header class="article-header">
+		<h1 id="enterprise-claude-code-on-aws-bedrock-multi-user-sso-governance-and-ai-admin-playbook">Enterprise Claude Code on AWS Bedrock: Multi-User SSO, Governance, and AI Admin Playbook</h1><p class="article-desc">A complete engineering guide to deploying Anthropic&#39;s Claude Code across enterprise developer teams using AWS Bedrock, IAM Identity Center SSO, Bedrock Guardrails, and audit-ready governance.</p>
+		<ul class="post-metadata">
+			<li><time datetime="2026-04-18">April 18, 2026</time></li>
+			<li>·</li>
+			<li>8 min read</li>
+			<li>·</li>
+			<li title="Views of this post">👁 <span class="view-count" data-slug="enterprise-claude-code-aws-bedrock-governance" data-hit="">1,000</span> views</li>
+			<li class="tags">
+				<a href="/my-blog/tags/aws/" class="post-tag">aws</a>
+				<a href="/my-blog/tags/bedrock/" class="post-tag">bedrock</a>
+				<a href="/my-blog/tags/claude-code/" class="post-tag">claude-code</a>
+				<a href="/my-blog/tags/security/" class="post-tag">security</a>
+				<a href="/my-blog/tags/governance/" class="post-tag">governance</a>
+				<a href="/my-blog/tags/devops/" class="post-tag">devops</a>
+				<a href="/my-blog/tags/system-design/" class="post-tag">system-design</a>
+			</li>
+		</ul>
+	</header>
+
+	<nav class="toc" id="toc" aria-label="Table of contents" hidden="">
+		<p class="toc-title">On this page</p>
+		<ol></ol>
+	</nav>
+
+	<div class="article-body">
+		<p>As engineering teams adopt <strong>Claude Code</strong> (Anthropic's agentic command-line tool), platform engineers and security administrators face a familiar friction: <strong>developer agility vs. enterprise compliance.</strong></p>
+<p>In a hobby project, developers export static API keys (<code>ANTHROPIC_API_KEY=sk-...</code>) into local <code>.env</code> files. In an enterprise organization, hardcoded API keys are an existential security risk—they cannot be attributed to human identities, they lack automated revocation, and they bypass corporate DLP, egress policies, and auditing controls.</p>
+<p>The production-grade solution is to run Claude Code over <strong>Amazon Bedrock</strong>, underpinned by <strong>AWS IAM Identity Center (SSO)</strong>, temporary STS credential vending, and <strong>Bedrock Guardrails</strong>.</p>
+<p>In this guide, we walk through the end-to-end architecture: provisioning multi-user SSO, configuration multiplexing on local machines, auditing AI invocations, and defending your posture during rigorous security and compliance audits.</p>
+<hr>
+<h2 id="1-the-core-architecture-federated-sso-and-credential-vending">1. The Core Architecture: Federated SSO &amp; Credential Vending</h2>
+<p>Instead of long-lived API tokens, every developer request should be authenticated through your central Identity Provider (Okta, Google Workspace, Azure AD, or AWS IAM Identity Center) and bound to short-lived AWS STS credentials.</p>
+<pre class="language-mermaid" tabindex="0"><code class="language-mermaid"><span class="token keyword">sequenceDiagram</span>
+    <span class="token keyword">autonumber</span>
+    actor Dev as Developer Machine <span class="token text string">(Claude Code)</span>
+    <span class="token keyword">participant</span> SSO as AWS IAM Identity Center <span class="token text string">(SSO / IdP)</span>
+    <span class="token keyword">participant</span> STS as AWS Security Token Service <span class="token text string">(STS)</span>
+    <span class="token keyword">participant</span> Bedrock as Amazon Bedrock <span class="token text string">(Claude 3.7 / 3.5 Sonnet)</span>
+    <span class="token keyword">participant</span> Guardrail as Bedrock Guardrail <span class="token text string">(PII Masking &amp; Topics)</span>
+    <span class="token keyword">participant</span> Logs as S3 Invocation Bucket <span class="token operator">&amp;</span> CloudTrail
+
+    Dev<span class="token arrow operator">->></span>SSO<span class="token operator">:</span> aws sso login <span class="token text string">(Web browser OAuth)</span>
+    SSO<span class="token arrow operator">->></span>STS<span class="token operator">:</span> AssumeRoleWithSSO <span class="token text string">(Team Permission Set)</span>
+    STS<span class="token arrow operator">-->></span>Dev<span class="token operator">:</span> Return short-lived session token <span class="token text string">(e.g. 8h expiry)</span>
+    
+    Dev<span class="token arrow operator">->></span>Bedrock<span class="token operator">:</span> Execute Claude Code command <span class="token text string">(CLAUDE_CODE_USE_BEDROCK=1)</span>
+    Bedrock<span class="token arrow operator">->></span>Guardrail<span class="token operator">:</span> Inspect prompt <span class="token text string">(PII check, prompt-injection filter)</span>
+    <span class="token keyword">alt</span> Policy Violation
+        Guardrail<span class="token arrow operator">-->></span>Dev<span class="token operator">:</span> Blocked / Denied by organization policy
+    <span class="token keyword">else</span> Clean Prompt
+        Guardrail<span class="token arrow operator">->></span>Bedrock<span class="token operator">:</span> Forward payload to model
+        Bedrock<span class="token arrow operator">->></span>Logs<span class="token operator">:</span> Stream user prompt, completion, &amp; token metadata to S3
+        Bedrock<span class="token arrow operator">-->></span>Dev<span class="token operator">:</span> Stream code completion to CLI
+    <span class="token keyword">end</span></code></pre>
+<h3 id="architectural-concepts-in-play">Architectural Concepts in Play</h3>
+<ol>
+<li><strong>Federated Single Sign-On (SSO):</strong> Developers do not have IAM user accounts or passwords. They log in with their corporate identity.</li>
+<li><strong>Temporary Credential Vending:</strong> Running <code>aws sso login</code> fetches short-lived tokens. If a laptop is stolen, credentials expire automatically without manual key rotation.</li>
+<li><strong>Role-Based Access Control (RBAC):</strong> Developers belong to groups (e.g., <code>Platform-Engineers</code>, <code>Backend-Devs</code>) mapped to permission sets granting <code>bedrock:InvokeModelWithResponseStream</code>.</li>
+<li><strong>Client-Side Sandbox Multiplexing:</strong> Using <code>CLAUDE_CONFIG_DIR</code> to maintain strict isolation between work accounts and personal environments on a single machine.</li>
+</ol>
+<hr>
+<h2 id="2-step-by-step-implementation">2. Step-by-Step Implementation</h2>
+<h3 id="phase-1-aws-administrator-setup">Phase 1: AWS Administrator Setup</h3>
+<p>First, activate Bedrock model access and configure least-privilege IAM policies.</p>
+<h4 id="1-enable-anthropic-models">1. Enable Anthropic Models</h4>
+<p>In the <strong>Amazon Bedrock Console</strong>, navigate to <strong>Model catalog</strong>, request access to the desired models (e.g., <em>Anthropic Claude 3.7 Sonnet</em> or <em>Claude 3.5 Sonnet</em>), and submit the standard use-case form.</p>
+<h4 id="2-create-the-iam-permission-set">2. Create the IAM Permission Set</h4>
+<p>In <strong>IAM Identity Center</strong>, create a permission set named <code>ClaudeCodeDeveloperAccess</code> with the following inline policy:</p>
+<pre class="language-json" tabindex="0"><code class="language-json"><span class="token punctuation">{</span>
+  <span class="token property">"Version"</span><span class="token operator">:</span> <span class="token string">"2012-10-17"</span><span class="token punctuation">,</span>
+  <span class="token property">"Statement"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
+    <span class="token punctuation">{</span>
+      <span class="token property">"Sid"</span><span class="token operator">:</span> <span class="token string">"BedrockModelInvocation"</span><span class="token punctuation">,</span>
+      <span class="token property">"Effect"</span><span class="token operator">:</span> <span class="token string">"Allow"</span><span class="token punctuation">,</span>
+      <span class="token property">"Action"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
+        <span class="token string">"bedrock:InvokeModel"</span><span class="token punctuation">,</span>
+        <span class="token string">"bedrock:InvokeModelWithResponseStream"</span>
+      <span class="token punctuation">]</span><span class="token punctuation">,</span>
+      <span class="token property">"Resource"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
+        <span class="token string">"arn:aws:bedrock:*::foundation-model/anthropic.claude-*"</span>
+      <span class="token punctuation">]</span>
+    <span class="token punctuation">}</span><span class="token punctuation">,</span>
+    <span class="token punctuation">{</span>
+      <span class="token property">"Sid"</span><span class="token operator">:</span> <span class="token string">"BedrockEnforceGuardrails"</span><span class="token punctuation">,</span>
+      <span class="token property">"Effect"</span><span class="token operator">:</span> <span class="token string">"Allow"</span><span class="token punctuation">,</span>
+      <span class="token property">"Action"</span><span class="token operator">:</span> <span class="token punctuation">[</span>
+        <span class="token string">"bedrock:ApplyGuardrail"</span>
+      <span class="token punctuation">]</span><span class="token punctuation">,</span>
+      <span class="token property">"Resource"</span><span class="token operator">:</span> <span class="token string">"arn:aws:bedrock:*:*:guardrail/*"</span>
+    <span class="token punctuation">}</span>
+  <span class="token punctuation">]</span>
+<span class="token punctuation">}</span></code></pre>
+<p>Assign this permission set to your developer groups in your target AWS account.</p>
+<hr>
+<h3 id="phase-2-developer-workstation-setup">Phase 2: Developer Workstation Setup</h3>
+<p>Developers configure their environment without touching static AWS keys.</p>
+<h4 id="1-configure-the-aws-sso-profile">1. Configure the AWS SSO Profile</h4>
+<pre class="language-bash" tabindex="0"><code class="language-bash"><span class="token comment"># Configure the SSO profile once</span>
+aws configure sso <span class="token parameter variable">--profile</span> enterprise-dev
+
+<span class="token comment"># Follow the prompt:</span>
+<span class="token comment"># SSO Start URL: https://my-org.awsapps.com/start</span>
+<span class="token comment"># SSO Region: us-east-1</span>
+<span class="token comment"># CLI default client Region: us-east-1</span></code></pre>
+<h4 id="2-authenticate">2. Authenticate</h4>
+<pre class="language-bash" tabindex="0"><code class="language-bash">aws sso login <span class="token parameter variable">--profile</span> enterprise-dev</code></pre>
+<p>A browser tab opens for single sign-on. Once approved, temporary credentials are cached in <code>~/.aws/sso/cache/</code>.</p>
+<h4 id="3-install-claude-code-and-configure-bedrock">3. Install Claude Code &amp; Configure Bedrock</h4>
+<p>Install the CLI tool:</p>
+<pre class="language-bash" tabindex="0"><code class="language-bash"><span class="token function">npm</span> <span class="token function">install</span> <span class="token parameter variable">-g</span> @anthropic-ai/claude-code</code></pre>
+<p>To route Claude Code through AWS Bedrock instead of the public Anthropic API, add the following exports to your shell profile (<code>~/.zshrc</code> or <code>~/.bashrc</code>):</p>
+<pre class="language-bash" tabindex="0"><code class="language-bash"><span class="token builtin class-name">export</span> <span class="token assign-left variable">CLAUDE_CODE_USE_BEDROCK</span><span class="token operator">=</span><span class="token number">1</span>
+<span class="token builtin class-name">export</span> <span class="token assign-left variable">AWS_PROFILE</span><span class="token operator">=</span>enterprise-dev
+<span class="token builtin class-name">export</span> <span class="token assign-left variable">AWS_REGION</span><span class="token operator">=</span>us-east-1</code></pre>
+<hr>
+<h3 id="phase-3-profile-multiplexing-dev-vs-prod-vs-personal">Phase 3: Profile Multiplexing (Dev vs. Prod vs. Personal)</h3>
+<p>Engineers often need to switch between different AWS roles (e.g., Sandbox vs. Staging) or use a personal Claude account for open-source work.</p>
+<p>Claude Code stores session state, history, and tokens in <code>~/.claude/</code> by default. You can isolate these profiles cleanly using the <code>CLAUDE_CONFIG_DIR</code> environment variable:</p>
+<pre class="language-bash" tabindex="0"><code class="language-bash"><span class="token comment"># In ~/.zshrc or ~/.bashrc:</span>
+
+<span class="token comment"># Enterprise Work Profile (Bedrock via AWS SSO)</span>
+<span class="token builtin class-name">alias</span> claude-work<span class="token operator">=</span><span class="token string">"CLAUDE_CONFIG_DIR=~/.claude-work \
+  CLAUDE_CODE_USE_BEDROCK=1 \
+  AWS_PROFILE=enterprise-dev \
+  AWS_REGION=us-east-1 \
+  claude"</span>
+
+<span class="token comment"># Personal Sandbox Profile (Direct Claude login)</span>
+<span class="token builtin class-name">alias</span> claude-personal<span class="token operator">=</span><span class="token string">"CLAUDE_CONFIG_DIR=~/.claude-personal claude"</span></code></pre>
+<p>Each alias creates its own isolated sandbox directory with dedicated settings, credentials, and conversation histories.</p>
+<hr>
+<h2 id="3-out-of-the-box-aws-governance-and-auditing">3. Out-of-the-Box AWS Governance &amp; Auditing</h2>
+<p>Deploying on Bedrock unlocks native AWS governance capabilities that direct consumer API keys cannot match:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Governance Layer</th>
+<th style="text-align:left">AWS Native Service</th>
+<th style="text-align:left">What It Solves</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><strong>Input &amp; Output Control</strong></td>
+<td style="text-align:left"><strong>Bedrock Guardrails</strong></td>
+<td style="text-align:left">Blocks prompt injections, masks PII (SSNs, API keys), denies sensitive discussion topics.</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>Data Auditing</strong></td>
+<td style="text-align:left"><strong>Model Invocation Logging</strong></td>
+<td style="text-align:left">Captures complete input prompts, generated completions, and token counts directly to encrypted S3.</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>Identity Traceability</strong></td>
+<td style="text-align:left"><strong>AWS CloudTrail</strong></td>
+<td style="text-align:left">Records the exact human federated corporate email, timestamp, and IP address for every call.</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>Threat Detection</strong></td>
+<td style="text-align:left"><strong>GuardDuty AI Protection</strong></td>
+<td style="text-align:left">Flags anomalous API access patterns, compromised token usage, and automated scraping.</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>FinOps &amp; Telemetry</strong></td>
+<td style="text-align:left"><strong>Amazon CloudWatch &amp; Cost Explorer</strong></td>
+<td style="text-align:left">Tracks <code>InputTokenCount</code>, <code>OutputTokenCount</code>, and triggers alarms when guardrails intervene.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="correlating-who-said-what-cloudtrail-invocation-logs">Correlating Who Said What: CloudTrail + Invocation Logs</h3>
+<p>A common audit requirement is: <em>&quot;Can you prove which human engineer sent this prompt?&quot;</em></p>
+<ol>
+<li><strong>CloudTrail</strong> records the <code>AssumeRoleWithSSO</code> event, stamping the user's corporate email (<code>rohit@company.com</code>) and generating an STS <code>AccessKeyId</code> session token.</li>
+<li><strong>Bedrock Invocation Logging</strong> stores the prompt and model response in S3 alongside that same session token.</li>
+<li>Using <strong>Amazon Athena</strong>, security teams run a fast SQL join on the session ID to tie any code query directly to the authenticated developer.</li>
+</ol>
+<hr>
+<h2 id="4-the-ai-administrator-audit-defense-playbook">4. The AI Administrator Audit Defense Playbook</h2>
+<p>When compliance, SecOps, or external auditors evaluate your AI deployment, they focus on five governance pillars. Here is how an AI Administrator answers them:</p>
+<h3 id="1-identity-and-access-management-iam">1. Identity &amp; Access Management (IAM)</h3>
+<ul>
+<li><strong>Q: How is access provisioned and revoked?</strong><br>
+<em>Answer:</em> Centrally via IAM Identity Center tied to our corporate IdP. Adding a developer to an AD group grants the <code>bedrock:InvokeModel</code> permission set. Offboarding them from the IdP instantly revokes access across AWS and Claude Code.</li>
+<li><strong>Q: Can you prove developers aren't using long-lived static credentials?</strong><br>
+<em>Answer:</em> IAM user key creation is blocked via Service Control Policies (SCPs). Developers authenticate strictly with <code>aws sso login</code> vending short-lived STS tokens (8-hour maximum lifetime).</li>
+<li><strong>Q: How do you prevent 'Shadow AI'?</strong><br>
+<em>Answer:</em> Egress firewall rules block developer machines from reaching third-party LLM endpoints. Claude Code through Bedrock is our designated, compliant corporate channel.</li>
+</ul>
+<h3 id="2-data-privacy-and-ip-ownership">2. Data Privacy &amp; IP Ownership</h3>
+<ul>
+<li><strong>Q: Where are prompts stored and who can read them?</strong><br>
+<em>Answer:</em> Model Invocation Logging writes encrypted payloads directly to an S3 bucket in a restricted Security account with AWS KMS Customer Managed Keys. Developers have zero read access.</li>
+<li><strong>Q: Does Anthropic or AWS use our code to train models?</strong><br>
+<em>Answer:</em> Under the AWS Bedrock shared responsibility model and enterprise terms, customer inputs and completions are strictly isolated inside the tenant boundary and are <strong>never</strong> used for model training.</li>
+<li><strong>Q: Who owns the copyright of generated code?</strong><br>
+<em>Answer:</em> Under AWS Service Terms, the customer retains 100% ownership of inputs and outputs. To prevent copyright contamination, all AI-generated code passes through standard license scanning (e.g., SonarQube / Black Duck) before merging.</li>
+</ul>
+<h3 id="3-model-behavioral-safety-and-kill-switches">3. Model Behavioral Safety &amp; Kill Switches</h3>
+<ul>
+<li><strong>Q: How do you stop prompt injections and PII leakage?</strong><br>
+<em>Answer:</em> We attach Bedrock Guardrails to all invocations. PII masking scrubs sensitive strings before the model processes them, and prompt-attack filters drop adversarial jailbreak attempts.</li>
+<li><strong>Q: What is your emergency kill switch?</strong><br>
+<em>Answer:</em> Administrators can detach the inline Bedrock policy from the SSO Permission Set. Active STS tokens are barred from invoking the model within seconds, instantly disabling access organization-wide.</li>
+</ul>
+<h3 id="4-regulatory-compliance-hipaa-gdpr-eu-ai-act">4. Regulatory Compliance (HIPAA, GDPR, EU AI Act)</h3>
+<ul>
+<li><strong>Q: Are we violating HIPAA or GDPR when engineers use Claude Code?</strong><br>
+<em>Answer:</em> Bedrock is a HIPAA-eligible service covered under our AWS Business Associate Addendum (BAA). For GDPR, Bedrock API endpoints are pinned to specific regions (e.g., <code>eu-central-1</code> Frankfurt), ensuring customer data never crosses geographic boundaries.</li>
+</ul>
+<hr>
+<h2 id="5-decommissioning-ai-projects-the-6-phase-lifecycle">5. Decommissioning AI Projects: The 6-Phase Lifecycle</h2>
+<p>Retiring an AI tool or project requires careful orchestration to prevent data leaks, orphaned infrastructure, and surprise cloud bills:</p>
+<pre><code>[Phase 1: Planning]   ──► 30-day notice, identify owners, freeze dependencies
+         │
+[Phase 2: Archival]   ──► Lock invocation logs in S3 with Object Lock, snapshot DBs
+         │
+[Phase 3: Staged]     ──► Revoke bedrock:InvokeModel; run 14-day read-only soak
+         │
+[Phase 4: Teardown]   ──► Delete Provisioned Throughput, OpenSearch, S3 buckets
+         │
+[Phase 5: Cleanup]    ──► Prune IAM roles, KMS keys, and CloudWatch log groups
+         │
+[Phase 6: FinOps]     ──► Verify spend flatlines to $0; monitor for shadow AI
+</code></pre>
+<ol>
+<li><strong>Planning &amp; Communication:</strong> Send a 3-notice sequence (30-day notice, read-only freeze date, deletion date).</li>
+<li><strong>Archival &amp; Retention:</strong> Snapshot databases, export Route53 DNS zones, and sync Bedrock invocation logs to a long-term S3 Glacier archive with S3 Object Lock for regulatory compliance.</li>
+<li><strong>Staged Read-Only Mode:</strong> Detach <code>bedrock:InvokeModel</code> permissions 14–30 days prior to hard deletion. This surfaces hidden upstream dependencies while recovery is trivial.</li>
+<li><strong>Technical Teardown:</strong> Cancel hourly <strong>Provisioned Throughput</strong> commitments first, destroy vector databases (OpenSearch Serverless / Knowledge Bases), and execute <code>terraform destroy</code>.</li>
+<li><strong>Security Cleanup:</strong> Remove stale IAM roles, custom policies, KMS key aliases, and CloudWatch log groups to eliminate residual security exposure.</li>
+<li><strong>Verification &amp; Shadow AI Monitoring:</strong> Check AWS Cost Explorer to confirm project spend drops to zero, and monitor network traffic for spikes in unsanctioned third-party AI endpoints.</li>
+</ol>
+<hr>
+<h2 id="6-enterprise-production-checklist">6. Enterprise Production Checklist</h2>
+<p>Before rolling out Claude Code on Amazon Bedrock across your development teams, verify the following:</p>
+<ul>
+<li>[ ] <strong>Model Access:</strong> Anthropic Claude models approved in target Bedrock regions.</li>
+<li>[ ] <strong>Identity Federation:</strong> AWS IAM Identity Center mapped to corporate IdP (Okta, Azure AD, Google).</li>
+<li>[ ] <strong>Zero Static Keys:</strong> IAM user creation restricted via AWS Organizations SCPs.</li>
+<li>[ ] <strong>Guardrails Configured:</strong> PII masking, topic denial, and prompt injection filters active.</li>
+<li>[ ] <strong>Invocation Logging:</strong> Bedrock logs streaming to an encrypted S3 bucket in a secure audit account.</li>
+<li>[ ] <strong>Developer Tooling:</strong> Standard shell aliases distributed with <code>CLAUDE_CODE_USE_BEDROCK=1</code> and <code>CLAUDE_CONFIG_DIR</code>.</li>
+<li>[ ] <strong>Alerting:</strong> CloudWatch alarm on <code>InvocationsIntervened</code> alerting SecOps of policy bypass attempts.</li>
+<li>[ ] <strong>Decommissioning Runbook:</strong> Step-by-step procedure documented for tool retirement and model lifecycle upgrades.</li>
+</ul>
+
+	</div>
+	<ul class="links-nextprev"><li class="links-nextprev-prev">← Previous<a href="/my-blog/blog/langgraph-persistence-memory-sqlite-to-mem0/">From SQLite to Mem0: Architecting Production Memory &amp; Persistence for LangGraph Agents</a></li>
+	</ul>
+</article>
+
+				</heading-anchors>
+			</div>
+		</main>
+
+		<footer>
+			<div class="container">
+				<p>&copy; 2026 Rohit Marathe · Built with <a href="https://www.11ty.dev/">Eleventy</a></p>
+				<div class="footer-links">
+					<a href="https://github.com/rpm360" target="_blank" rel="noopener">GitHub</a>
+					<a href="https://linkedin.com/in/rohit-marathe-ucf" target="_blank" rel="noopener">LinkedIn</a>
+					<a href="mailto:rohitmarathe1995@gmail.com">Email</a>
+					<a href="/my-blog/feed/feed.xml">RSS</a>
+				</div>
+			</div>
+		</footer>
+		<dialog class="search-dialog" id="search-dialog" aria-label="Search posts">
+			<input class="search-input" id="search-input" type="search" placeholder="Search posts, topics, tags…" autocomplete="off">
+			<ul class="search-results" id="search-results"></ul>
+		</dialog>
+
+		<!-- This page `/blog/enterprise-claude-code-aws-bedrock-governance/` was built on 2026-10-22T16:52:24.410Z -->
+		<script type="module" src="/my-blog/dist/pFT8hTWNtX.js"></script>
+
+		
+	</body>
+</html>

@@ -5,11 +5,239 @@
   <subtitle>AI Systems Engineer crafting intelligent systems at scale.</subtitle>
   <link href="https://rpm360.github.io/my-blog/feed/feed.xml" rel="self" />
   <link href="https://rpm360.github.io/my-blog/my-blog/" />
-  <updated>2026-04-15T00:00:00Z</updated>
+  <updated>2026-04-18T00:00:00Z</updated>
   <id>https://rpm360.github.io/my-blog/my-blog/</id>
   <author>
     <name>Rohit Marathe</name>
   </author>
+  <entry>
+    <title>Enterprise Claude Code on AWS Bedrock: Multi-User SSO, Governance, and AI Admin Playbook</title>
+    <link href="https://rpm360.github.io/my-blog/blog/enterprise-claude-code-aws-bedrock-governance/" />
+    <updated>2026-04-18T00:00:00Z</updated>
+    <id>https://rpm360.github.io/my-blog/blog/enterprise-claude-code-aws-bedrock-governance/</id>
+    <content type="html">&lt;p&gt;As engineering teams adopt &lt;strong&gt;Claude Code&lt;/strong&gt; (Anthropic&#39;s agentic command-line tool), platform engineers and security administrators face a familiar friction: &lt;strong&gt;developer agility vs. enterprise compliance.&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;In a hobby project, developers export static API keys (&lt;code&gt;ANTHROPIC_API_KEY=sk-...&lt;/code&gt;) into local &lt;code&gt;.env&lt;/code&gt; files. In an enterprise organization, hardcoded API keys are an existential security risk—they cannot be attributed to human identities, they lack automated revocation, and they bypass corporate DLP, egress policies, and auditing controls.&lt;/p&gt;
+&lt;p&gt;The production-grade solution is to run Claude Code over &lt;strong&gt;Amazon Bedrock&lt;/strong&gt;, underpinned by &lt;strong&gt;AWS IAM Identity Center (SSO)&lt;/strong&gt;, temporary STS credential vending, and &lt;strong&gt;Bedrock Guardrails&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;In this guide, we walk through the end-to-end architecture: provisioning multi-user SSO, configuration multiplexing on local machines, auditing AI invocations, and defending your posture during rigorous security and compliance audits.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id=&quot;1-the-core-architecture-federated-sso-and-credential-vending&quot;&gt;1. The Core Architecture: Federated SSO &amp;amp; Credential Vending&lt;/h2&gt;
+&lt;p&gt;Instead of long-lived API tokens, every developer request should be authenticated through your central Identity Provider (Okta, Google Workspace, Azure AD, or AWS IAM Identity Center) and bound to short-lived AWS STS credentials.&lt;/p&gt;
+&lt;pre class=&quot;language-mermaid&quot; tabindex=&quot;0&quot;&gt;&lt;code class=&quot;language-mermaid&quot;&gt;&lt;span class=&quot;token keyword&quot;&gt;sequenceDiagram&lt;/span&gt;
+    &lt;span class=&quot;token keyword&quot;&gt;autonumber&lt;/span&gt;
+    actor Dev as Developer Machine &lt;span class=&quot;token text string&quot;&gt;(Claude Code)&lt;/span&gt;
+    &lt;span class=&quot;token keyword&quot;&gt;participant&lt;/span&gt; SSO as AWS IAM Identity Center &lt;span class=&quot;token text string&quot;&gt;(SSO / IdP)&lt;/span&gt;
+    &lt;span class=&quot;token keyword&quot;&gt;participant&lt;/span&gt; STS as AWS Security Token Service &lt;span class=&quot;token text string&quot;&gt;(STS)&lt;/span&gt;
+    &lt;span class=&quot;token keyword&quot;&gt;participant&lt;/span&gt; Bedrock as Amazon Bedrock &lt;span class=&quot;token text string&quot;&gt;(Claude 3.7 / 3.5 Sonnet)&lt;/span&gt;
+    &lt;span class=&quot;token keyword&quot;&gt;participant&lt;/span&gt; Guardrail as Bedrock Guardrail &lt;span class=&quot;token text string&quot;&gt;(PII Masking &amp;amp; Topics)&lt;/span&gt;
+    &lt;span class=&quot;token keyword&quot;&gt;participant&lt;/span&gt; Logs as S3 Invocation Bucket &lt;span class=&quot;token operator&quot;&gt;&amp;amp;&lt;/span&gt; CloudTrail
+
+    Dev&lt;span class=&quot;token arrow operator&quot;&gt;-&gt;&gt;&lt;/span&gt;SSO&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; aws sso login &lt;span class=&quot;token text string&quot;&gt;(Web browser OAuth)&lt;/span&gt;
+    SSO&lt;span class=&quot;token arrow operator&quot;&gt;-&gt;&gt;&lt;/span&gt;STS&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; AssumeRoleWithSSO &lt;span class=&quot;token text string&quot;&gt;(Team Permission Set)&lt;/span&gt;
+    STS&lt;span class=&quot;token arrow operator&quot;&gt;--&gt;&gt;&lt;/span&gt;Dev&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; Return short-lived session token &lt;span class=&quot;token text string&quot;&gt;(e.g. 8h expiry)&lt;/span&gt;
+    
+    Dev&lt;span class=&quot;token arrow operator&quot;&gt;-&gt;&gt;&lt;/span&gt;Bedrock&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; Execute Claude Code command &lt;span class=&quot;token text string&quot;&gt;(CLAUDE_CODE_USE_BEDROCK=1)&lt;/span&gt;
+    Bedrock&lt;span class=&quot;token arrow operator&quot;&gt;-&gt;&gt;&lt;/span&gt;Guardrail&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; Inspect prompt &lt;span class=&quot;token text string&quot;&gt;(PII check, prompt-injection filter)&lt;/span&gt;
+    &lt;span class=&quot;token keyword&quot;&gt;alt&lt;/span&gt; Policy Violation
+        Guardrail&lt;span class=&quot;token arrow operator&quot;&gt;--&gt;&gt;&lt;/span&gt;Dev&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; Blocked / Denied by organization policy
+    &lt;span class=&quot;token keyword&quot;&gt;else&lt;/span&gt; Clean Prompt
+        Guardrail&lt;span class=&quot;token arrow operator&quot;&gt;-&gt;&gt;&lt;/span&gt;Bedrock&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; Forward payload to model
+        Bedrock&lt;span class=&quot;token arrow operator&quot;&gt;-&gt;&gt;&lt;/span&gt;Logs&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; Stream user prompt, completion, &amp;amp; token metadata to S3
+        Bedrock&lt;span class=&quot;token arrow operator&quot;&gt;--&gt;&gt;&lt;/span&gt;Dev&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; Stream code completion to CLI
+    &lt;span class=&quot;token keyword&quot;&gt;end&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;h3 id=&quot;architectural-concepts-in-play&quot;&gt;Architectural Concepts in Play&lt;/h3&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;Federated Single Sign-On (SSO):&lt;/strong&gt; Developers do not have IAM user accounts or passwords. They log in with their corporate identity.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Temporary Credential Vending:&lt;/strong&gt; Running &lt;code&gt;aws sso login&lt;/code&gt; fetches short-lived tokens. If a laptop is stolen, credentials expire automatically without manual key rotation.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Role-Based Access Control (RBAC):&lt;/strong&gt; Developers belong to groups (e.g., &lt;code&gt;Platform-Engineers&lt;/code&gt;, &lt;code&gt;Backend-Devs&lt;/code&gt;) mapped to permission sets granting &lt;code&gt;bedrock:InvokeModelWithResponseStream&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Client-Side Sandbox Multiplexing:&lt;/strong&gt; Using &lt;code&gt;CLAUDE_CONFIG_DIR&lt;/code&gt; to maintain strict isolation between work accounts and personal environments on a single machine.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;hr&gt;
+&lt;h2 id=&quot;2-step-by-step-implementation&quot;&gt;2. Step-by-Step Implementation&lt;/h2&gt;
+&lt;h3 id=&quot;phase-1-aws-administrator-setup&quot;&gt;Phase 1: AWS Administrator Setup&lt;/h3&gt;
+&lt;p&gt;First, activate Bedrock model access and configure least-privilege IAM policies.&lt;/p&gt;
+&lt;h4 id=&quot;1-enable-anthropic-models&quot;&gt;1. Enable Anthropic Models&lt;/h4&gt;
+&lt;p&gt;In the &lt;strong&gt;Amazon Bedrock Console&lt;/strong&gt;, navigate to &lt;strong&gt;Model catalog&lt;/strong&gt;, request access to the desired models (e.g., &lt;em&gt;Anthropic Claude 3.7 Sonnet&lt;/em&gt; or &lt;em&gt;Claude 3.5 Sonnet&lt;/em&gt;), and submit the standard use-case form.&lt;/p&gt;
+&lt;h4 id=&quot;2-create-the-iam-permission-set&quot;&gt;2. Create the IAM Permission Set&lt;/h4&gt;
+&lt;p&gt;In &lt;strong&gt;IAM Identity Center&lt;/strong&gt;, create a permission set named &lt;code&gt;ClaudeCodeDeveloperAccess&lt;/code&gt; with the following inline policy:&lt;/p&gt;
+&lt;pre class=&quot;language-json&quot; tabindex=&quot;0&quot;&gt;&lt;code class=&quot;language-json&quot;&gt;&lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;token property&quot;&gt;&quot;Version&quot;&lt;/span&gt;&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;2012-10-17&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+  &lt;span class=&quot;token property&quot;&gt;&quot;Statement&quot;&lt;/span&gt;&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;
+    &lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;
+      &lt;span class=&quot;token property&quot;&gt;&quot;Sid&quot;&lt;/span&gt;&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;BedrockModelInvocation&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+      &lt;span class=&quot;token property&quot;&gt;&quot;Effect&quot;&lt;/span&gt;&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;Allow&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+      &lt;span class=&quot;token property&quot;&gt;&quot;Action&quot;&lt;/span&gt;&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;
+        &lt;span class=&quot;token string&quot;&gt;&quot;bedrock:InvokeModel&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+        &lt;span class=&quot;token string&quot;&gt;&quot;bedrock:InvokeModelWithResponseStream&quot;&lt;/span&gt;
+      &lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+      &lt;span class=&quot;token property&quot;&gt;&quot;Resource&quot;&lt;/span&gt;&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;
+        &lt;span class=&quot;token string&quot;&gt;&quot;arn:aws:bedrock:*::foundation-model/anthropic.claude-*&quot;&lt;/span&gt;
+      &lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt;
+    &lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;
+      &lt;span class=&quot;token property&quot;&gt;&quot;Sid&quot;&lt;/span&gt;&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;BedrockEnforceGuardrails&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+      &lt;span class=&quot;token property&quot;&gt;&quot;Effect&quot;&lt;/span&gt;&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;Allow&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+      &lt;span class=&quot;token property&quot;&gt;&quot;Action&quot;&lt;/span&gt;&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;
+        &lt;span class=&quot;token string&quot;&gt;&quot;bedrock:ApplyGuardrail&quot;&lt;/span&gt;
+      &lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+      &lt;span class=&quot;token property&quot;&gt;&quot;Resource&quot;&lt;/span&gt;&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;arn:aws:bedrock:*:*:guardrail/*&quot;&lt;/span&gt;
+    &lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;
+  &lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt;
+&lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Assign this permission set to your developer groups in your target AWS account.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h3 id=&quot;phase-2-developer-workstation-setup&quot;&gt;Phase 2: Developer Workstation Setup&lt;/h3&gt;
+&lt;p&gt;Developers configure their environment without touching static AWS keys.&lt;/p&gt;
+&lt;h4 id=&quot;1-configure-the-aws-sso-profile&quot;&gt;1. Configure the AWS SSO Profile&lt;/h4&gt;
+&lt;pre class=&quot;language-bash&quot; tabindex=&quot;0&quot;&gt;&lt;code class=&quot;language-bash&quot;&gt;&lt;span class=&quot;token comment&quot;&gt;# Configure the SSO profile once&lt;/span&gt;
+aws configure sso &lt;span class=&quot;token parameter variable&quot;&gt;--profile&lt;/span&gt; enterprise-dev
+
+&lt;span class=&quot;token comment&quot;&gt;# Follow the prompt:&lt;/span&gt;
+&lt;span class=&quot;token comment&quot;&gt;# SSO Start URL: https://my-org.awsapps.com/start&lt;/span&gt;
+&lt;span class=&quot;token comment&quot;&gt;# SSO Region: us-east-1&lt;/span&gt;
+&lt;span class=&quot;token comment&quot;&gt;# CLI default client Region: us-east-1&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;h4 id=&quot;2-authenticate&quot;&gt;2. Authenticate&lt;/h4&gt;
+&lt;pre class=&quot;language-bash&quot; tabindex=&quot;0&quot;&gt;&lt;code class=&quot;language-bash&quot;&gt;aws sso login &lt;span class=&quot;token parameter variable&quot;&gt;--profile&lt;/span&gt; enterprise-dev&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;A browser tab opens for single sign-on. Once approved, temporary credentials are cached in &lt;code&gt;~/.aws/sso/cache/&lt;/code&gt;.&lt;/p&gt;
+&lt;h4 id=&quot;3-install-claude-code-and-configure-bedrock&quot;&gt;3. Install Claude Code &amp;amp; Configure Bedrock&lt;/h4&gt;
+&lt;p&gt;Install the CLI tool:&lt;/p&gt;
+&lt;pre class=&quot;language-bash&quot; tabindex=&quot;0&quot;&gt;&lt;code class=&quot;language-bash&quot;&gt;&lt;span class=&quot;token function&quot;&gt;npm&lt;/span&gt; &lt;span class=&quot;token function&quot;&gt;install&lt;/span&gt; &lt;span class=&quot;token parameter variable&quot;&gt;-g&lt;/span&gt; @anthropic-ai/claude-code&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;To route Claude Code through AWS Bedrock instead of the public Anthropic API, add the following exports to your shell profile (&lt;code&gt;~/.zshrc&lt;/code&gt; or &lt;code&gt;~/.bashrc&lt;/code&gt;):&lt;/p&gt;
+&lt;pre class=&quot;language-bash&quot; tabindex=&quot;0&quot;&gt;&lt;code class=&quot;language-bash&quot;&gt;&lt;span class=&quot;token builtin class-name&quot;&gt;export&lt;/span&gt; &lt;span class=&quot;token assign-left variable&quot;&gt;CLAUDE_CODE_USE_BEDROCK&lt;/span&gt;&lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;token number&quot;&gt;1&lt;/span&gt;
+&lt;span class=&quot;token builtin class-name&quot;&gt;export&lt;/span&gt; &lt;span class=&quot;token assign-left variable&quot;&gt;AWS_PROFILE&lt;/span&gt;&lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt;enterprise-dev
+&lt;span class=&quot;token builtin class-name&quot;&gt;export&lt;/span&gt; &lt;span class=&quot;token assign-left variable&quot;&gt;AWS_REGION&lt;/span&gt;&lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt;us-east-1&lt;/code&gt;&lt;/pre&gt;
+&lt;hr&gt;
+&lt;h3 id=&quot;phase-3-profile-multiplexing-dev-vs-prod-vs-personal&quot;&gt;Phase 3: Profile Multiplexing (Dev vs. Prod vs. Personal)&lt;/h3&gt;
+&lt;p&gt;Engineers often need to switch between different AWS roles (e.g., Sandbox vs. Staging) or use a personal Claude account for open-source work.&lt;/p&gt;
+&lt;p&gt;Claude Code stores session state, history, and tokens in &lt;code&gt;~/.claude/&lt;/code&gt; by default. You can isolate these profiles cleanly using the &lt;code&gt;CLAUDE_CONFIG_DIR&lt;/code&gt; environment variable:&lt;/p&gt;
+&lt;pre class=&quot;language-bash&quot; tabindex=&quot;0&quot;&gt;&lt;code class=&quot;language-bash&quot;&gt;&lt;span class=&quot;token comment&quot;&gt;# In ~/.zshrc or ~/.bashrc:&lt;/span&gt;
+
+&lt;span class=&quot;token comment&quot;&gt;# Enterprise Work Profile (Bedrock via AWS SSO)&lt;/span&gt;
+&lt;span class=&quot;token builtin class-name&quot;&gt;alias&lt;/span&gt; claude-work&lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&quot;CLAUDE_CONFIG_DIR=~/.claude-work &#92;
+  CLAUDE_CODE_USE_BEDROCK=1 &#92;
+  AWS_PROFILE=enterprise-dev &#92;
+  AWS_REGION=us-east-1 &#92;
+  claude&quot;&lt;/span&gt;
+
+&lt;span class=&quot;token comment&quot;&gt;# Personal Sandbox Profile (Direct Claude login)&lt;/span&gt;
+&lt;span class=&quot;token builtin class-name&quot;&gt;alias&lt;/span&gt; claude-personal&lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&quot;CLAUDE_CONFIG_DIR=~/.claude-personal claude&quot;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Each alias creates its own isolated sandbox directory with dedicated settings, credentials, and conversation histories.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id=&quot;3-out-of-the-box-aws-governance-and-auditing&quot;&gt;3. Out-of-the-Box AWS Governance &amp;amp; Auditing&lt;/h2&gt;
+&lt;p&gt;Deploying on Bedrock unlocks native AWS governance capabilities that direct consumer API keys cannot match:&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style=&quot;text-align:left&quot;&gt;Governance Layer&lt;/th&gt;
+&lt;th style=&quot;text-align:left&quot;&gt;AWS Native Service&lt;/th&gt;
+&lt;th style=&quot;text-align:left&quot;&gt;What It Solves&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;&lt;strong&gt;Input &amp;amp; Output Control&lt;/strong&gt;&lt;/td&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;&lt;strong&gt;Bedrock Guardrails&lt;/strong&gt;&lt;/td&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;Blocks prompt injections, masks PII (SSNs, API keys), denies sensitive discussion topics.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;&lt;strong&gt;Data Auditing&lt;/strong&gt;&lt;/td&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;&lt;strong&gt;Model Invocation Logging&lt;/strong&gt;&lt;/td&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;Captures complete input prompts, generated completions, and token counts directly to encrypted S3.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;&lt;strong&gt;Identity Traceability&lt;/strong&gt;&lt;/td&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;&lt;strong&gt;AWS CloudTrail&lt;/strong&gt;&lt;/td&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;Records the exact human federated corporate email, timestamp, and IP address for every call.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;&lt;strong&gt;Threat Detection&lt;/strong&gt;&lt;/td&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;&lt;strong&gt;GuardDuty AI Protection&lt;/strong&gt;&lt;/td&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;Flags anomalous API access patterns, compromised token usage, and automated scraping.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;&lt;strong&gt;FinOps &amp;amp; Telemetry&lt;/strong&gt;&lt;/td&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;&lt;strong&gt;Amazon CloudWatch &amp;amp; Cost Explorer&lt;/strong&gt;&lt;/td&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;Tracks &lt;code&gt;InputTokenCount&lt;/code&gt;, &lt;code&gt;OutputTokenCount&lt;/code&gt;, and triggers alarms when guardrails intervene.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;h3 id=&quot;correlating-who-said-what-cloudtrail-invocation-logs&quot;&gt;Correlating Who Said What: CloudTrail + Invocation Logs&lt;/h3&gt;
+&lt;p&gt;A common audit requirement is: &lt;em&gt;&amp;quot;Can you prove which human engineer sent this prompt?&amp;quot;&lt;/em&gt;&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;CloudTrail&lt;/strong&gt; records the &lt;code&gt;AssumeRoleWithSSO&lt;/code&gt; event, stamping the user&#39;s corporate email (&lt;code&gt;rohit@company.com&lt;/code&gt;) and generating an STS &lt;code&gt;AccessKeyId&lt;/code&gt; session token.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Bedrock Invocation Logging&lt;/strong&gt; stores the prompt and model response in S3 alongside that same session token.&lt;/li&gt;
+&lt;li&gt;Using &lt;strong&gt;Amazon Athena&lt;/strong&gt;, security teams run a fast SQL join on the session ID to tie any code query directly to the authenticated developer.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;hr&gt;
+&lt;h2 id=&quot;4-the-ai-administrator-audit-defense-playbook&quot;&gt;4. The AI Administrator Audit Defense Playbook&lt;/h2&gt;
+&lt;p&gt;When compliance, SecOps, or external auditors evaluate your AI deployment, they focus on five governance pillars. Here is how an AI Administrator answers them:&lt;/p&gt;
+&lt;h3 id=&quot;1-identity-and-access-management-iam&quot;&gt;1. Identity &amp;amp; Access Management (IAM)&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Q: How is access provisioned and revoked?&lt;/strong&gt;&lt;br&gt;
+&lt;em&gt;Answer:&lt;/em&gt; Centrally via IAM Identity Center tied to our corporate IdP. Adding a developer to an AD group grants the &lt;code&gt;bedrock:InvokeModel&lt;/code&gt; permission set. Offboarding them from the IdP instantly revokes access across AWS and Claude Code.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Q: Can you prove developers aren&#39;t using long-lived static credentials?&lt;/strong&gt;&lt;br&gt;
+&lt;em&gt;Answer:&lt;/em&gt; IAM user key creation is blocked via Service Control Policies (SCPs). Developers authenticate strictly with &lt;code&gt;aws sso login&lt;/code&gt; vending short-lived STS tokens (8-hour maximum lifetime).&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Q: How do you prevent &#39;Shadow AI&#39;?&lt;/strong&gt;&lt;br&gt;
+&lt;em&gt;Answer:&lt;/em&gt; Egress firewall rules block developer machines from reaching third-party LLM endpoints. Claude Code through Bedrock is our designated, compliant corporate channel.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&quot;2-data-privacy-and-ip-ownership&quot;&gt;2. Data Privacy &amp;amp; IP Ownership&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Q: Where are prompts stored and who can read them?&lt;/strong&gt;&lt;br&gt;
+&lt;em&gt;Answer:&lt;/em&gt; Model Invocation Logging writes encrypted payloads directly to an S3 bucket in a restricted Security account with AWS KMS Customer Managed Keys. Developers have zero read access.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Q: Does Anthropic or AWS use our code to train models?&lt;/strong&gt;&lt;br&gt;
+&lt;em&gt;Answer:&lt;/em&gt; Under the AWS Bedrock shared responsibility model and enterprise terms, customer inputs and completions are strictly isolated inside the tenant boundary and are &lt;strong&gt;never&lt;/strong&gt; used for model training.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Q: Who owns the copyright of generated code?&lt;/strong&gt;&lt;br&gt;
+&lt;em&gt;Answer:&lt;/em&gt; Under AWS Service Terms, the customer retains 100% ownership of inputs and outputs. To prevent copyright contamination, all AI-generated code passes through standard license scanning (e.g., SonarQube / Black Duck) before merging.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&quot;3-model-behavioral-safety-and-kill-switches&quot;&gt;3. Model Behavioral Safety &amp;amp; Kill Switches&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Q: How do you stop prompt injections and PII leakage?&lt;/strong&gt;&lt;br&gt;
+&lt;em&gt;Answer:&lt;/em&gt; We attach Bedrock Guardrails to all invocations. PII masking scrubs sensitive strings before the model processes them, and prompt-attack filters drop adversarial jailbreak attempts.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Q: What is your emergency kill switch?&lt;/strong&gt;&lt;br&gt;
+&lt;em&gt;Answer:&lt;/em&gt; Administrators can detach the inline Bedrock policy from the SSO Permission Set. Active STS tokens are barred from invoking the model within seconds, instantly disabling access organization-wide.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&quot;4-regulatory-compliance-hipaa-gdpr-eu-ai-act&quot;&gt;4. Regulatory Compliance (HIPAA, GDPR, EU AI Act)&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Q: Are we violating HIPAA or GDPR when engineers use Claude Code?&lt;/strong&gt;&lt;br&gt;
+&lt;em&gt;Answer:&lt;/em&gt; Bedrock is a HIPAA-eligible service covered under our AWS Business Associate Addendum (BAA). For GDPR, Bedrock API endpoints are pinned to specific regions (e.g., &lt;code&gt;eu-central-1&lt;/code&gt; Frankfurt), ensuring customer data never crosses geographic boundaries.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;hr&gt;
+&lt;h2 id=&quot;5-decommissioning-ai-projects-the-6-phase-lifecycle&quot;&gt;5. Decommissioning AI Projects: The 6-Phase Lifecycle&lt;/h2&gt;
+&lt;p&gt;Retiring an AI tool or project requires careful orchestration to prevent data leaks, orphaned infrastructure, and surprise cloud bills:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;[Phase 1: Planning]   ──► 30-day notice, identify owners, freeze dependencies
+         │
+[Phase 2: Archival]   ──► Lock invocation logs in S3 with Object Lock, snapshot DBs
+         │
+[Phase 3: Staged]     ──► Revoke bedrock:InvokeModel; run 14-day read-only soak
+         │
+[Phase 4: Teardown]   ──► Delete Provisioned Throughput, OpenSearch, S3 buckets
+         │
+[Phase 5: Cleanup]    ──► Prune IAM roles, KMS keys, and CloudWatch log groups
+         │
+[Phase 6: FinOps]     ──► Verify spend flatlines to $0; monitor for shadow AI
+&lt;/code&gt;&lt;/pre&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;Planning &amp;amp; Communication:&lt;/strong&gt; Send a 3-notice sequence (30-day notice, read-only freeze date, deletion date).&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Archival &amp;amp; Retention:&lt;/strong&gt; Snapshot databases, export Route53 DNS zones, and sync Bedrock invocation logs to a long-term S3 Glacier archive with S3 Object Lock for regulatory compliance.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Staged Read-Only Mode:&lt;/strong&gt; Detach &lt;code&gt;bedrock:InvokeModel&lt;/code&gt; permissions 14–30 days prior to hard deletion. This surfaces hidden upstream dependencies while recovery is trivial.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Technical Teardown:&lt;/strong&gt; Cancel hourly &lt;strong&gt;Provisioned Throughput&lt;/strong&gt; commitments first, destroy vector databases (OpenSearch Serverless / Knowledge Bases), and execute &lt;code&gt;terraform destroy&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Security Cleanup:&lt;/strong&gt; Remove stale IAM roles, custom policies, KMS key aliases, and CloudWatch log groups to eliminate residual security exposure.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Verification &amp;amp; Shadow AI Monitoring:&lt;/strong&gt; Check AWS Cost Explorer to confirm project spend drops to zero, and monitor network traffic for spikes in unsanctioned third-party AI endpoints.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;hr&gt;
+&lt;h2 id=&quot;6-enterprise-production-checklist&quot;&gt;6. Enterprise Production Checklist&lt;/h2&gt;
+&lt;p&gt;Before rolling out Claude Code on Amazon Bedrock across your development teams, verify the following:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;[ ] &lt;strong&gt;Model Access:&lt;/strong&gt; Anthropic Claude models approved in target Bedrock regions.&lt;/li&gt;
+&lt;li&gt;[ ] &lt;strong&gt;Identity Federation:&lt;/strong&gt; AWS IAM Identity Center mapped to corporate IdP (Okta, Azure AD, Google).&lt;/li&gt;
+&lt;li&gt;[ ] &lt;strong&gt;Zero Static Keys:&lt;/strong&gt; IAM user creation restricted via AWS Organizations SCPs.&lt;/li&gt;
+&lt;li&gt;[ ] &lt;strong&gt;Guardrails Configured:&lt;/strong&gt; PII masking, topic denial, and prompt injection filters active.&lt;/li&gt;
+&lt;li&gt;[ ] &lt;strong&gt;Invocation Logging:&lt;/strong&gt; Bedrock logs streaming to an encrypted S3 bucket in a secure audit account.&lt;/li&gt;
+&lt;li&gt;[ ] &lt;strong&gt;Developer Tooling:&lt;/strong&gt; Standard shell aliases distributed with &lt;code&gt;CLAUDE_CODE_USE_BEDROCK=1&lt;/code&gt; and &lt;code&gt;CLAUDE_CONFIG_DIR&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;[ ] &lt;strong&gt;Alerting:&lt;/strong&gt; CloudWatch alarm on &lt;code&gt;InvocationsIntervened&lt;/code&gt; alerting SecOps of policy bypass attempts.&lt;/li&gt;
+&lt;li&gt;[ ] &lt;strong&gt;Decommissioning Runbook:&lt;/strong&gt; Step-by-step procedure documented for tool retirement and model lifecycle upgrades.&lt;/li&gt;
+&lt;/ul&gt;
+</content>
+  </entry>
   <entry>
     <title>From SQLite to Mem0: Architecting Production Memory &amp; Persistence for LangGraph Agents</title>
     <link href="https://rpm360.github.io/my-blog/blog/langgraph-persistence-memory-sqlite-to-mem0/" />
