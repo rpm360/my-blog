@@ -4,7 +4,7 @@ description: >-
   Converts raw technical conversation transcripts, screen review notes, chat logs, or architectural ideas
   into polished, production-grade technical blog posts for Rohit Marathe's Eleventy blog.
   Handles frontmatter, deep technical explanations, code snippets, system architecture diagrams,
-  Eleventy build validation, and deployment.
+  Eleventy build validation, branch isolation, and GitHub Pull Request creation.
 ---
 
 # Blog Post Generator Skill
@@ -75,23 +75,46 @@ Verify that:
 
 ---
 
-### Step 5: Commit and Deploy
-Once verified:
-1. Commit the changes:
+### Step 5: Create Branch, Commit & Open Pull Request
+Do NOT push directly to `main`. Instead, follow a clean PR review workflow:
+
+1. **Create a dedicated feature branch**:
+   ```bash
+   git checkout -b blog/<slug>
+   ```
+
+2. **Commit the new article and assets**:
    ```bash
    git add content/blog/<slug>.md
+   # Include any images in content/blog/<slug>/ if present
    git commit -m "feat(blog): add post on <Topic>"
    ```
-2. Pull/rebase if needed and push to `origin main`:
+
+3. **Push the feature branch to remote**:
    ```bash
-   git push origin main
+   git push -u origin blog/<slug>
    ```
-3. GitHub Actions will automatically run the build and publish to GitHub Pages.
+
+4. **Open a Pull Request with `gh`**:
+   ```bash
+   gh pr create \
+     --base main \
+     --head blog/<slug> \
+     --title "feat(blog): <Post Title>" \
+     --body "Adds new technical blog post: **<Post Title>**.
+
+   - **Topic**: <Brief description>
+   - **Tags**: <List of tags>
+   - **Validated**: Local Eleventy build passed with search indexing and TOC generation."
+   ```
+
+5. **Provide PR link to user**: Display the generated Pull Request URL to the user so they can review, preview, and merge when ready.
 
 ---
 
 ## Verification Checklist
 - [ ] Post appears in `_site/blog/<slug>/index.html` with valid HTML.
 - [ ] Table of contents dynamically populates if 3+ headings are present.
-- [ ] Reading time and view counter tags are rendered.
+- [ ] Reading time, view counter, and Mermaid diagrams render correctly.
 - [ ] Search palette (⌘K) can find the post by keywords and tags.
+- [ ] Feature branch created and PR opened against `main` with summary.
