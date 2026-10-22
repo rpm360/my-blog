@@ -5,11 +5,182 @@
   <subtitle>AI Systems Engineer crafting intelligent systems at scale.</subtitle>
   <link href="https://rpm360.github.io/my-blog/feed/feed.xml" rel="self" />
   <link href="https://rpm360.github.io/my-blog/my-blog/" />
-  <updated>2026-04-20T00:00:00Z</updated>
+  <updated>2026-04-22T00:00:00Z</updated>
   <id>https://rpm360.github.io/my-blog/my-blog/</id>
   <author>
     <name>Rohit Marathe</name>
   </author>
+  <entry>
+    <title>Inside Google Antigravity: Architecting an AI-First Multi-Surface Developer Platform</title>
+    <link href="https://rpm360.github.io/my-blog/blog/inside-google-antigravity-ai-first-architecture/" />
+    <updated>2026-04-22T00:00:00Z</updated>
+    <id>https://rpm360.github.io/my-blog/blog/inside-google-antigravity-ai-first-architecture/</id>
+    <content type="html">&lt;p&gt;Software engineering is undergoing a tectonic shift. For the past two years, AI in the IDE has largely meant a sidebar chatbot or an inline snippet autocomplete. While helpful, these systems remain isolated observers—unable to independently verify code, navigate complex directories, run build loops, or interact with external toolchains.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Google Antigravity (AGY)&lt;/strong&gt; represents the next evolutionary step: a unified, AI-first developer platform that bridges passive intent prediction with autonomous, tool-executing agent pairing across the entire software development lifecycle.&lt;/p&gt;
+&lt;p&gt;In this deep dive, we break down the architecture of Antigravity: its four distinct surfaces, three interaction modalities, hierarchical customization engine, and programmatic Python SDK.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id=&quot;1-the-multi-surface-topology&quot;&gt;1. The Multi-Surface Topology&lt;/h2&gt;
+&lt;p&gt;Unlike single-binary tools, Antigravity operates across a four-surface topology designed to meet developers wherever they work:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;┌────────────────────────────────────────────────────────┐
+│             Google Antigravity Platform                │
+├──────────────┬──────────────┬─────────────┬────────────┤
+│ Antigravity  │ Antigravity  │ Antigravity │ Python SDK │
+│     IDE      │     2.0      │  CLI (agy)  │ (Program-  │
+│  (In-Editor) │  (Desktop)   │  (Terminal) │   matic)   │
+└──────────────┴──────────────┴─────────────┴────────────┘
+&lt;/code&gt;&lt;/pre&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style=&quot;text-align:left&quot;&gt;Surface&lt;/th&gt;
+&lt;th style=&quot;text-align:left&quot;&gt;Technical Architecture&lt;/th&gt;
+&lt;th style=&quot;text-align:left&quot;&gt;Primary Workflow&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;&lt;strong&gt;Antigravity IDE&lt;/strong&gt;&lt;/td&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;Custom VS Code distribution with deep kernel hooks&lt;/td&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;Active daily coding, inline diff inspection, single-keystroke tab jumps, and editor-centric pairing.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;&lt;strong&gt;Antigravity 2.0&lt;/strong&gt;&lt;/td&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;Standalone Electron desktop workspace&lt;/td&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;Multi-agent orchestration, parallel task canvas, browser session debugging, and long-running scheduled background cron jobs.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;&lt;strong&gt;Antigravity CLI (&lt;code&gt;agy&lt;/code&gt;)&lt;/strong&gt;&lt;/td&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;Lightweight native TUI &amp;amp; headless binary&lt;/td&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;Remote SSH environments, continuous integration (CI) test runners, and scriptable command automation.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;&lt;strong&gt;Python SDK&lt;/strong&gt;&lt;/td&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;Asynchronous client (&lt;code&gt;google-antigravity&lt;/code&gt;)&lt;/td&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;Programmatic agent leasing, custom agentic test suites, and internal developer platform integrations.&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;hr&gt;
+&lt;h2 id=&quot;2-the-three-operational-modalities&quot;&gt;2. The Three Operational Modalities&lt;/h2&gt;
+&lt;p&gt;A core architectural challenge in AI developer tools is cognitive load: when should the AI be silent, when should it assist, and when should it take the steering wheel?&lt;/p&gt;
+&lt;p&gt;Antigravity formalizes this into three distinct interaction tiers:&lt;/p&gt;
+&lt;pre class=&quot;language-mermaid&quot; tabindex=&quot;0&quot;&gt;&lt;code class=&quot;language-mermaid&quot;&gt;&lt;span class=&quot;token keyword&quot;&gt;sequenceDiagram&lt;/span&gt;
+    &lt;span class=&quot;token keyword&quot;&gt;autonumber&lt;/span&gt;
+    actor Dev as Developer
+    &lt;span class=&quot;token keyword&quot;&gt;participant&lt;/span&gt; Tab as Antigravity Tab &lt;span class=&quot;token text string&quot;&gt;(Passive)&lt;/span&gt;
+    &lt;span class=&quot;token keyword&quot;&gt;participant&lt;/span&gt; Inline as Inline ⌘I &lt;span class=&quot;token text string&quot;&gt;(Instructive)&lt;/span&gt;
+    &lt;span class=&quot;token keyword&quot;&gt;participant&lt;/span&gt; Agent as Agent &lt;span class=&quot;token operator&quot;&gt;&amp;amp;&lt;/span&gt; Planning &lt;span class=&quot;token text string&quot;&gt;(Collaborative)&lt;/span&gt;
+    &lt;span class=&quot;token keyword&quot;&gt;participant&lt;/span&gt; Tool as Tool Engine &lt;span class=&quot;token operator&quot;&gt;&amp;amp;&lt;/span&gt; Terminal Sandbox
+
+    &lt;span class=&quot;token keyword&quot;&gt;Note over&lt;/span&gt; Dev,Tab&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; Modality 1&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; Passive Typing
+    Dev&lt;span class=&quot;token arrow operator&quot;&gt;-&gt;&gt;&lt;/span&gt;Tab&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; Type code / pause
+    Tab&lt;span class=&quot;token arrow operator&quot;&gt;--&gt;&gt;&lt;/span&gt;Dev&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; Propose next edit, multi-line diff, or tab jump
+    
+    &lt;span class=&quot;token keyword&quot;&gt;Note over&lt;/span&gt; Dev,Inline&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; Modality 2&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; Instructive Selection
+    Dev&lt;span class=&quot;token arrow operator&quot;&gt;-&gt;&gt;&lt;/span&gt;Inline&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; Highlight code + ⌘I &lt;span class=&quot;token text string&quot;&gt;(&quot;Refactor to async connection pool&quot;)&lt;/span&gt;
+    Inline&lt;span class=&quot;token arrow operator&quot;&gt;--&gt;&gt;&lt;/span&gt;Dev&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; Apply targeted localized diff strictly within bounds
+
+    &lt;span class=&quot;token keyword&quot;&gt;Note over&lt;/span&gt; Dev,Agent&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; Modality 3&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; Autonomous Pairing
+    Dev&lt;span class=&quot;token arrow operator&quot;&gt;-&gt;&gt;&lt;/span&gt;Agent&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; Prompt &lt;span class=&quot;token text string&quot;&gt;(&quot;Diagnose flaky test and fix build&quot;)&lt;/span&gt;
+    Agent&lt;span class=&quot;token arrow operator&quot;&gt;-&gt;&gt;&lt;/span&gt;Tool&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; Execute test runner / inspect logs
+    Tool&lt;span class=&quot;token arrow operator&quot;&gt;--&gt;&gt;&lt;/span&gt;Agent&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; Error output captured
+    Agent&lt;span class=&quot;token arrow operator&quot;&gt;-&gt;&gt;&lt;/span&gt;Tool&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; Edit source code &lt;span class=&quot;token operator&quot;&gt;&amp;amp;&lt;/span&gt; re-run verification
+    Agent&lt;span class=&quot;token arrow operator&quot;&gt;--&gt;&gt;&lt;/span&gt;Dev&lt;span class=&quot;token operator&quot;&gt;:&lt;/span&gt; Present validated PR / artifact&lt;/code&gt;&lt;/pre&gt;
+&lt;h3 id=&quot;a-passive-antigravity-tab&quot;&gt;A. Passive: Antigravity Tab&lt;/h3&gt;
+&lt;p&gt;Operating directly at the keystroke level, Antigravity Tab is not a standard n-gram completion engine. It is an &lt;strong&gt;intent-prediction loop&lt;/strong&gt;:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Context Awareness:&lt;/strong&gt; Ingests active tab buffers, cursor telemetry, recent terminal outputs, and git status.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Supercomplete:&lt;/strong&gt; Predicts multi-line refactorings, deletions, and structural reorganizations in floating diff lenses.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Tab to Jump &amp;amp; Import:&lt;/strong&gt; Anticipates the next cursor landing site (e.g., jumping from a function definition to its caller) and auto-resolves missing imports as you type.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&quot;b-instructive-inline-modality-i-ctrl-i&quot;&gt;B. Instructive: Inline Modality (&lt;kbd&gt;⌘I&lt;/kbd&gt; / &lt;kbd&gt;Ctrl+I&lt;/kbd&gt;)&lt;/h3&gt;
+&lt;p&gt;When scoped intervention is required, highlighting code and pressing &lt;kbd&gt;⌘I&lt;/kbd&gt; restricts the AI&#39;s execution boundary strictly to the selection. It excels at:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Targeted algorithmic optimizations.&lt;/li&gt;
+&lt;li&gt;Localized docstring and type-annotation generation.&lt;/li&gt;
+&lt;li&gt;Explaining obfuscated legacy code without altering surrounding state.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&quot;c-collaborative-agent-and-planning-mode&quot;&gt;C. Collaborative: Agent &amp;amp; Planning Mode&lt;/h3&gt;
+&lt;p&gt;For complex, multi-step engineering tasks, the system shifts into autonomous pairing:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Planning Mode:&lt;/strong&gt; Generates a structured execution plan before executing irreversible operations.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Tool Access:&lt;/strong&gt; Safely executes commands in a local terminal sandbox, reads and edits workspace files, launches headless browsers for visual validation, and interfaces with Model Context Protocol (MCP) servers.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;hr&gt;
+&lt;h2 id=&quot;3-the-customization-engine-progressive-disclosure&quot;&gt;3. The Customization Engine: Progressive Disclosure&lt;/h2&gt;
+&lt;p&gt;Enterprise repositories possess unique standards, build conventions, and security boundaries. Antigravity discovers and enforces customizations using a hierarchical priority model:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;[1. Workspace Customizations: .agents/]  (Highest Priority — Committed to Git)
+                 │
+[2. Directory Rules: GEMINI.md / AGENTS.md]
+                 │
+[3. Global Config: ~/.gemini/config/]    (Developer Machine Preferences)
+                 │
+[4. Built-in Platform Standard Library]   (Lowest Priority / Fallback)
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h3 id=&quot;key-customization-primitives&quot;&gt;Key Customization Primitives&lt;/h3&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;Skills (&lt;code&gt;.agents/skills/&amp;lt;name&amp;gt;/SKILL.md&lt;/code&gt;):&lt;/strong&gt; Modular runbooks that teach the agent specific procedural workflows. Skills use &lt;strong&gt;progressive disclosure&lt;/strong&gt;—only their frontmatter &lt;code&gt;name&lt;/code&gt; and &lt;code&gt;description&lt;/code&gt; are loaded into the initial context window, conserving tokens until activated by relevance.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Rules (&lt;code&gt;GEMINI.md&lt;/code&gt;, &lt;code&gt;AGENTS.md&lt;/code&gt;, &lt;code&gt;.agents/rules/*.md&lt;/code&gt;):&lt;/strong&gt; Persistent guardrails governing coding standards, naming conventions, and architectural constraints.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Model Context Protocol (MCP):&lt;/strong&gt; Connects the agent to custom internal tools, database inspectors, or issue trackers defined in &lt;code&gt;mcp_config.json&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Lifecycle Hooks (&lt;code&gt;hooks.json&lt;/code&gt;):&lt;/strong&gt; Intercepts execution before or after tool actions (e.g., running a security scan prior to executing bash scripts).&lt;/li&gt;
+&lt;/ol&gt;
+&lt;hr&gt;
+&lt;h2 id=&quot;4-programmatic-agent-leasing-python-sdk&quot;&gt;4. Programmatic Agent Leasing: Python SDK&lt;/h2&gt;
+&lt;p&gt;Beyond the visual IDE, developers can orchestrate Antigravity agents programmatically via the &lt;code&gt;google-antigravity&lt;/code&gt; Python SDK:&lt;/p&gt;
+&lt;pre class=&quot;language-python&quot; tabindex=&quot;0&quot;&gt;&lt;code class=&quot;language-python&quot;&gt;&lt;span class=&quot;token keyword&quot;&gt;import&lt;/span&gt; asyncio
+&lt;span class=&quot;token keyword&quot;&gt;import&lt;/span&gt; sys
+&lt;span class=&quot;token keyword&quot;&gt;from&lt;/span&gt; google&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;antigravity &lt;span class=&quot;token keyword&quot;&gt;import&lt;/span&gt; Agent&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; LocalAgentConfig&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; CapabilitiesConfig
+
+&lt;span class=&quot;token keyword&quot;&gt;async&lt;/span&gt; &lt;span class=&quot;token keyword&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;token function&quot;&gt;automated_code_review_pipeline&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;pr_diff&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token builtin&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;token comment&quot;&gt;# Configure the agent with explicit capability boundaries&lt;/span&gt;
+    config &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; LocalAgentConfig&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;
+        system_instructions&lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;token triple-quoted-string string&quot;&gt;&quot;&quot;&quot;
+        You are a senior security and systems engineering reviewer.
+        Analyze incoming git diffs for concurrency bottlenecks, resource leaks,
+        and unauthenticated API invocations.
+        &quot;&quot;&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+        capabilities&lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt;CapabilitiesConfig&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;
+            allow_run_command&lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;token boolean&quot;&gt;True&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;token comment&quot;&gt;# Grants terminal command execution&lt;/span&gt;
+            allow_file_write&lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;token boolean&quot;&gt;False&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;token comment&quot;&gt;# Read-only audit mode&lt;/span&gt;
+        &lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+
+    &lt;span class=&quot;token comment&quot;&gt;# Spawn an agent session using the async context manager&lt;/span&gt;
+    &lt;span class=&quot;token keyword&quot;&gt;async&lt;/span&gt; &lt;span class=&quot;token keyword&quot;&gt;with&lt;/span&gt; Agent&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;config&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;token keyword&quot;&gt;as&lt;/span&gt; agent&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+        prompt &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;token string-interpolation&quot;&gt;&lt;span class=&quot;token string&quot;&gt;f&quot;Perform a strict security audit on this diff:&#92;n&#92;n&lt;/span&gt;&lt;span class=&quot;token interpolation&quot;&gt;&lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;pr_diff&lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&quot;&lt;/span&gt;&lt;/span&gt;
+        response &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;token keyword&quot;&gt;await&lt;/span&gt; agent&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;chat&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;prompt&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+
+        &lt;span class=&quot;token comment&quot;&gt;# Stream response tokens in real-time&lt;/span&gt;
+        &lt;span class=&quot;token keyword&quot;&gt;async&lt;/span&gt; &lt;span class=&quot;token keyword&quot;&gt;for&lt;/span&gt; token &lt;span class=&quot;token keyword&quot;&gt;in&lt;/span&gt; response&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+            sys&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;stdout&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;write&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;token&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+            sys&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;stdout&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;flush&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;token keyword&quot;&gt;print&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+
+&lt;span class=&quot;token keyword&quot;&gt;if&lt;/span&gt; __name__ &lt;span class=&quot;token operator&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;__main__&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+    sample_diff &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;diff --git a/app.py b/app.py&#92;n+ os.system(f&#39;ping {user_input}&#39;)&quot;&lt;/span&gt;
+    asyncio&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;run&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;automated_code_review_pipeline&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;sample_diff&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;This makes it trivial to embed autonomous coding agents directly into CI/CD pipelines, automated regression triage bots, or internal developer platforms (IDPs).&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id=&quot;5-security-permissions-and-sandboxing&quot;&gt;5. Security, Permissions &amp;amp; Sandboxing&lt;/h2&gt;
+&lt;p&gt;Allowing an autonomous AI agent to execute shell commands and modify file systems requires strict security guarantees. Antigravity provides enterprise-grade operational controls:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Tool Execution Policies:&lt;/strong&gt; Configurable modes ranging from &lt;code&gt;always-proceed&lt;/code&gt; (high trust) to &lt;code&gt;request-review&lt;/code&gt; and &lt;code&gt;strict-sandbox&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Containerized Terminal Sandboxing:&lt;/strong&gt; Restricts terminal execution to isolated virtualization layers, preventing accidental local directory contamination.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Non-Workspace File Scoping:&lt;/strong&gt; The agent is barred from reading or writing files outside the active workspace directory unless explicitly approved.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Domain Allowlists:&lt;/strong&gt; Browser automation subagents can be restricted to specific testing domains (e.g., &lt;code&gt;localhost&lt;/code&gt; and internal staging endpoints), preventing data exfiltration to unauthorized web destinations.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;hr&gt;
+&lt;h2 id=&quot;6-enterprise-production-checklist&quot;&gt;6. Enterprise Production Checklist&lt;/h2&gt;
+&lt;p&gt;When establishing an AI-first workflow with Antigravity across your engineering organization:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;[ ] &lt;strong&gt;Standardize Workspace Rules:&lt;/strong&gt; Place common style guides and architectural conventions in root &lt;code&gt;GEMINI.md&lt;/code&gt; or &lt;code&gt;.agents/rules/&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;[ ] &lt;strong&gt;Encapsulate Common Runbooks:&lt;/strong&gt; Convert repetitive engineering procedures (PR generation, release tagging, schema migrations) into workspace &lt;code&gt;.agents/skills/&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;[ ] &lt;strong&gt;Configure Sandboxed Tool Execution:&lt;/strong&gt; Enforce &lt;code&gt;request-review&lt;/code&gt; or sandbox policies on developer workstations for destructive operations.&lt;/li&gt;
+&lt;li&gt;[ ] &lt;strong&gt;Integrate MCP Connectors:&lt;/strong&gt; Expose internal documentation, staging databases, and issue trackers via standard Model Context Protocol servers.&lt;/li&gt;
+&lt;li&gt;[ ] &lt;strong&gt;CI/CD Agent Validation:&lt;/strong&gt; Utilize the Python SDK in continuous integration to automate linting, documentation verification, and automated PR reviews.&lt;/li&gt;
+&lt;/ul&gt;
+</content>
+  </entry>
   <entry>
     <title>Beyond Generative LLMs: Architecting High-Speed Decision Gates with TypeSafe AI&#39;s Jev</title>
     <link href="https://rpm360.github.io/my-blog/blog/beyond-generative-llms-decision-gates-jev/" />
