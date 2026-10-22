@@ -40,4 +40,17 @@ export default function(eleventyConfig) {
 	eleventyConfig.addFilter("sortAlphabetically", strings =>
 		(strings || []).sort((b, a) => b.localeCompare(a))
 	);
+
+	// Estimated reading time in minutes (~220 wpm) from rendered HTML/markdown content
+	eleventyConfig.addFilter("readingTime", content => {
+		const text = String(content || "").replace(/<[^>]*>/g, " ");
+		const words = text.split(/\s+/).filter(Boolean).length;
+		return Math.max(1, Math.round(words / 220));
+	});
+
+	// Strip HTML and truncate, for search index excerpts
+	eleventyConfig.addFilter("plainExcerpt", (content, length = 160) => {
+		const text = String(content || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+		return text.length > length ? text.slice(0, length) + "…" : text;
+	});
 };
