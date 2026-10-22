@@ -1,0 +1,1155 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>When Semantic Search Fails: Hard Trade-Offs in Production Hybrid RAG</title>
+		<meta name="description" content="A battle-tested analysis of why vector similarity collapses on technical part numbers and DTC codes, and how to balance PostgreSQL-first pre-filtering, BM25 sparse retrieval, and Reciprocal Rank Fusion.">
+		<meta name="author" content="Rohit Marathe">
+		<meta name="theme-color" content="#0b0f19">
+		<meta property="og:title" content="When Semantic Search Fails: Hard Trade-Offs in Production Hybrid RAG">
+		<meta property="og:description" content="A battle-tested analysis of why vector similarity collapses on technical part numbers and DTC codes, and how to balance PostgreSQL-first pre-filtering, BM25 sparse retrieval, and Reciprocal Rank Fusion.">
+		<meta property="og:type" content="article">
+		<link rel="alternate" href="/my-blog/feed/feed.xml" type="application/atom+xml" title="Rohit Marathe">
+		<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
+		<script>
+			(function () {
+				var t = localStorage.getItem('theme');
+				if (!t) t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+				document.documentElement.setAttribute('data-theme', t);
+			})();
+		</script>
+		<link rel="preconnect" href="https://fonts.googleapis.com">
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+		<link href="https://fonts.googleapis.com/css2?family=Geist&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+		
+		<style>/* ============================================
+   Rohit Marathe — Personal Blog Theme
+   Editorial reading experience · light + dark
+   ============================================ */
+
+/* === Design Tokens === */
+:root {
+	--font-family: 'Inter', -apple-system, system-ui, sans-serif;
+	--font-family-serif: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+	--font-family-monospace: 'JetBrains Mono', Consolas, Menlo, Monaco, monospace;
+
+	--accent: #0ea5e9;
+	--accent-2: #8b5cf6;
+	--accent-gradient: linear-gradient(120deg, #0ea5e9, #8b5cf6 60%, #ec4899);
+
+	--radius: 16px;
+	--radius-sm: 10px;
+	--transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+	--syntax-tab-size: 2;
+
+	--container: 1080px;
+	--reading: 700px;
+	color-scheme: dark;
+
+	/* Dark (default) */
+	--bg-primary: #0b0f19;
+	--bg-secondary: #111827;
+	--bg-card: rgba(255, 255, 255, 0.035);
+	--bg-card-hover: rgba(255, 255, 255, 0.06);
+	--bg-glass: rgba(11, 15, 25, 0.72);
+	--text-primary: #f1f5f9;
+	--text-body: #cbd5e1;
+	--text-secondary: #94a3b8;
+	--text-muted: #64748b;
+	--border-subtle: rgba(255, 255, 255, 0.08);
+	--border-accent: rgba(14, 165, 233, 0.4);
+	--accent-text: #38bdf8;
+	--code-bg: #0f172a;
+	--shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+	--glow-1: rgba(14, 165, 233, 0.12);
+	--glow-2: rgba(139, 92, 246, 0.1);
+}
+
+:root[data-theme="light"] {
+	color-scheme: light;
+	--bg-primary: #fbfbfd;
+	--bg-secondary: #f1f5f9;
+	--bg-card: #ffffff;
+	--bg-card-hover: #ffffff;
+	--bg-glass: rgba(251, 251, 253, 0.8);
+	--text-primary: #0f172a;
+	--text-body: #1e293b;
+	--text-secondary: #475569;
+	--text-muted: #64748b;
+	--border-subtle: rgba(15, 23, 42, 0.09);
+	--border-accent: rgba(14, 165, 233, 0.5);
+	--accent-text: #0369a1;
+	--code-bg: #f1f5f9;
+	--shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+	--glow-1: rgba(14, 165, 233, 0.1);
+	--glow-2: rgba(139, 92, 246, 0.08);
+}
+
+/* === Reset === */
+* { box-sizing: border-box; }
+@view-transition { navigation: auto; }
+
+html, body {
+	padding: 0;
+	margin: 0;
+	font-family: var(--font-family);
+	color: var(--text-primary);
+	background-color: var(--bg-primary);
+	-webkit-font-smoothing: antialiased;
+}
+html { overflow-y: scroll; scroll-behavior: smooth; scroll-padding-top: 90px; }
+body {
+	min-height: 100vh;
+	display: flex;
+	flex-direction: column;
+	transition: background-color 0.3s, color 0.3s;
+}
+
+/* Ambient glow */
+body::before {
+	content: '';
+	position: fixed;
+	inset: 0;
+	background:
+		radial-gradient(600px circle at 8% -5%, var(--glow-1), transparent 70%),
+		radial-gradient(700px circle at 100% 100%, var(--glow-2), transparent 70%);
+	pointer-events: none;
+	z-index: -1;
+}
+
+::selection { background: rgba(14, 165, 233, 0.3); }
+
+/* === Accessibility === */
+.visually-hidden:not(:focus):not(:active) {
+	clip: rect(0 0 0 0);
+	clip-path: inset(50%);
+	height: 1px;
+	overflow: hidden;
+	position: absolute;
+	white-space: nowrap;
+	width: 1px;
+}
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+@media (prefers-reduced-motion: reduce) {
+	* { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+
+/* === Media === */
+img { max-width: 100%; border-radius: var(--radius-sm); }
+img[width][height] { height: auto; }
+img[src$=".svg"] { width: 100%; height: auto; max-width: none; }
+video, iframe { width: 100%; height: auto; border-radius: var(--radius); }
+iframe { aspect-ratio: 16/9; }
+
+/* === Typography === */
+p { line-height: 1.75; color: var(--text-body); }
+li { line-height: 1.75; color: var(--text-body); }
+h1, h2, h3, h4 { color: var(--text-primary); letter-spacing: -0.025em; line-height: 1.2; }
+h1 { font-size: 2.2rem; font-weight: 800; }
+h2 { font-size: 1.55rem; margin-top: 2em; font-weight: 700; }
+h3 { font-size: 1.2rem; margin-top: 1.8em; font-weight: 650; }
+hr { border: 0; border-top: 1px solid var(--border-subtle); margin: 3rem 0; }
+
+a[href] { color: var(--accent-text); text-decoration: none; transition: var(--transition); }
+a[href]:hover { color: var(--text-primary); }
+
+/* === Layout === */
+.container { width: 100%; max-width: var(--container); margin: 0 auto; padding: 0 1.5rem; }
+main { flex: 1; padding: 2.5rem 0 4rem; animation: fadeInUp 0.45s ease-out; }
+main > heading-anchors > :first-child { margin-top: 0; }
+@keyframes fadeInUp {
+	from { opacity: 0; transform: translateY(14px); }
+	to { opacity: 1; transform: translateY(0); }
+}
+
+/* === Header === */
+.site-header {
+	position: sticky;
+	top: 0;
+	z-index: 100;
+	background: var(--bg-glass);
+	backdrop-filter: saturate(180%) blur(16px);
+	-webkit-backdrop-filter: saturate(180%) blur(16px);
+	border-bottom: 1px solid var(--border-subtle);
+}
+.site-header .container {
+	display: flex;
+	align-items: center;
+	gap: 1rem;
+	height: 64px;
+}
+.home-link {
+	flex-grow: 1;
+	font-size: 1.1rem;
+	font-weight: 800;
+	letter-spacing: -0.03em;
+	background: var(--accent-gradient);
+	-webkit-background-clip: text;
+	background-clip: text;
+	-webkit-text-fill-color: transparent;
+}
+.home-link:hover { opacity: 0.8; color: transparent !important; }
+.nav { display: flex; gap: 0.25rem; padding: 0; margin: 0; list-style: none; }
+.nav-item a[href] {
+	color: var(--text-secondary);
+	font-size: 0.9rem;
+	font-weight: 500;
+	padding: 0.45em 0.85em;
+	border-radius: 999px;
+}
+.nav-item a[href]:hover { color: var(--text-primary); background: var(--bg-card-hover); }
+.nav a[href][aria-current="page"] { color: var(--text-primary); background: var(--bg-card); box-shadow: inset 0 0 0 1px var(--border-subtle); }
+
+.header-actions { display: flex; gap: 0.5rem; align-items: center; }
+.icon-btn, .search-trigger {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	height: 36px;
+	padding: 0 0.7rem;
+	border: 1px solid var(--border-subtle);
+	background: var(--bg-card);
+	color: var(--text-secondary);
+	border-radius: 999px;
+	font: inherit;
+	font-size: 0.85rem;
+	cursor: pointer;
+	transition: var(--transition);
+}
+.icon-btn { width: 36px; justify-content: center; padding: 0; }
+.icon-btn:hover, .search-trigger:hover { color: var(--text-primary); border-color: var(--border-accent); }
+.search-trigger kbd {
+	font: 500 0.7rem var(--font-family);
+	padding: 0.1rem 0.4rem;
+	border-radius: 5px;
+	border: 1px solid var(--border-subtle);
+	color: var(--text-muted);
+}
+.theme-toggle .sun { display: none; }
+:root[data-theme="light"] .theme-toggle .sun { display: block; }
+:root[data-theme="light"] .theme-toggle .moon { display: none; }
+
+#skip-link {
+	background: var(--bg-secondary);
+	color: var(--text-primary);
+	padding: 0.5rem 1rem;
+	border: 1px solid var(--border-accent);
+	border-radius: var(--radius-sm);
+}
+#skip-link.visually-hidden:focus { position: absolute; top: 1rem; left: 1rem; z-index: 999; }
+
+/* Reading progress */
+.progress {
+	position: fixed;
+	top: 0; left: 0;
+	height: 3px;
+	width: 100%;
+	transform-origin: 0 50%;
+	transform: scaleX(0);
+	background: var(--accent-gradient);
+	z-index: 200;
+}
+
+/* === Hero === */
+.hero { padding: 4rem 0 3rem; max-width: 780px; }
+.hero-eyebrow {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	font-size: 0.8rem;
+	font-weight: 600;
+	color: var(--text-secondary);
+	padding: 0.35rem 0.8rem;
+	border: 1px solid var(--border-subtle);
+	background: var(--bg-card);
+	border-radius: 999px;
+	margin-bottom: 1.5rem;
+}
+.hero-eyebrow .dot {
+	width: 8px; height: 8px; border-radius: 50%;
+	background: #22c55e;
+	box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.6);
+	animation: pulse 2s infinite;
+}
+@keyframes pulse {
+	70% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
+	100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+}
+.hero h1 {
+	font-size: clamp(2.4rem, 6vw, 3.8rem);
+	font-weight: 800;
+	line-height: 1.05;
+	margin: 0 0 1rem;
+	letter-spacing: -0.04em;
+}
+.gradient-text {
+	background: var(--accent-gradient);
+	-webkit-background-clip: text;
+	background-clip: text;
+	-webkit-text-fill-color: transparent;
+}
+.hero-tagline { font-size: 1.2rem; color: var(--text-secondary); margin: 0 0 1.75rem; line-height: 1.6; }
+.hero-tags { display: flex; flex-wrap: wrap; gap: 0.5rem; list-style: none; padding: 0; margin: 0; }
+.hero-tag {
+	font-size: 0.8rem;
+	font-weight: 500;
+	line-height: 1.4;
+	color: var(--text-secondary);
+	background: var(--bg-card);
+	border: 1px solid var(--border-subtle);
+	padding: 0.3em 0.85em;
+	border-radius: 999px;
+}
+
+/* === Section headings === */
+.section-heading {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	font-size: 0.8rem;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.12em;
+	color: var(--text-muted);
+	margin: 3rem 0 1.25rem;
+}
+.section-heading a { text-transform: none; letter-spacing: 0; font-size: 0.9rem; font-weight: 500; }
+
+/* === Post cards === */
+.postlist {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+	gap: 1.25rem;
+}
+.postlist-item {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+	padding: 1.5rem;
+	background: var(--bg-card);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius);
+	transition: var(--transition);
+}
+.postlist-item:hover {
+	border-color: var(--border-accent);
+	transform: translateY(-4px);
+	box-shadow: var(--shadow);
+	background: var(--bg-card-hover);
+}
+.postlist-meta { display: flex; gap: 0.5rem; align-items: center; font-size: 0.78rem; color: var(--text-muted); }
+.postlist-link {
+	font-size: 1.2rem;
+	font-weight: 700;
+	line-height: 1.3;
+	letter-spacing: -0.02em;
+	color: var(--text-primary) !important;
+}
+/* Whole card is clickable */
+.postlist-link::after { content: ''; position: absolute; inset: 0; border-radius: var(--radius); }
+.postlist-item:hover .postlist-link { color: var(--accent-text) !important; }
+.postlist-desc {
+	margin: 0;
+	font-size: 0.93rem;
+	line-height: 1.6;
+	color: var(--text-secondary);
+	display: -webkit-box;
+	-webkit-line-clamp: 3;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+.postlist-tags { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: auto; padding-top: 0.25rem; position: relative; z-index: 1; }
+
+/* Featured (first) card spans the grid on wide screens */
+.postlist.featured .postlist-item:first-child { grid-column: 1 / -1; padding: 2rem; }
+.postlist.featured .postlist-item:first-child .postlist-link { font-size: 1.75rem; }
+.postlist.featured .postlist-item:first-child .postlist-desc { font-size: 1.05rem; -webkit-line-clamp: 2; max-width: 60ch; }
+
+/* === Tags === */
+.post-tag {
+	display: inline-flex;
+	align-items: center;
+	font-size: 0.75rem;
+	font-weight: 500;
+	color: var(--text-secondary);
+	background: var(--bg-secondary);
+	border: 1px solid var(--border-subtle);
+	padding: 0.2em 0.7em;
+	border-radius: 999px;
+	text-transform: capitalize;
+}
+a.post-tag:hover { color: var(--accent-text); border-color: var(--border-accent); }
+
+/* === Article === */
+.article { max-width: var(--reading); margin: 0 auto; }
+.article-header { margin-bottom: 2.5rem; }
+.article-header h1 {
+	font-size: clamp(2rem, 5vw, 3rem);
+	line-height: 1.1;
+	letter-spacing: -0.035em;
+	margin: 0 0 1rem;
+}
+.article-desc { font-size: 1.2rem; color: var(--text-secondary); line-height: 1.55; margin: 0 0 1.5rem; }
+.post-metadata {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5rem 1rem;
+	list-style: none;
+	padding: 1rem 0 0;
+	margin: 0;
+	border-top: 1px solid var(--border-subtle);
+	font-size: 0.88rem;
+	color: var(--text-muted);
+}
+.post-metadata li { color: var(--text-muted); line-height: 1.5; }
+.post-metadata .tags { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-left: auto; }
+
+/* Comfortable long-form body */
+.article-body { font-size: 1.125rem; }
+.article-body p, .article-body li { font-size: 1.125rem; line-height: 1.85; color: var(--text-body); }
+.article-body p { margin: 1.4em 0; }
+.article-body h2 { margin-top: 2.6em; padding-top: 0.2em; }
+.article-body a[href]:not(.heading-anchor) {
+	text-decoration: underline;
+	text-decoration-color: color-mix(in srgb, var(--accent-text) 40%, transparent);
+	text-underline-offset: 3px;
+}
+.article-body a[href]:hover { text-decoration-color: currentColor; }
+.article-body blockquote {
+	margin: 1.8em 0;
+	padding: 0.2em 0 0.2em 1.4em;
+	border-left: 3px solid var(--accent);
+	color: var(--text-secondary);
+	font-style: italic;
+}
+.article-body blockquote p { color: inherit; margin: 0.6em 0; }
+.article-body ul, .article-body ol { padding-left: 1.4em; }
+.article-body li::marker { color: var(--accent); }
+.article-body img { display: block; margin: 2em auto; border: 1px solid var(--border-subtle); }
+
+/* Table of contents */
+.toc {
+	margin: 0 0 2.5rem;
+	padding: 1.1rem 1.4rem;
+	background: var(--bg-card);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius);
+}
+.toc[hidden] { display: none; }
+.toc-title { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); margin: 0 0 0.6rem; }
+.toc ol { list-style: none; margin: 0; padding: 0; }
+.toc li { line-height: 1.4; margin: 0.15rem 0; }
+.toc li.l3 { padding-left: 1rem; }
+.toc a[href] { display: block; padding: 0.25rem 0; font-size: 0.92rem; color: var(--text-secondary); }
+.toc a[href]:hover, .toc a[href].active { color: var(--accent-text); }
+
+/* Prev/Next */
+.links-nextprev {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 1rem;
+	list-style: none;
+	padding: 0;
+	margin: 4rem 0 0;
+}
+.links-nextprev li {
+	padding: 1.1rem 1.3rem;
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius);
+	background: var(--bg-card);
+	transition: var(--transition);
+	font-size: 0.8rem;
+	color: var(--text-muted);
+}
+.links-nextprev li:hover { border-color: var(--border-accent); transform: translateY(-2px); }
+.links-nextprev li a { display: block; margin-top: 0.3rem; font-size: 1rem; font-weight: 600; color: var(--text-primary); line-height: 1.35; }
+.links-nextprev-next { text-align: right; grid-column: 2; }
+.links-nextprev-prev { grid-column: 1; }
+
+/* === Tables === */
+table { margin: 1.5em 0; border-collapse: collapse; width: 100%; display: block; overflow-x: auto; font-size: 0.95rem; }
+table td, table th { padding: 0.6em 1em; border: 1px solid var(--border-subtle); text-align: left; }
+table th { background: var(--bg-secondary); color: var(--text-primary); }
+
+/* === Code === */
+pre, code { font-family: var(--font-family-monospace); }
+code {
+	font-size: 0.86em;
+	color: var(--accent-text);
+	background: var(--bg-secondary);
+	padding: 0.15em 0.4em;
+	border-radius: 6px;
+}
+pre code { background: none; padding: 0; color: inherit; word-break: normal; }
+pre {
+	position: relative;
+	margin: 1.8em 0;
+	line-height: 1.6;
+	tab-size: var(--syntax-tab-size);
+	hyphens: none;
+	direction: ltr;
+	text-align: left;
+	white-space: pre;
+	overflow-x: auto;
+	background: var(--code-bg);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius-sm);
+	padding: 1.1em 1.3em;
+	font-size: 0.88rem;
+}
+pre[class*="language-"] { background: #0d1117 !important; border-radius: var(--radius-sm); }
+
+/* === Mermaid Diagrams === */
+.mermaid {
+	display: flex;
+	justify-content: center;
+	margin: 2rem 0;
+	background: var(--bg-card);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius);
+	padding: 1.5rem;
+	overflow-x: auto;
+}
+.mermaid svg {
+	max-width: 100%;
+	height: auto;
+}
+.copy-btn {
+	position: absolute;
+	top: 0.6rem;
+	right: 0.6rem;
+	font: 500 0.72rem var(--font-family);
+	padding: 0.3rem 0.65rem;
+	border-radius: 6px;
+	border: 1px solid rgba(255, 255, 255, 0.12);
+	background: rgba(255, 255, 255, 0.07);
+	color: #cbd5e1;
+	cursor: pointer;
+	opacity: 0;
+	transition: var(--transition);
+}
+pre:hover .copy-btn, .copy-btn:focus-visible { opacity: 1; }
+.copy-btn:hover { background: rgba(255, 255, 255, 0.15); }
+
+/* === Footer === */
+footer { border-top: 1px solid var(--border-subtle); padding: 2.5rem 0; }
+footer .container { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
+footer p { margin: 0; font-size: 0.85rem; color: var(--text-muted); }
+.footer-links { display: flex; gap: 1.5rem; }
+.footer-links a { color: var(--text-secondary); font-size: 0.88rem; font-weight: 500; }
+.footer-links a:hover { color: var(--accent-text); }
+
+/* === Search palette === */
+.search-dialog {
+	width: min(640px, calc(100vw - 2rem));
+	margin: 12vh auto auto;
+	padding: 0;
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius);
+	background: var(--bg-secondary);
+	color: var(--text-primary);
+	box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+	overflow: hidden;
+}
+.search-dialog::backdrop { background: rgba(2, 6, 23, 0.6); backdrop-filter: blur(4px); }
+.search-input {
+	width: 100%;
+	padding: 1.1rem 1.4rem;
+	background: transparent;
+	border: 0;
+	border-bottom: 1px solid var(--border-subtle);
+	color: var(--text-primary);
+	font: inherit;
+	font-size: 1.05rem;
+	outline: none;
+}
+.search-results { list-style: none; margin: 0; padding: 0.5rem; max-height: 50vh; overflow-y: auto; }
+.search-results li { padding: 0; }
+.search-results a[href] {
+	display: block;
+	padding: 0.7rem 0.9rem;
+	border-radius: var(--radius-sm);
+	color: var(--text-primary);
+}
+.search-results a[href]:hover, .search-results a[href].selected { background: var(--bg-card-hover); box-shadow: inset 0 0 0 1px var(--border-accent); }
+.search-results .s-title { font-weight: 600; font-size: 0.97rem; }
+.search-results .s-desc { display: block; font-size: 0.82rem; color: var(--text-secondary); margin-top: 0.15rem; }
+.search-empty { padding: 1.2rem; text-align: center; color: var(--text-muted); font-size: 0.9rem; }
+
+/* === Chat (homepage) === */
+.chat-container {
+	background: var(--bg-card);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius);
+	overflow: hidden;
+	margin-bottom: 2rem;
+}
+.chat-header { padding: 0.9rem 1.4rem; border-bottom: 1px solid var(--border-subtle); display: flex; align-items: center; gap: 0.6rem; font-weight: 600; font-size: 0.95rem; }
+.chat-header .dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; }
+.chat-body { height: 320px; overflow-y: auto; padding: 1.4rem; display: flex; flex-direction: column; gap: 0.9rem; }
+.msg { max-width: 85%; padding: 0.7rem 1rem; border-radius: 14px; font-size: 0.95rem; line-height: 1.55; white-space: pre-wrap; }
+.msg-ai { align-self: flex-start; background: var(--bg-secondary); border: 1px solid var(--border-subtle); color: var(--text-primary); border-bottom-left-radius: 4px; }
+.msg-user { align-self: flex-end; background: var(--accent-gradient); color: #fff; border-bottom-right-radius: 4px; }
+.chat-form { display: flex; gap: 0.6rem; padding: 0.9rem 1.2rem; border-top: 1px solid var(--border-subtle); }
+.chat-form input {
+	flex: 1;
+	padding: 0.65rem 1rem;
+	background: var(--bg-primary);
+	border: 1px solid var(--border-subtle);
+	border-radius: 999px;
+	color: var(--text-primary);
+	font: inherit;
+	font-size: 0.95rem;
+	outline: none;
+}
+.chat-form input:focus { border-color: var(--border-accent); }
+.chat-form button {
+	padding: 0.6rem 1.3rem;
+	border: 0;
+	border-radius: 999px;
+	background: var(--accent-gradient);
+	color: #fff;
+	font: inherit;
+	font-weight: 600;
+	font-size: 0.9rem;
+	cursor: pointer;
+	transition: var(--transition);
+}
+.chat-form button:hover { filter: brightness(1.1); }
+.chat-form button:disabled { opacity: 0.5; cursor: wait; }
+
+/* === Responsive === */
+@media (max-width: 700px) {
+	.container { padding: 0 1.1rem; }
+	.nav-item a[href] { padding: 0.4em 0.6em; font-size: 0.85rem; }
+	.search-trigger span, .search-trigger kbd { display: none; }
+	.search-trigger { width: 36px; padding: 0; justify-content: center; }
+	.hero { padding: 2.5rem 0 2rem; }
+	.article-body, .article-body p, .article-body li { font-size: 1.05rem; }
+	.links-nextprev { grid-template-columns: 1fr; }
+	.links-nextprev-next, .links-nextprev-prev { grid-column: 1; }
+	.post-metadata .tags { margin-left: 0; }
+}
+@media (max-width: 520px) {
+	.site-header .container { height: auto; padding-top: 0.7rem; padding-bottom: 0.7rem; flex-wrap: wrap; }
+	.home-link { flex-basis: 60%; }
+}
+
+@media print {
+	.site-header, .progress, footer, .toc, .copy-btn, .links-nextprev { display: none !important; }
+	body::before { display: none; }
+}
+/**
+ * okaidia theme for JavaScript, CSS and HTML
+ * Loosely based on Monokai textmate theme by http://www.monokai.nl/
+ * @author ocodia
+ */
+
+code[class*="language-"],
+pre[class*="language-"] {
+	color: #f8f8f2;
+	background: none;
+	text-shadow: 0 1px rgba(0, 0, 0, 0.3);
+	font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+	font-size: 1em;
+	text-align: left;
+	white-space: pre;
+	word-spacing: normal;
+	word-break: normal;
+	word-wrap: normal;
+	line-height: 1.5;
+
+	-moz-tab-size: 4;
+	-o-tab-size: 4;
+	tab-size: 4;
+
+	-webkit-hyphens: none;
+	-moz-hyphens: none;
+	-ms-hyphens: none;
+	hyphens: none;
+}
+
+/* Code blocks */
+pre[class*="language-"] {
+	padding: 1em;
+	margin: .5em 0;
+	overflow: auto;
+	border-radius: 0.3em;
+}
+
+:not(pre) > code[class*="language-"],
+pre[class*="language-"] {
+	background: #272822;
+}
+
+/* Inline code */
+:not(pre) > code[class*="language-"] {
+	padding: .1em;
+	border-radius: .3em;
+	white-space: normal;
+}
+
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+	color: #8292a2;
+}
+
+.token.punctuation {
+	color: #f8f8f2;
+}
+
+.token.namespace {
+	opacity: .7;
+}
+
+.token.property,
+.token.tag,
+.token.constant,
+.token.symbol,
+.token.deleted {
+	color: #f92672;
+}
+
+.token.boolean,
+.token.number {
+	color: #ae81ff;
+}
+
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.inserted {
+	color: #a6e22e;
+}
+
+.token.operator,
+.token.entity,
+.token.url,
+.language-css .token.string,
+.style .token.string,
+.token.variable {
+	color: #f8f8f2;
+}
+
+.token.atrule,
+.token.attr-value,
+.token.function,
+.token.class-name {
+	color: #e6db74;
+}
+
+.token.keyword {
+	color: #66d9ef;
+}
+
+.token.regex,
+.token.important {
+	color: #fd971f;
+}
+
+.token.important,
+.token.bold {
+	font-weight: bold;
+}
+.token.italic {
+	font-style: italic;
+}
+
+.token.entity {
+	cursor: help;
+}
+/*
+ * New diff- syntax
+ */
+
+pre[class*="language-diff-"] {
+	--eleventy-code-padding: 1.25em;
+	padding-left: var(--eleventy-code-padding);
+	padding-right: var(--eleventy-code-padding);
+}
+.token.deleted {
+	background-color: hsl(0, 51%, 37%);
+	color: inherit;
+}
+.token.inserted {
+	background-color: hsl(126, 31%, 39%);
+	color: inherit;
+}
+
+/* Make the + and - characters unselectable for copy/paste */
+.token.prefix.unchanged,
+.token.prefix.inserted,
+.token.prefix.deleted {
+	-webkit-user-select: none;
+	user-select: none;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding-top: 2px;
+	padding-bottom: 2px;
+}
+.token.prefix.inserted,
+.token.prefix.deleted {
+	width: var(--eleventy-code-padding);
+	background-color: rgba(0,0,0,.2);
+}
+
+/* Optional: full-width background color */
+.token.inserted:not(.prefix),
+.token.deleted:not(.prefix) {
+	display: block;
+	margin-left: calc(-1 * var(--eleventy-code-padding));
+	margin-right: calc(-1 * var(--eleventy-code-padding));
+	text-decoration: none; /* override del, ins, mark defaults */
+	color: inherit; /* override del, ins, mark defaults */
+}</style>
+		
+	</head>
+	<body>
+		<a href="#main" id="skip-link" class="visually-hidden">Skip to main content</a>
+		<div class="progress" id="progress" aria-hidden="true"></div>
+
+		<header class="site-header">
+			<div class="container">
+				<a href="/my-blog/" class="home-link">Rohit Marathe</a>
+				<nav aria-label="Primary">
+					<ul class="nav">
+						<li class="nav-item"><a href="/my-blog/">Home</a></li>
+						<li class="nav-item"><a href="/my-blog/blog/">Archive</a></li>
+						<li class="nav-item"><a href="/my-blog/about/">About</a></li>
+						<li class="nav-item"><a href="/my-blog/feed/feed.xml">Feed</a></li>
+					</ul>
+				</nav>
+
+				<div class="header-actions">
+					<button class="search-trigger" id="search-open" type="button" aria-label="Search posts" data-index="/my-blog/search.json">
+						<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+						<span>Search</span><kbd>⌘K</kbd>
+					</button>
+					<button class="icon-btn theme-toggle" id="theme-toggle" type="button" aria-label="Toggle light/dark theme">
+						<svg class="moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path></svg>
+						<svg class="sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+					</button>
+				</div>
+			</div>
+		</header>
+
+		<main id="main">
+			<div class="container">
+				<heading-anchors>
+					
+
+
+<article class="article">
+	<header class="article-header">
+		<h1 id="when-semantic-search-fails-hard-trade-offs-in-production-hybrid-rag">When Semantic Search Fails: Hard Trade-Offs in Production Hybrid RAG</h1><p class="article-desc">A battle-tested analysis of why vector similarity collapses on technical part numbers and DTC codes, and how to balance PostgreSQL-first pre-filtering, BM25 sparse retrieval, and Reciprocal Rank Fusion.</p>
+		<ul class="post-metadata">
+			<li><time datetime="2026-10-22">October 22, 2026</time></li>
+			<li>·</li>
+			<li>8 min read</li>
+			<li>·</li>
+			<li title="Views of this post">👁 <span class="view-count" data-slug="rag-hybrid-search-tradeoffs-production" data-hit="">1,000</span> views</li>
+			<li class="tags">
+				<a href="/my-blog/tags/rag/" class="post-tag">rag</a>
+				<a href="/my-blog/tags/hybrid-search/" class="post-tag">hybrid-search</a>
+				<a href="/my-blog/tags/system-design/" class="post-tag">system-design</a>
+				<a href="/my-blog/tags/opensearch/" class="post-tag">opensearch</a>
+				<a href="/my-blog/tags/postgresql/" class="post-tag">postgresql</a>
+				<a href="/my-blog/tags/performance/" class="post-tag">performance</a>
+			</li>
+		</ul>
+	</header>
+
+	<nav class="toc" id="toc" aria-label="Table of contents" hidden="">
+		<p class="toc-title">On this page</p>
+		<ol></ol>
+	</nav>
+
+	<div class="article-body">
+		<p>Ask an AI engineer how to improve retrieval quality in a RAG pipeline, and within thirty seconds someone will say: <em>&quot;Just add Hybrid Search.&quot;</em></p>
+<p>It sounds deceptively straightforward: merge vector embeddings with BM25 keyword search, apply Reciprocal Rank Fusion (RRF), and enjoy the best of both worlds.</p>
+<p>Except in enterprise systems with strict latency SLAs and safety-critical documentation, <strong>hybrid search is not a free lunch</strong>. It is a continuous tug-of-war between query latency, operational compute budgets, and retrieval precision. In fact, there are entire categories of real-world queries where a naive hybrid search performs significantly <em>worse</em> than a basic relational SQL query.</p>
+<p>Let’s dissect why semantic search breaks down in the wild, when hybrid search introduces dangerous latency bottlenecks, and how to select the right retrieval strategy for your architecture.</p>
+<hr>
+<h2 id="1-where-pure-semantic-search-fails">1. Where Pure Semantic Search Fails</h2>
+<p>Vector search maps words and concepts into high-dimensional geometric spaces based on contextual co-occurrence. This makes it magical for exploratory natural language questions:</p>
+<pre><code>Technician Query: &quot;My steering wheel shakes only at high speed.&quot;
+Manual Heading:   &quot;Steering Linkage Imbalance &amp; High-Speed Vibration Tree&quot;
+Cosine Match:     0.89 (High Relevance)
+</code></pre>
+<p>The embedding model understands that <em>&quot;shakes&quot;</em> is synonymous with <em>&quot;vibration&quot;</em>, bridging the vocabulary gap effortlessly.</p>
+<p>However, in heavy industrial, automotive, and technical documentation, queries frequently demand <strong>exact fact retrieval</strong>, not conceptual closeness. Here is where pure vector search falls off a cliff:</p>
+<pre><code>┌────────────────────────────────────────────────────────────────────────┐
+│                      Semantic Search Failure Modes                     │
+├────────────────────────────────┬───────────────────────────────────────┤
+│ Failure Mode                   │ Real-World Manifestation              │
+├────────────────────────────────┼───────────────────────────────────────┤
+│ 1. Component Part Numbers      │ &quot;Procedures for P/N 14-55X&quot;           │
+│                                │ Embedding treats '14-55X' as arbitrary│
+│                                │ tokens; conflates with '14-56X'       │
+├────────────────────────────────┼───────────────────────────────────────┤
+│ 2. Diagnostic Trouble Codes    │ &quot;Torque specs for error P0300&quot;        │
+│    (DTCs)                      │ P0300 (random misfire) vectors cluster│
+│                                │ identically to P0301 (cyl 1) and      │
+│                                │ P0302 (cyl 2), confusing the LLM      │
+├────────────────────────────────┼───────────────────────────────────────┤
+│ 3. Exact Model &amp; Spec Filters  │ &quot;2019 Mustang GT 5.0L Brake Torque&quot;   │
+│                                │ Semantic search pulls from 2018 or    │
+│                                │ 2020 trims due to identical verbiage  │
+└────────────────────────────────┴───────────────────────────────────────┘
+</code></pre>
+<h3 id="the-part-number-catastrophe">The Part Number Catastrophe</h3>
+<p>Consider a technician asking for installation guidelines on <strong>Part Number <code>14-55X</code></strong>.</p>
+<p>In subword tokenization (BPE/WordPiece), <code>14-55X</code> gets sliced into arbitrary fragments: <code>[&quot;14&quot;, &quot;-&quot;, &quot;55&quot;, &quot;X&quot;]</code>. In high-dimensional vector space, <code>14-55X</code> and <code>14-56X</code> reside microscopic fractions of a millimeter apart.</p>
+<p>If your vector store returns the procedure for <code>14-56X</code> (a completely different bracket with a lower load threshold), your generative LLM will synthesize installation guidelines with complete confidence. In a manufacturing or automotive setting, that error damages hardware.</p>
+<p>A simple relational SQL index lookup:</p>
+<pre class="language-sql" tabindex="0"><code class="language-sql"><span class="token keyword">SELECT</span> procedure_text <span class="token keyword">FROM</span> component_catalog <span class="token keyword">WHERE</span> part_number <span class="token operator">=</span> <span class="token string">'14-55X'</span><span class="token punctuation">;</span></code></pre>
+<p>executes in <strong>0.8 milliseconds</strong> with <strong>100% deterministic precision</strong>. Running an embedding model and vector search on this query isn't just wasteful—it is an active architectural risk.</p>
+<hr>
+<h2 id="2-the-three-hybrid-retrieval-patterns">2. The Three Hybrid Retrieval Patterns</h2>
+<p>To handle both natural language exploratory diagnostics and strict exact-match constraints, we evaluate three retrieval patterns:</p>
+<pre class="language-mermaid" tabindex="0"><code class="language-mermaid"><span class="token keyword">graph</span> TD
+    <span class="token keyword">classDef</span> client <span class="token style"><span class="token property">fill</span><span class="token operator">:</span>#0f172a<span class="token punctuation">,</span><span class="token property">stroke</span><span class="token operator">:</span>#38bdf8<span class="token punctuation">,</span><span class="token property">stroke-width</span><span class="token operator">:</span>1px<span class="token punctuation">,</span><span class="token property">color</span><span class="token operator">:</span>#f8fafc</span><span class="token punctuation">;</span>
+    <span class="token keyword">classDef</span> process <span class="token style"><span class="token property">fill</span><span class="token operator">:</span>#1e293b<span class="token punctuation">,</span><span class="token property">stroke</span><span class="token operator">:</span>#818cf8<span class="token punctuation">,</span><span class="token property">stroke-width</span><span class="token operator">:</span>2px<span class="token punctuation">,</span><span class="token property">color</span><span class="token operator">:</span>#f8fafc</span><span class="token punctuation">;</span>
+    <span class="token keyword">classDef</span> storage <span class="token style"><span class="token property">fill</span><span class="token operator">:</span>#0f172a<span class="token punctuation">,</span><span class="token property">stroke</span><span class="token operator">:</span>#34d399<span class="token punctuation">,</span><span class="token property">stroke-width</span><span class="token operator">:</span>2px<span class="token punctuation">,</span><span class="token property">color</span><span class="token operator">:</span>#f8fafc</span><span class="token punctuation">;</span>
+
+    UserQ<span class="token text string">["User Diagnostic Query"]</span><span class="token operator">:::</span>client
+
+    <span class="token keyword">subgraph</span> P1 <span class="token text string">["Pattern 1: Relational Pre-Filtering (PostgreSQL First)"]</span>
+        NER<span class="token text string">["Query Classifier / Entity Extractor"]</span><span class="token operator">:::</span>process
+        SQLFilter<span class="token text string">["Postgres Exact Lookup&lt;br/>(Make, Model, Year, Part #)"]</span><span class="token operator">:::</span>storage
+        VecConstrained<span class="token text string">["Constrained Vector Search&lt;br/>(Only matching doc_ids)"]</span><span class="token operator">:::</span>storage
+    <span class="token keyword">end</span>
+
+    <span class="token keyword">subgraph</span> P2 <span class="token text string">["Pattern 2: Semantic Forward (Vector First)"]</span>
+        DenseVec<span class="token text string">["Top-K Vector Similarity Search"]</span><span class="token operator">:::</span>storage
+        Hydrate<span class="token text string">["Point-Read Relational Hydration&lt;br/>(Fetch Raw Tables &amp; Blobs)"]</span><span class="token operator">:::</span>storage
+    <span class="token keyword">end</span>
+
+    <span class="token keyword">subgraph</span> P3 <span class="token text string">["Pattern 3: True Dual-Engine Hybrid (Parallel BM25 + Vector)"]</span>
+        BM25<span class="token text string">["Sparse Search (BM25 / Lucene)"]</span><span class="token operator">:::</span>storage
+        Dense<span class="token text string">["Dense Embedding Search (HNSW)"]</span><span class="token operator">:::</span>storage
+        RRF<span class="token text string">["Reciprocal Rank Fusion (RRF)&lt;br/>Re-Ranking Engine"]</span><span class="token operator">:::</span>process
+    <span class="token keyword">end</span>
+
+    UserQ <span class="token arrow operator">--></span> NER
+    NER <span class="token arrow operator">--></span> SQLFilter
+    SQLFilter <span class="token arrow operator">--></span> VecConstrained
+
+    UserQ <span class="token arrow operator">--></span> DenseVec
+    DenseVec <span class="token arrow operator">--></span> Hydrate
+
+    UserQ <span class="token arrow operator">--></span> BM25
+    UserQ <span class="token arrow operator">--></span> Dense
+    BM25 <span class="token arrow operator">--></span> RRF
+    Dense <span class="token arrow operator">--></span> RRF</code></pre>
+<h3 id="pattern-1-relational-pre-filtering-postgres-first">Pattern 1: Relational Pre-Filtering (Postgres First)</h3>
+<ol>
+<li>The orchestrator classifies the query to extract structured entities (<code>make: Ford</code>, <code>model: F-150</code>, <code>year: 2022</code>, <code>part: 14-55X</code>).</li>
+<li>It queries PostgreSQL to locate matching <code>doc_id</code> or <code>asset_id</code> records.</li>
+<li>It passes the resulting ID list as a hard boolean constraint to the vector database, which searches <em>only</em> within those candidate chunks.</li>
+</ol>
+<h3 id="pattern-2-semantic-forward-vector-first">Pattern 2: Semantic Forward (Vector First)</h3>
+<ol>
+<li>The orchestrator runs an unconstrained top-K vector search against the whole corpus.</li>
+<li>It inspects the retrieved chunks' <code>asset_ref_id</code> metadata.</li>
+<li>It runs a batch point-read into PostgreSQL to fetch the raw ground truth tables and wiring diagrams.</li>
+</ol>
+<h3 id="pattern-3-true-dual-engine-hybrid-with-reciprocal-rank-fusion-rrf">Pattern 3: True Dual-Engine Hybrid with Reciprocal Rank Fusion (RRF)</h3>
+<ol>
+<li>The orchestrator fires two asynchronous queries simultaneously:
+<ul>
+<li><strong>Sparse Lexical Search:</strong> BM25 over raw tokenized text (exact keywords, part numbers, DTCs).</li>
+<li><strong>Dense Vector Search:</strong> Nearest-neighbor search over embeddings.</li>
+</ul>
+</li>
+<li>An algorithmic fusion layer merges both lists and re-scores candidates.</li>
+</ol>
+<hr>
+<h2 id="3-the-mathematics-of-reciprocal-rank-fusion-rrf">3. The Mathematics of Reciprocal Rank Fusion (RRF)</h2>
+<p>When combining BM25 scores (unbounded floats, e.g., <code>18.42</code>) with Cosine Similarity scores (bounded <code>[-1.0, 1.0]</code>), you cannot simply add them together. Raw score distributions fluctuate wildly across queries.</p>
+<p>Production hybrid engines normalize rankings using <strong>Reciprocal Rank Fusion (RRF)</strong>:</p>
+<p>$$\text{RRF_Score}(d) = \sum_{m \in M} \frac{1}{k + r_m(d)}$$</p>
+<p>Where:</p>
+<ul>
+<li>$M$ is the set of search systems (BM25 and Dense Vector).</li>
+<li>$r_m(d)$ is the rank position of document $d$ in system $m$ (1-indexed).</li>
+<li>$k$ is a smoothing constant (typically $k = 60$) that prevents top-ranked outliers from completely dominating the final score.</li>
+</ul>
+<h3 id="production-python-implementation-of-rrf">Production Python Implementation of RRF:</h3>
+<pre class="language-python" tabindex="0"><code class="language-python"><span class="token keyword">from</span> typing <span class="token keyword">import</span> List<span class="token punctuation">,</span> Dict<span class="token punctuation">,</span> Any
+<span class="token keyword">from</span> collections <span class="token keyword">import</span> defaultdict
+
+<span class="token keyword">def</span> <span class="token function">reciprocal_rank_fusion</span><span class="token punctuation">(</span>
+    bm25_results<span class="token punctuation">:</span> List<span class="token punctuation">[</span>Dict<span class="token punctuation">[</span><span class="token builtin">str</span><span class="token punctuation">,</span> Any<span class="token punctuation">]</span><span class="token punctuation">]</span><span class="token punctuation">,</span> 
+    vector_results<span class="token punctuation">:</span> List<span class="token punctuation">[</span>Dict<span class="token punctuation">[</span><span class="token builtin">str</span><span class="token punctuation">,</span> Any<span class="token punctuation">]</span><span class="token punctuation">]</span><span class="token punctuation">,</span> 
+    k<span class="token punctuation">:</span> <span class="token builtin">int</span> <span class="token operator">=</span> <span class="token number">60</span><span class="token punctuation">,</span>
+    top_n<span class="token punctuation">:</span> <span class="token builtin">int</span> <span class="token operator">=</span> <span class="token number">5</span>
+<span class="token punctuation">)</span> <span class="token operator">-</span><span class="token operator">></span> List<span class="token punctuation">[</span>Dict<span class="token punctuation">[</span><span class="token builtin">str</span><span class="token punctuation">,</span> Any<span class="token punctuation">]</span><span class="token punctuation">]</span><span class="token punctuation">:</span>
+    <span class="token triple-quoted-string string">"""
+    Fuses sparse lexical (BM25) and dense semantic search results
+    into a unified ranking without score calibration issues.
+    """</span>
+    rrf_scores <span class="token operator">=</span> defaultdict<span class="token punctuation">(</span><span class="token builtin">float</span><span class="token punctuation">)</span>
+    doc_lookup <span class="token operator">=</span> <span class="token punctuation">{</span><span class="token punctuation">}</span>
+
+    <span class="token comment"># Score sparse rankings</span>
+    <span class="token keyword">for</span> rank<span class="token punctuation">,</span> doc <span class="token keyword">in</span> <span class="token builtin">enumerate</span><span class="token punctuation">(</span>bm25_results<span class="token punctuation">,</span> start<span class="token operator">=</span><span class="token number">1</span><span class="token punctuation">)</span><span class="token punctuation">:</span>
+        doc_id <span class="token operator">=</span> doc<span class="token punctuation">[</span><span class="token string">"id"</span><span class="token punctuation">]</span>
+        rrf_scores<span class="token punctuation">[</span>doc_id<span class="token punctuation">]</span> <span class="token operator">+=</span> <span class="token number">1.0</span> <span class="token operator">/</span> <span class="token punctuation">(</span>k <span class="token operator">+</span> rank<span class="token punctuation">)</span>
+        doc_lookup<span class="token punctuation">[</span>doc_id<span class="token punctuation">]</span> <span class="token operator">=</span> doc
+
+    <span class="token comment"># Score dense vector rankings</span>
+    <span class="token keyword">for</span> rank<span class="token punctuation">,</span> doc <span class="token keyword">in</span> <span class="token builtin">enumerate</span><span class="token punctuation">(</span>vector_results<span class="token punctuation">,</span> start<span class="token operator">=</span><span class="token number">1</span><span class="token punctuation">)</span><span class="token punctuation">:</span>
+        doc_id <span class="token operator">=</span> doc<span class="token punctuation">[</span><span class="token string">"id"</span><span class="token punctuation">]</span>
+        rrf_scores<span class="token punctuation">[</span>doc_id<span class="token punctuation">]</span> <span class="token operator">+=</span> <span class="token number">1.0</span> <span class="token operator">/</span> <span class="token punctuation">(</span>k <span class="token operator">+</span> rank<span class="token punctuation">)</span>
+        <span class="token keyword">if</span> doc_id <span class="token keyword">not</span> <span class="token keyword">in</span> doc_lookup<span class="token punctuation">:</span>
+            doc_lookup<span class="token punctuation">[</span>doc_id<span class="token punctuation">]</span> <span class="token operator">=</span> doc
+
+    <span class="token comment"># Sort descending by fused RRF score</span>
+    sorted_docs <span class="token operator">=</span> <span class="token builtin">sorted</span><span class="token punctuation">(</span>
+        rrf_scores<span class="token punctuation">.</span>items<span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">,</span> 
+        key<span class="token operator">=</span><span class="token keyword">lambda</span> item<span class="token punctuation">:</span> item<span class="token punctuation">[</span><span class="token number">1</span><span class="token punctuation">]</span><span class="token punctuation">,</span> 
+        reverse<span class="token operator">=</span><span class="token boolean">True</span>
+    <span class="token punctuation">)</span>
+
+    fused_results <span class="token operator">=</span> <span class="token punctuation">[</span><span class="token punctuation">]</span>
+    <span class="token keyword">for</span> doc_id<span class="token punctuation">,</span> score <span class="token keyword">in</span> sorted_docs<span class="token punctuation">[</span><span class="token punctuation">:</span>top_n<span class="token punctuation">]</span><span class="token punctuation">:</span>
+        result <span class="token operator">=</span> doc_lookup<span class="token punctuation">[</span>doc_id<span class="token punctuation">]</span><span class="token punctuation">.</span>copy<span class="token punctuation">(</span><span class="token punctuation">)</span>
+        result<span class="token punctuation">[</span><span class="token string">"rrf_score"</span><span class="token punctuation">]</span> <span class="token operator">=</span> score
+        fused_results<span class="token punctuation">.</span>append<span class="token punctuation">(</span>result<span class="token punctuation">)</span>
+
+    <span class="token keyword">return</span> fused_results</code></pre>
+<hr>
+<h2 id="4-latency-vs-precision-trade-off-matrix">4. Latency vs. Precision Trade-Off Matrix</h2>
+<p>Why not run True Hybrid RRF on every query? The answer lies in your <strong>latency budget</strong>:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Metric / Dimension</th>
+<th style="text-align:left">Pattern 1: Postgres-First Pre-Filtering</th>
+<th style="text-align:left">Pattern 2: Vector-First Hydration</th>
+<th style="text-align:left">Pattern 3: True Hybrid RRF</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><strong>Typical Retrieval Latency</strong></td>
+<td style="text-align:left">25ms – 40ms</td>
+<td style="text-align:left">15ms – 25ms</td>
+<td style="text-align:left"><strong>80ms – 180ms</strong></td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>Part Number / DTC Precision</strong></td>
+<td style="text-align:left"><strong>100% (Deterministic)</strong></td>
+<td style="text-align:left">40% – 65% (High Risk)</td>
+<td style="text-align:left">95% – 99%</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>Exploratory Query Precision</strong></td>
+<td style="text-align:left">Low (Fails if parser misclassifies)</td>
+<td style="text-align:left"><strong>95% (High Recall)</strong></td>
+<td style="text-align:left"><strong>98% (State of the Art)</strong></td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>Compute / DB Load</strong></td>
+<td style="text-align:left">Low (Point indexes)</td>
+<td style="text-align:left">Low (Single vector query)</td>
+<td style="text-align:left"><strong>High (2 parallel queries + fusion)</strong></td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>Failure Point</strong></td>
+<td style="text-align:left">Entity classification error</td>
+<td style="text-align:left">Semantic drift on technical facts</td>
+<td style="text-align:left">Latency spike under concurrency</td>
+</tr>
+</tbody>
+</table>
+<h3 id="when-true-hybrid-becomes-a-bottleneck">When True Hybrid Becomes a Bottleneck:</h3>
+<p>If 1,000 technicians query the system simultaneously at shift start:</p>
+<ul>
+<li>Running two full distributed queries (BM25 shard scan + OpenSearch HNSW vector traversal) doubles database IOPS.</li>
+<li>Merging and sorting top-100 candidate lists in application memory creates GC pressure.</li>
+<li>Total p99 latency balloons from 200ms to <strong>1.8 seconds</strong>, risking shop floor abandonment.</li>
+</ul>
+<hr>
+<h2 id="5-the-routing-decision-engine">5. The Routing Decision Engine</h2>
+<p>Instead of blindly applying one pattern, enterprise RAG systems implement a <strong>Deterministic Query Router</strong>:</p>
+<pre class="language-mermaid" tabindex="0"><code class="language-mermaid"><span class="token keyword">flowchart</span> TD
+    Q<span class="token text string">["User Query Received"]</span> <span class="token arrow operator">--></span> Classifier<span class="token text string">{"Contains Part Number,&lt;br/>DTC Code, or Exact Model?"}</span>
+    
+    Classifier <span class="token inter-arrow-label"><span class="token arrow-head arrow operator">--</span> <span class="token label property">"Yes (DTC / P/N detected)"</span> <span class="token arrow operator">--></span></span> P1<span class="token text string">["Route: Postgres SQL / BM25 Direct Lookup&lt;br/>(Latency: &lt;5ms, Precision: 100%)"]</span>
+    Classifier <span class="token inter-arrow-label"><span class="token arrow-head arrow operator">--</span> <span class="token label property">"No (Natural language question)"</span> <span class="token arrow operator">--></span></span> Intent<span class="token text string">{"Exploratory or Specific?"}</span>
+    
+    Intent <span class="token inter-arrow-label"><span class="token arrow-head arrow operator">--</span> <span class="token label property">"Simple / Known Model"</span> <span class="token arrow operator">--></span></span> P2<span class="token text string">["Route: Vector Pre-Filter + Hydration&lt;br/>(Latency: ~20ms)"]</span>
+    Intent <span class="token inter-arrow-label"><span class="token arrow-head arrow operator">--</span> <span class="token label property">"Ambiguous / High-Stakes"</span> <span class="token arrow operator">--></span></span> P3<span class="token text string">["Route: True Hybrid RRF + Cross-Encoder Re-ranker&lt;br/>(Latency: ~120ms)"]</span></code></pre>
+<pre class="language-python" tabindex="0"><code class="language-python"><span class="token keyword">import</span> re
+<span class="token keyword">from</span> typing <span class="token keyword">import</span> Literal
+
+PART_NUMBER_PATTERN <span class="token operator">=</span> re<span class="token punctuation">.</span><span class="token builtin">compile</span><span class="token punctuation">(</span><span class="token string">r'\b[A-Z0-9]{2,4}-[0-9]{3,5}[A-Z0-9]?\b'</span><span class="token punctuation">,</span> re<span class="token punctuation">.</span>IGNORECASE<span class="token punctuation">)</span>
+DTC_CODE_PATTERN <span class="token operator">=</span> re<span class="token punctuation">.</span><span class="token builtin">compile</span><span class="token punctuation">(</span><span class="token string">r'\b[PCBU][0-9]{4}\b'</span><span class="token punctuation">,</span> re<span class="token punctuation">.</span>IGNORECASE<span class="token punctuation">)</span>
+
+<span class="token keyword">def</span> <span class="token function">route_retrieval_strategy</span><span class="token punctuation">(</span>query<span class="token punctuation">:</span> <span class="token builtin">str</span><span class="token punctuation">)</span> <span class="token operator">-</span><span class="token operator">></span> Literal<span class="token punctuation">[</span><span class="token string">"EXACT_SQL"</span><span class="token punctuation">,</span> <span class="token string">"SEMANTIC_HYDRATE"</span><span class="token punctuation">,</span> <span class="token string">"TRUE_HYBRID"</span><span class="token punctuation">]</span><span class="token punctuation">:</span>
+    <span class="token comment"># Check for hard technical identifiers</span>
+    <span class="token keyword">if</span> PART_NUMBER_PATTERN<span class="token punctuation">.</span>search<span class="token punctuation">(</span>query<span class="token punctuation">)</span> <span class="token keyword">or</span> DTC_CODE_PATTERN<span class="token punctuation">.</span>search<span class="token punctuation">(</span>query<span class="token punctuation">)</span><span class="token punctuation">:</span>
+        <span class="token keyword">return</span> <span class="token string">"EXACT_SQL"</span>
+    
+    <span class="token comment"># Check if query is short and exploratory</span>
+    <span class="token keyword">if</span> <span class="token builtin">len</span><span class="token punctuation">(</span>query<span class="token punctuation">.</span>split<span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">)</span> <span class="token operator">&lt;</span> <span class="token number">5</span><span class="token punctuation">:</span>
+        <span class="token keyword">return</span> <span class="token string">"SEMANTIC_HYDRATE"</span>
+        
+    <span class="token comment"># Default to balanced hybrid for nuanced complex queries</span>
+    <span class="token keyword">return</span> <span class="token string">"TRUE_HYBRID"</span></code></pre>
+<hr>
+<h2 id="6-architecture-checklist-for-engineering-teams">6. Architecture Checklist for Engineering Teams</h2>
+<p>Before rolling out hybrid search to production:</p>
+<ul>
+<li>[ ] <strong>Benchmark Tokenizer Collision:</strong> Validate whether your vector embedding tokenizer preserves component part numbers and DTC codes intact.</li>
+<li>[ ] <strong>Establish Latency SLAs:</strong> Never use dual-engine hybrid RRF on queries with sub-50ms hard response requirements.</li>
+<li>[ ] <strong>Tune RRF Smoothing ($k$):</strong> Set $k = 60$ as baseline; lower values ($k = 20$) boost top-1 matches, while higher values ($k = 100$) favor broad consensus.</li>
+<li>[ ] <strong>Implement Intent-Based Routing:</strong> Don't waste vector compute on exact part lookups; route them to direct relational database indexes.</li>
+<li>[ ] <strong>Monitor Cache Hit Rates:</strong> Technicians repeat standard diagnostic queries. Layer a Redis semantic cache in front of hybrid retrieval to serve 40% of queries in &lt;5ms.</li>
+</ul>
+
+	</div>
+	<ul class="links-nextprev"><li class="links-nextprev-prev">← Previous<a href="/my-blog/blog/rag-dual-database-architecture-beyond-naive-vectors/">The Anatomy of a Dual-Database RAG Architecture: Beyond Naive Vector Search</a></li>
+	</ul>
+</article>
+
+
+				</heading-anchors>
+			</div>
+		</main>
+
+		<footer>
+			<div class="container">
+				<p>&copy; 2026 Rohit Marathe · Built with <a href="https://www.11ty.dev/">Eleventy</a></p>
+				<div class="footer-links">
+					<a href="https://github.com/rpm360" target="_blank" rel="noopener">GitHub</a>
+					<a href="https://linkedin.com/in/rohit-marathe-ucf" target="_blank" rel="noopener">LinkedIn</a>
+					<a href="mailto:rohitmarathe1995@gmail.com">Email</a>
+					<a href="/my-blog/feed/feed.xml">RSS</a>
+				</div>
+			</div>
+		</footer>
+		<dialog class="search-dialog" id="search-dialog" aria-label="Search posts">
+			<input class="search-input" id="search-input" type="search" placeholder="Search posts, topics, tags…" autocomplete="off">
+			<ul class="search-results" id="search-results"></ul>
+		</dialog>
+
+		<!-- This page `/blog/rag-hybrid-search-tradeoffs-production/` was built on 2026-10-22T17:24:54.926Z -->
+		<script type="module" src="/my-blog/dist/lhbtuzXz-m.js"></script>
+
+		
+	</body>
+</html>

@@ -1,0 +1,1190 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>The Anatomy of a Dual-Database RAG Architecture: Beyond Naive Vector Search</title>
+		<meta name="description" content="Why single vector databases fail on dense automotive manuals, and how architecting a decoupled Dual-Database system with deterministic asset hydration solves tabular and multimodal data at scale.">
+		<meta name="author" content="Rohit Marathe">
+		<meta name="theme-color" content="#0b0f19">
+		<meta property="og:title" content="The Anatomy of a Dual-Database RAG Architecture: Beyond Naive Vector Search">
+		<meta property="og:description" content="Why single vector databases fail on dense automotive manuals, and how architecting a decoupled Dual-Database system with deterministic asset hydration solves tabular and multimodal data at scale.">
+		<meta property="og:type" content="article">
+		<link rel="alternate" href="/my-blog/feed/feed.xml" type="application/atom+xml" title="Rohit Marathe">
+		<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
+		<script>
+			(function () {
+				var t = localStorage.getItem('theme');
+				if (!t) t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+				document.documentElement.setAttribute('data-theme', t);
+			})();
+		</script>
+		<link rel="preconnect" href="https://fonts.googleapis.com">
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+		<link href="https://fonts.googleapis.com/css2?family=Geist&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+		
+		<style>/* ============================================
+   Rohit Marathe — Personal Blog Theme
+   Editorial reading experience · light + dark
+   ============================================ */
+
+/* === Design Tokens === */
+:root {
+	--font-family: 'Inter', -apple-system, system-ui, sans-serif;
+	--font-family-serif: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+	--font-family-monospace: 'JetBrains Mono', Consolas, Menlo, Monaco, monospace;
+
+	--accent: #0ea5e9;
+	--accent-2: #8b5cf6;
+	--accent-gradient: linear-gradient(120deg, #0ea5e9, #8b5cf6 60%, #ec4899);
+
+	--radius: 16px;
+	--radius-sm: 10px;
+	--transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+	--syntax-tab-size: 2;
+
+	--container: 1080px;
+	--reading: 700px;
+	color-scheme: dark;
+
+	/* Dark (default) */
+	--bg-primary: #0b0f19;
+	--bg-secondary: #111827;
+	--bg-card: rgba(255, 255, 255, 0.035);
+	--bg-card-hover: rgba(255, 255, 255, 0.06);
+	--bg-glass: rgba(11, 15, 25, 0.72);
+	--text-primary: #f1f5f9;
+	--text-body: #cbd5e1;
+	--text-secondary: #94a3b8;
+	--text-muted: #64748b;
+	--border-subtle: rgba(255, 255, 255, 0.08);
+	--border-accent: rgba(14, 165, 233, 0.4);
+	--accent-text: #38bdf8;
+	--code-bg: #0f172a;
+	--shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+	--glow-1: rgba(14, 165, 233, 0.12);
+	--glow-2: rgba(139, 92, 246, 0.1);
+}
+
+:root[data-theme="light"] {
+	color-scheme: light;
+	--bg-primary: #fbfbfd;
+	--bg-secondary: #f1f5f9;
+	--bg-card: #ffffff;
+	--bg-card-hover: #ffffff;
+	--bg-glass: rgba(251, 251, 253, 0.8);
+	--text-primary: #0f172a;
+	--text-body: #1e293b;
+	--text-secondary: #475569;
+	--text-muted: #64748b;
+	--border-subtle: rgba(15, 23, 42, 0.09);
+	--border-accent: rgba(14, 165, 233, 0.5);
+	--accent-text: #0369a1;
+	--code-bg: #f1f5f9;
+	--shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+	--glow-1: rgba(14, 165, 233, 0.1);
+	--glow-2: rgba(139, 92, 246, 0.08);
+}
+
+/* === Reset === */
+* { box-sizing: border-box; }
+@view-transition { navigation: auto; }
+
+html, body {
+	padding: 0;
+	margin: 0;
+	font-family: var(--font-family);
+	color: var(--text-primary);
+	background-color: var(--bg-primary);
+	-webkit-font-smoothing: antialiased;
+}
+html { overflow-y: scroll; scroll-behavior: smooth; scroll-padding-top: 90px; }
+body {
+	min-height: 100vh;
+	display: flex;
+	flex-direction: column;
+	transition: background-color 0.3s, color 0.3s;
+}
+
+/* Ambient glow */
+body::before {
+	content: '';
+	position: fixed;
+	inset: 0;
+	background:
+		radial-gradient(600px circle at 8% -5%, var(--glow-1), transparent 70%),
+		radial-gradient(700px circle at 100% 100%, var(--glow-2), transparent 70%);
+	pointer-events: none;
+	z-index: -1;
+}
+
+::selection { background: rgba(14, 165, 233, 0.3); }
+
+/* === Accessibility === */
+.visually-hidden:not(:focus):not(:active) {
+	clip: rect(0 0 0 0);
+	clip-path: inset(50%);
+	height: 1px;
+	overflow: hidden;
+	position: absolute;
+	white-space: nowrap;
+	width: 1px;
+}
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+@media (prefers-reduced-motion: reduce) {
+	* { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+
+/* === Media === */
+img { max-width: 100%; border-radius: var(--radius-sm); }
+img[width][height] { height: auto; }
+img[src$=".svg"] { width: 100%; height: auto; max-width: none; }
+video, iframe { width: 100%; height: auto; border-radius: var(--radius); }
+iframe { aspect-ratio: 16/9; }
+
+/* === Typography === */
+p { line-height: 1.75; color: var(--text-body); }
+li { line-height: 1.75; color: var(--text-body); }
+h1, h2, h3, h4 { color: var(--text-primary); letter-spacing: -0.025em; line-height: 1.2; }
+h1 { font-size: 2.2rem; font-weight: 800; }
+h2 { font-size: 1.55rem; margin-top: 2em; font-weight: 700; }
+h3 { font-size: 1.2rem; margin-top: 1.8em; font-weight: 650; }
+hr { border: 0; border-top: 1px solid var(--border-subtle); margin: 3rem 0; }
+
+a[href] { color: var(--accent-text); text-decoration: none; transition: var(--transition); }
+a[href]:hover { color: var(--text-primary); }
+
+/* === Layout === */
+.container { width: 100%; max-width: var(--container); margin: 0 auto; padding: 0 1.5rem; }
+main { flex: 1; padding: 2.5rem 0 4rem; animation: fadeInUp 0.45s ease-out; }
+main > heading-anchors > :first-child { margin-top: 0; }
+@keyframes fadeInUp {
+	from { opacity: 0; transform: translateY(14px); }
+	to { opacity: 1; transform: translateY(0); }
+}
+
+/* === Header === */
+.site-header {
+	position: sticky;
+	top: 0;
+	z-index: 100;
+	background: var(--bg-glass);
+	backdrop-filter: saturate(180%) blur(16px);
+	-webkit-backdrop-filter: saturate(180%) blur(16px);
+	border-bottom: 1px solid var(--border-subtle);
+}
+.site-header .container {
+	display: flex;
+	align-items: center;
+	gap: 1rem;
+	height: 64px;
+}
+.home-link {
+	flex-grow: 1;
+	font-size: 1.1rem;
+	font-weight: 800;
+	letter-spacing: -0.03em;
+	background: var(--accent-gradient);
+	-webkit-background-clip: text;
+	background-clip: text;
+	-webkit-text-fill-color: transparent;
+}
+.home-link:hover { opacity: 0.8; color: transparent !important; }
+.nav { display: flex; gap: 0.25rem; padding: 0; margin: 0; list-style: none; }
+.nav-item a[href] {
+	color: var(--text-secondary);
+	font-size: 0.9rem;
+	font-weight: 500;
+	padding: 0.45em 0.85em;
+	border-radius: 999px;
+}
+.nav-item a[href]:hover { color: var(--text-primary); background: var(--bg-card-hover); }
+.nav a[href][aria-current="page"] { color: var(--text-primary); background: var(--bg-card); box-shadow: inset 0 0 0 1px var(--border-subtle); }
+
+.header-actions { display: flex; gap: 0.5rem; align-items: center; }
+.icon-btn, .search-trigger {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	height: 36px;
+	padding: 0 0.7rem;
+	border: 1px solid var(--border-subtle);
+	background: var(--bg-card);
+	color: var(--text-secondary);
+	border-radius: 999px;
+	font: inherit;
+	font-size: 0.85rem;
+	cursor: pointer;
+	transition: var(--transition);
+}
+.icon-btn { width: 36px; justify-content: center; padding: 0; }
+.icon-btn:hover, .search-trigger:hover { color: var(--text-primary); border-color: var(--border-accent); }
+.search-trigger kbd {
+	font: 500 0.7rem var(--font-family);
+	padding: 0.1rem 0.4rem;
+	border-radius: 5px;
+	border: 1px solid var(--border-subtle);
+	color: var(--text-muted);
+}
+.theme-toggle .sun { display: none; }
+:root[data-theme="light"] .theme-toggle .sun { display: block; }
+:root[data-theme="light"] .theme-toggle .moon { display: none; }
+
+#skip-link {
+	background: var(--bg-secondary);
+	color: var(--text-primary);
+	padding: 0.5rem 1rem;
+	border: 1px solid var(--border-accent);
+	border-radius: var(--radius-sm);
+}
+#skip-link.visually-hidden:focus { position: absolute; top: 1rem; left: 1rem; z-index: 999; }
+
+/* Reading progress */
+.progress {
+	position: fixed;
+	top: 0; left: 0;
+	height: 3px;
+	width: 100%;
+	transform-origin: 0 50%;
+	transform: scaleX(0);
+	background: var(--accent-gradient);
+	z-index: 200;
+}
+
+/* === Hero === */
+.hero { padding: 4rem 0 3rem; max-width: 780px; }
+.hero-eyebrow {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	font-size: 0.8rem;
+	font-weight: 600;
+	color: var(--text-secondary);
+	padding: 0.35rem 0.8rem;
+	border: 1px solid var(--border-subtle);
+	background: var(--bg-card);
+	border-radius: 999px;
+	margin-bottom: 1.5rem;
+}
+.hero-eyebrow .dot {
+	width: 8px; height: 8px; border-radius: 50%;
+	background: #22c55e;
+	box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.6);
+	animation: pulse 2s infinite;
+}
+@keyframes pulse {
+	70% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
+	100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+}
+.hero h1 {
+	font-size: clamp(2.4rem, 6vw, 3.8rem);
+	font-weight: 800;
+	line-height: 1.05;
+	margin: 0 0 1rem;
+	letter-spacing: -0.04em;
+}
+.gradient-text {
+	background: var(--accent-gradient);
+	-webkit-background-clip: text;
+	background-clip: text;
+	-webkit-text-fill-color: transparent;
+}
+.hero-tagline { font-size: 1.2rem; color: var(--text-secondary); margin: 0 0 1.75rem; line-height: 1.6; }
+.hero-tags { display: flex; flex-wrap: wrap; gap: 0.5rem; list-style: none; padding: 0; margin: 0; }
+.hero-tag {
+	font-size: 0.8rem;
+	font-weight: 500;
+	line-height: 1.4;
+	color: var(--text-secondary);
+	background: var(--bg-card);
+	border: 1px solid var(--border-subtle);
+	padding: 0.3em 0.85em;
+	border-radius: 999px;
+}
+
+/* === Section headings === */
+.section-heading {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	font-size: 0.8rem;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.12em;
+	color: var(--text-muted);
+	margin: 3rem 0 1.25rem;
+}
+.section-heading a { text-transform: none; letter-spacing: 0; font-size: 0.9rem; font-weight: 500; }
+
+/* === Post cards === */
+.postlist {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+	gap: 1.25rem;
+}
+.postlist-item {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+	padding: 1.5rem;
+	background: var(--bg-card);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius);
+	transition: var(--transition);
+}
+.postlist-item:hover {
+	border-color: var(--border-accent);
+	transform: translateY(-4px);
+	box-shadow: var(--shadow);
+	background: var(--bg-card-hover);
+}
+.postlist-meta { display: flex; gap: 0.5rem; align-items: center; font-size: 0.78rem; color: var(--text-muted); }
+.postlist-link {
+	font-size: 1.2rem;
+	font-weight: 700;
+	line-height: 1.3;
+	letter-spacing: -0.02em;
+	color: var(--text-primary) !important;
+}
+/* Whole card is clickable */
+.postlist-link::after { content: ''; position: absolute; inset: 0; border-radius: var(--radius); }
+.postlist-item:hover .postlist-link { color: var(--accent-text) !important; }
+.postlist-desc {
+	margin: 0;
+	font-size: 0.93rem;
+	line-height: 1.6;
+	color: var(--text-secondary);
+	display: -webkit-box;
+	-webkit-line-clamp: 3;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+.postlist-tags { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: auto; padding-top: 0.25rem; position: relative; z-index: 1; }
+
+/* Featured (first) card spans the grid on wide screens */
+.postlist.featured .postlist-item:first-child { grid-column: 1 / -1; padding: 2rem; }
+.postlist.featured .postlist-item:first-child .postlist-link { font-size: 1.75rem; }
+.postlist.featured .postlist-item:first-child .postlist-desc { font-size: 1.05rem; -webkit-line-clamp: 2; max-width: 60ch; }
+
+/* === Tags === */
+.post-tag {
+	display: inline-flex;
+	align-items: center;
+	font-size: 0.75rem;
+	font-weight: 500;
+	color: var(--text-secondary);
+	background: var(--bg-secondary);
+	border: 1px solid var(--border-subtle);
+	padding: 0.2em 0.7em;
+	border-radius: 999px;
+	text-transform: capitalize;
+}
+a.post-tag:hover { color: var(--accent-text); border-color: var(--border-accent); }
+
+/* === Article === */
+.article { max-width: var(--reading); margin: 0 auto; }
+.article-header { margin-bottom: 2.5rem; }
+.article-header h1 {
+	font-size: clamp(2rem, 5vw, 3rem);
+	line-height: 1.1;
+	letter-spacing: -0.035em;
+	margin: 0 0 1rem;
+}
+.article-desc { font-size: 1.2rem; color: var(--text-secondary); line-height: 1.55; margin: 0 0 1.5rem; }
+.post-metadata {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5rem 1rem;
+	list-style: none;
+	padding: 1rem 0 0;
+	margin: 0;
+	border-top: 1px solid var(--border-subtle);
+	font-size: 0.88rem;
+	color: var(--text-muted);
+}
+.post-metadata li { color: var(--text-muted); line-height: 1.5; }
+.post-metadata .tags { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-left: auto; }
+
+/* Comfortable long-form body */
+.article-body { font-size: 1.125rem; }
+.article-body p, .article-body li { font-size: 1.125rem; line-height: 1.85; color: var(--text-body); }
+.article-body p { margin: 1.4em 0; }
+.article-body h2 { margin-top: 2.6em; padding-top: 0.2em; }
+.article-body a[href]:not(.heading-anchor) {
+	text-decoration: underline;
+	text-decoration-color: color-mix(in srgb, var(--accent-text) 40%, transparent);
+	text-underline-offset: 3px;
+}
+.article-body a[href]:hover { text-decoration-color: currentColor; }
+.article-body blockquote {
+	margin: 1.8em 0;
+	padding: 0.2em 0 0.2em 1.4em;
+	border-left: 3px solid var(--accent);
+	color: var(--text-secondary);
+	font-style: italic;
+}
+.article-body blockquote p { color: inherit; margin: 0.6em 0; }
+.article-body ul, .article-body ol { padding-left: 1.4em; }
+.article-body li::marker { color: var(--accent); }
+.article-body img { display: block; margin: 2em auto; border: 1px solid var(--border-subtle); }
+
+/* Table of contents */
+.toc {
+	margin: 0 0 2.5rem;
+	padding: 1.1rem 1.4rem;
+	background: var(--bg-card);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius);
+}
+.toc[hidden] { display: none; }
+.toc-title { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); margin: 0 0 0.6rem; }
+.toc ol { list-style: none; margin: 0; padding: 0; }
+.toc li { line-height: 1.4; margin: 0.15rem 0; }
+.toc li.l3 { padding-left: 1rem; }
+.toc a[href] { display: block; padding: 0.25rem 0; font-size: 0.92rem; color: var(--text-secondary); }
+.toc a[href]:hover, .toc a[href].active { color: var(--accent-text); }
+
+/* Prev/Next */
+.links-nextprev {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 1rem;
+	list-style: none;
+	padding: 0;
+	margin: 4rem 0 0;
+}
+.links-nextprev li {
+	padding: 1.1rem 1.3rem;
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius);
+	background: var(--bg-card);
+	transition: var(--transition);
+	font-size: 0.8rem;
+	color: var(--text-muted);
+}
+.links-nextprev li:hover { border-color: var(--border-accent); transform: translateY(-2px); }
+.links-nextprev li a { display: block; margin-top: 0.3rem; font-size: 1rem; font-weight: 600; color: var(--text-primary); line-height: 1.35; }
+.links-nextprev-next { text-align: right; grid-column: 2; }
+.links-nextprev-prev { grid-column: 1; }
+
+/* === Tables === */
+table { margin: 1.5em 0; border-collapse: collapse; width: 100%; display: block; overflow-x: auto; font-size: 0.95rem; }
+table td, table th { padding: 0.6em 1em; border: 1px solid var(--border-subtle); text-align: left; }
+table th { background: var(--bg-secondary); color: var(--text-primary); }
+
+/* === Code === */
+pre, code { font-family: var(--font-family-monospace); }
+code {
+	font-size: 0.86em;
+	color: var(--accent-text);
+	background: var(--bg-secondary);
+	padding: 0.15em 0.4em;
+	border-radius: 6px;
+}
+pre code { background: none; padding: 0; color: inherit; word-break: normal; }
+pre {
+	position: relative;
+	margin: 1.8em 0;
+	line-height: 1.6;
+	tab-size: var(--syntax-tab-size);
+	hyphens: none;
+	direction: ltr;
+	text-align: left;
+	white-space: pre;
+	overflow-x: auto;
+	background: var(--code-bg);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius-sm);
+	padding: 1.1em 1.3em;
+	font-size: 0.88rem;
+}
+pre[class*="language-"] { background: #0d1117 !important; border-radius: var(--radius-sm); }
+
+/* === Mermaid Diagrams === */
+.mermaid {
+	display: flex;
+	justify-content: center;
+	margin: 2rem 0;
+	background: var(--bg-card);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius);
+	padding: 1.5rem;
+	overflow-x: auto;
+}
+.mermaid svg {
+	max-width: 100%;
+	height: auto;
+}
+.copy-btn {
+	position: absolute;
+	top: 0.6rem;
+	right: 0.6rem;
+	font: 500 0.72rem var(--font-family);
+	padding: 0.3rem 0.65rem;
+	border-radius: 6px;
+	border: 1px solid rgba(255, 255, 255, 0.12);
+	background: rgba(255, 255, 255, 0.07);
+	color: #cbd5e1;
+	cursor: pointer;
+	opacity: 0;
+	transition: var(--transition);
+}
+pre:hover .copy-btn, .copy-btn:focus-visible { opacity: 1; }
+.copy-btn:hover { background: rgba(255, 255, 255, 0.15); }
+
+/* === Footer === */
+footer { border-top: 1px solid var(--border-subtle); padding: 2.5rem 0; }
+footer .container { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
+footer p { margin: 0; font-size: 0.85rem; color: var(--text-muted); }
+.footer-links { display: flex; gap: 1.5rem; }
+.footer-links a { color: var(--text-secondary); font-size: 0.88rem; font-weight: 500; }
+.footer-links a:hover { color: var(--accent-text); }
+
+/* === Search palette === */
+.search-dialog {
+	width: min(640px, calc(100vw - 2rem));
+	margin: 12vh auto auto;
+	padding: 0;
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius);
+	background: var(--bg-secondary);
+	color: var(--text-primary);
+	box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+	overflow: hidden;
+}
+.search-dialog::backdrop { background: rgba(2, 6, 23, 0.6); backdrop-filter: blur(4px); }
+.search-input {
+	width: 100%;
+	padding: 1.1rem 1.4rem;
+	background: transparent;
+	border: 0;
+	border-bottom: 1px solid var(--border-subtle);
+	color: var(--text-primary);
+	font: inherit;
+	font-size: 1.05rem;
+	outline: none;
+}
+.search-results { list-style: none; margin: 0; padding: 0.5rem; max-height: 50vh; overflow-y: auto; }
+.search-results li { padding: 0; }
+.search-results a[href] {
+	display: block;
+	padding: 0.7rem 0.9rem;
+	border-radius: var(--radius-sm);
+	color: var(--text-primary);
+}
+.search-results a[href]:hover, .search-results a[href].selected { background: var(--bg-card-hover); box-shadow: inset 0 0 0 1px var(--border-accent); }
+.search-results .s-title { font-weight: 600; font-size: 0.97rem; }
+.search-results .s-desc { display: block; font-size: 0.82rem; color: var(--text-secondary); margin-top: 0.15rem; }
+.search-empty { padding: 1.2rem; text-align: center; color: var(--text-muted); font-size: 0.9rem; }
+
+/* === Chat (homepage) === */
+.chat-container {
+	background: var(--bg-card);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius);
+	overflow: hidden;
+	margin-bottom: 2rem;
+}
+.chat-header { padding: 0.9rem 1.4rem; border-bottom: 1px solid var(--border-subtle); display: flex; align-items: center; gap: 0.6rem; font-weight: 600; font-size: 0.95rem; }
+.chat-header .dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; }
+.chat-body { height: 320px; overflow-y: auto; padding: 1.4rem; display: flex; flex-direction: column; gap: 0.9rem; }
+.msg { max-width: 85%; padding: 0.7rem 1rem; border-radius: 14px; font-size: 0.95rem; line-height: 1.55; white-space: pre-wrap; }
+.msg-ai { align-self: flex-start; background: var(--bg-secondary); border: 1px solid var(--border-subtle); color: var(--text-primary); border-bottom-left-radius: 4px; }
+.msg-user { align-self: flex-end; background: var(--accent-gradient); color: #fff; border-bottom-right-radius: 4px; }
+.chat-form { display: flex; gap: 0.6rem; padding: 0.9rem 1.2rem; border-top: 1px solid var(--border-subtle); }
+.chat-form input {
+	flex: 1;
+	padding: 0.65rem 1rem;
+	background: var(--bg-primary);
+	border: 1px solid var(--border-subtle);
+	border-radius: 999px;
+	color: var(--text-primary);
+	font: inherit;
+	font-size: 0.95rem;
+	outline: none;
+}
+.chat-form input:focus { border-color: var(--border-accent); }
+.chat-form button {
+	padding: 0.6rem 1.3rem;
+	border: 0;
+	border-radius: 999px;
+	background: var(--accent-gradient);
+	color: #fff;
+	font: inherit;
+	font-weight: 600;
+	font-size: 0.9rem;
+	cursor: pointer;
+	transition: var(--transition);
+}
+.chat-form button:hover { filter: brightness(1.1); }
+.chat-form button:disabled { opacity: 0.5; cursor: wait; }
+
+/* === Responsive === */
+@media (max-width: 700px) {
+	.container { padding: 0 1.1rem; }
+	.nav-item a[href] { padding: 0.4em 0.6em; font-size: 0.85rem; }
+	.search-trigger span, .search-trigger kbd { display: none; }
+	.search-trigger { width: 36px; padding: 0; justify-content: center; }
+	.hero { padding: 2.5rem 0 2rem; }
+	.article-body, .article-body p, .article-body li { font-size: 1.05rem; }
+	.links-nextprev { grid-template-columns: 1fr; }
+	.links-nextprev-next, .links-nextprev-prev { grid-column: 1; }
+	.post-metadata .tags { margin-left: 0; }
+}
+@media (max-width: 520px) {
+	.site-header .container { height: auto; padding-top: 0.7rem; padding-bottom: 0.7rem; flex-wrap: wrap; }
+	.home-link { flex-basis: 60%; }
+}
+
+@media print {
+	.site-header, .progress, footer, .toc, .copy-btn, .links-nextprev { display: none !important; }
+	body::before { display: none; }
+}
+/**
+ * okaidia theme for JavaScript, CSS and HTML
+ * Loosely based on Monokai textmate theme by http://www.monokai.nl/
+ * @author ocodia
+ */
+
+code[class*="language-"],
+pre[class*="language-"] {
+	color: #f8f8f2;
+	background: none;
+	text-shadow: 0 1px rgba(0, 0, 0, 0.3);
+	font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+	font-size: 1em;
+	text-align: left;
+	white-space: pre;
+	word-spacing: normal;
+	word-break: normal;
+	word-wrap: normal;
+	line-height: 1.5;
+
+	-moz-tab-size: 4;
+	-o-tab-size: 4;
+	tab-size: 4;
+
+	-webkit-hyphens: none;
+	-moz-hyphens: none;
+	-ms-hyphens: none;
+	hyphens: none;
+}
+
+/* Code blocks */
+pre[class*="language-"] {
+	padding: 1em;
+	margin: .5em 0;
+	overflow: auto;
+	border-radius: 0.3em;
+}
+
+:not(pre) > code[class*="language-"],
+pre[class*="language-"] {
+	background: #272822;
+}
+
+/* Inline code */
+:not(pre) > code[class*="language-"] {
+	padding: .1em;
+	border-radius: .3em;
+	white-space: normal;
+}
+
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+	color: #8292a2;
+}
+
+.token.punctuation {
+	color: #f8f8f2;
+}
+
+.token.namespace {
+	opacity: .7;
+}
+
+.token.property,
+.token.tag,
+.token.constant,
+.token.symbol,
+.token.deleted {
+	color: #f92672;
+}
+
+.token.boolean,
+.token.number {
+	color: #ae81ff;
+}
+
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.inserted {
+	color: #a6e22e;
+}
+
+.token.operator,
+.token.entity,
+.token.url,
+.language-css .token.string,
+.style .token.string,
+.token.variable {
+	color: #f8f8f2;
+}
+
+.token.atrule,
+.token.attr-value,
+.token.function,
+.token.class-name {
+	color: #e6db74;
+}
+
+.token.keyword {
+	color: #66d9ef;
+}
+
+.token.regex,
+.token.important {
+	color: #fd971f;
+}
+
+.token.important,
+.token.bold {
+	font-weight: bold;
+}
+.token.italic {
+	font-style: italic;
+}
+
+.token.entity {
+	cursor: help;
+}
+/*
+ * New diff- syntax
+ */
+
+pre[class*="language-diff-"] {
+	--eleventy-code-padding: 1.25em;
+	padding-left: var(--eleventy-code-padding);
+	padding-right: var(--eleventy-code-padding);
+}
+.token.deleted {
+	background-color: hsl(0, 51%, 37%);
+	color: inherit;
+}
+.token.inserted {
+	background-color: hsl(126, 31%, 39%);
+	color: inherit;
+}
+
+/* Make the + and - characters unselectable for copy/paste */
+.token.prefix.unchanged,
+.token.prefix.inserted,
+.token.prefix.deleted {
+	-webkit-user-select: none;
+	user-select: none;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding-top: 2px;
+	padding-bottom: 2px;
+}
+.token.prefix.inserted,
+.token.prefix.deleted {
+	width: var(--eleventy-code-padding);
+	background-color: rgba(0,0,0,.2);
+}
+
+/* Optional: full-width background color */
+.token.inserted:not(.prefix),
+.token.deleted:not(.prefix) {
+	display: block;
+	margin-left: calc(-1 * var(--eleventy-code-padding));
+	margin-right: calc(-1 * var(--eleventy-code-padding));
+	text-decoration: none; /* override del, ins, mark defaults */
+	color: inherit; /* override del, ins, mark defaults */
+}</style>
+		
+	</head>
+	<body>
+		<a href="#main" id="skip-link" class="visually-hidden">Skip to main content</a>
+		<div class="progress" id="progress" aria-hidden="true"></div>
+
+		<header class="site-header">
+			<div class="container">
+				<a href="/my-blog/" class="home-link">Rohit Marathe</a>
+				<nav aria-label="Primary">
+					<ul class="nav">
+						<li class="nav-item"><a href="/my-blog/">Home</a></li>
+						<li class="nav-item"><a href="/my-blog/blog/">Archive</a></li>
+						<li class="nav-item"><a href="/my-blog/about/">About</a></li>
+						<li class="nav-item"><a href="/my-blog/feed/feed.xml">Feed</a></li>
+					</ul>
+				</nav>
+
+				<div class="header-actions">
+					<button class="search-trigger" id="search-open" type="button" aria-label="Search posts" data-index="/my-blog/search.json">
+						<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+						<span>Search</span><kbd>⌘K</kbd>
+					</button>
+					<button class="icon-btn theme-toggle" id="theme-toggle" type="button" aria-label="Toggle light/dark theme">
+						<svg class="moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path></svg>
+						<svg class="sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+					</button>
+				</div>
+			</div>
+		</header>
+
+		<main id="main">
+			<div class="container">
+				<heading-anchors>
+					
+
+
+<article class="article">
+	<header class="article-header">
+		<h1 id="the-anatomy-of-a-dual-database-rag-architecture-beyond-naive-vector-search">The Anatomy of a Dual-Database RAG Architecture: Beyond Naive Vector Search</h1><p class="article-desc">Why single vector databases fail on dense automotive manuals, and how architecting a decoupled Dual-Database system with deterministic asset hydration solves tabular and multimodal data at scale.</p>
+		<ul class="post-metadata">
+			<li><time datetime="2026-10-22">October 22, 2026</time></li>
+			<li>·</li>
+			<li>10 min read</li>
+			<li>·</li>
+			<li title="Views of this post">👁 <span class="view-count" data-slug="rag-dual-database-architecture-beyond-naive-vectors" data-hit="">1,000</span> views</li>
+			<li class="tags">
+				<a href="/my-blog/tags/rag/" class="post-tag">rag</a>
+				<a href="/my-blog/tags/system-design/" class="post-tag">system-design</a>
+				<a href="/my-blog/tags/vector-search/" class="post-tag">vector-search</a>
+				<a href="/my-blog/tags/postgresql/" class="post-tag">postgresql</a>
+				<a href="/my-blog/tags/ai-engineering/" class="post-tag">ai-engineering</a>
+				<a href="/my-blog/tags/python/" class="post-tag">python</a>
+			</li>
+		</ul>
+	</header>
+
+	<nav class="toc" id="toc" aria-label="Table of contents" hidden="">
+		<p class="toc-title">On this page</p>
+		<ol></ol>
+	</nav>
+
+	<div class="article-body">
+		<p>When software engineers transition from toy RAG tutorials to production enterprise systems, their first instinct is almost universally the same: chunk everything into 500-token snippets, generate vector embeddings, and dump both the vector and raw text into a single vector database like Pinecone, Weaviate, or Chroma.</p>
+<p>In a tutorial demoing a customer support bot for a simple SaaS FAQ, this naive approach works well enough.</p>
+<p>Then reality strikes. You are tasked with designing an AI diagnostic assistant for dealership technicians across 500 repair facilities. Your corpus isn't crisp markdown FAQs; it consists of 50,000 PDF workshop manuals, wiring schematics, pinout charts, and 50-row torque specification tables spanning 30 years of vehicle models.</p>
+<p>On day one, a technician on the shop floor asks:</p>
+<blockquote>
+<p><em>&quot;What is the exact torque sequence and specification for the 2022 F-150 alternator mounting bolts?&quot;</em></p>
+</blockquote>
+<p>Your naive vector search matches a chunk with an 84% cosine similarity score. But the retrieved snippet severed row 4 from row 5 of the markdown table. The LLM guesses the missing unit or conflates the alternator bracket bolt with the water pump bolt. A bolt shears off at 65 mph on the highway.</p>
+<p>In safety-critical technical domains, <strong>ragged chunking isn't a minor accuracy dip—it's catastrophic system failure</strong>.</p>
+<p>Here is how we design a production-grade, decoupled <strong>Dual-Database RAG Architecture</strong> to solve this.</p>
+<hr>
+<h2 id="1-why-the-single-vector-db-pattern-fails">1. Why the Single Vector DB Pattern Fails</h2>
+<p>Treating a vector database as both an index and a primary document store introduces three architectural anti-patterns:</p>
+<pre><code>┌──────────────────────────────────────────────────────────────┐
+│             The Naive Anti-Pattern (Single Vector DB)         │
+├──────────────────────────────────────────────────────────────┤
+│  [Heavy Markdown Tables + Dense Text + OCR Blobs + Vectors]  │
+│                                                              │
+│  ✖ Massive In-Memory Footprint (HNSW index bloated with text) │
+│  ✖ Truncated / Severed Tabular Data                          │
+│  ✖ Zero Document Deduplication Across Model Revisions        │
+│  ✖ No ACID Guarantees or Audit Lineage                       │
+└──────────────────────────────────────────────────────────────┘
+</code></pre>
+<ol>
+<li>
+<p><strong>Index Bloat &amp; Degrading RAM Efficiency:</strong><br>
+Vector indexes like HNSW (Hierarchical Navigable Small World) must keep graphs in memory for low-latency traversal. Storing massive raw markdown payloads, high-res image coordinate metadata, and full OCR dumps inside the vector index wastes precious RAM and slows down nearest-neighbor searches.</p>
+</li>
+<li>
+<p><strong>Semantic Blur on Tabular Data:</strong><br>
+Embedding models (such as <code>text-embedding-3-large</code>) map tabular markdown (<code>| Part | Spec |</code>) into dense vector representations. But multi-row tables are fundamentally non-linear relations. When two dozen bolts share identical terminology within a table, vector distance metrics collapse, causing erratic retrieval.</p>
+</li>
+<li>
+<p><strong>Repetition &amp; Deduplication Failures:</strong><br>
+In fleet documentation, identical component tables (e.g., standard M8 bolt torques) appear across hundreds of model manuals. Storing 5,000 identical 10KB markdown chunks in the vector database creates redundant vectors that crowd out the top-K retrieval candidates.</p>
+</li>
+</ol>
+<hr>
+<h2 id="2-the-solution-decoupled-dual-database-architecture">2. The Solution: Decoupled Dual-Database Architecture</h2>
+<p>To scale cleanly, we split concerns between <strong>Semantic Indexing</strong> and <strong>Ground Truth Storage</strong>:</p>
+<pre class="language-mermaid" tabindex="0"><code class="language-mermaid"><span class="token keyword">graph</span> TD
+    <span class="token keyword">classDef</span> storage <span class="token style"><span class="token property">fill</span><span class="token operator">:</span>#1e293b<span class="token punctuation">,</span><span class="token property">stroke</span><span class="token operator">:</span>#38bdf8<span class="token punctuation">,</span><span class="token property">stroke-width</span><span class="token operator">:</span>2px<span class="token punctuation">,</span><span class="token property">color</span><span class="token operator">:</span>#f8fafc</span><span class="token punctuation">;</span>
+    <span class="token keyword">classDef</span> worker <span class="token style"><span class="token property">fill</span><span class="token operator">:</span>#0f172a<span class="token punctuation">,</span><span class="token property">stroke</span><span class="token operator">:</span>#818cf8<span class="token punctuation">,</span><span class="token property">stroke-width</span><span class="token operator">:</span>1px<span class="token punctuation">,</span><span class="token property">color</span><span class="token operator">:</span>#f8fafc</span><span class="token punctuation">;</span>
+    <span class="token keyword">classDef</span> client <span class="token style"><span class="token property">fill</span><span class="token operator">:</span>#0f172a<span class="token punctuation">,</span><span class="token property">stroke</span><span class="token operator">:</span>#34d399<span class="token punctuation">,</span><span class="token property">stroke-width</span><span class="token operator">:</span>1px<span class="token punctuation">,</span><span class="token property">color</span><span class="token operator">:</span>#f8fafc</span><span class="token punctuation">;</span>
+    <span class="token keyword">classDef</span> compute <span class="token style"><span class="token property">fill</span><span class="token operator">:</span>#1e293b<span class="token punctuation">,</span><span class="token property">stroke</span><span class="token operator">:</span>#f59e0b<span class="token punctuation">,</span><span class="token property">stroke-width</span><span class="token operator">:</span>1px<span class="token punctuation">,</span><span class="token property">color</span><span class="token operator">:</span>#f8fafc</span><span class="token punctuation">;</span>
+
+    <span class="token keyword">subgraph</span> Ingestion <span class="token text string">["1. Asynchronous Ingestion Pipeline (Offline ETL)"]</span>
+        S3<span class="token text string">["Source S3 Bucket&lt;br/>(PDF Manuals)"]</span><span class="token operator">:::</span>storage
+        Worker<span class="token text string">["Ingestion Worker&lt;br/>(LlamaParse / Unstructured)"]</span><span class="token operator">:::</span>worker
+        Summarizer<span class="token text string">["Offline LLM Summarizer&lt;br/>(Claude 3.5 Haiku)"]</span><span class="token operator">:::</span>compute
+        Embedder<span class="token text string">["Embedding Engine&lt;br/>(text-embedding-3-large)"]</span><span class="token operator">:::</span>compute
+    <span class="token keyword">end</span>
+
+    <span class="token keyword">subgraph</span> StorageLayer <span class="token text string">["2. Storage Layer (The Decoupled Core)"]</span>
+        Postgres<span class="token text string">[("PostgreSQL / DynamoDB&lt;br/>Source of Truth&lt;br/>Key: asset_id (SHA-256)")]</span><span class="token operator">:::</span>storage
+        VecDB<span class="token text string">[("Vector DB (OpenSearch / Pinecone)&lt;br/>Index &amp; Metadata Filter&lt;br/>FK: asset_ref_id")]</span><span class="token operator">:::</span>storage
+    <span class="token keyword">end</span>
+
+    <span class="token keyword">subgraph</span> RetrievalLayer <span class="token text string">["3. Online Retrieval Pipeline"]</span>
+        Tech<span class="token text string">["Technician UI"]</span><span class="token operator">:::</span>client
+        Orch<span class="token text string">["RAG Orchestrator"]</span><span class="token operator">:::</span>compute
+        GenLLM<span class="token text string">["Generator LLM&lt;br/>(Claude 3.5 Sonnet)"]</span><span class="token operator">:::</span>compute
+    <span class="token keyword">end</span>
+
+    S3 <span class="token arrow operator">--></span><span class="token label property">|Trigger Event|</span> Worker
+    Worker <span class="token arrow operator">--></span><span class="token label property">|Extract Tables &amp; Images|</span> Postgres
+    Worker <span class="token arrow operator">--></span><span class="token label property">|Tabular Data|</span> Summarizer
+    Summarizer <span class="token arrow operator">--></span><span class="token label property">|Compact Natural Text|</span> Embedder
+    Embedder <span class="token arrow operator">--></span><span class="token label property">|Dense Vector + Metadata + asset_ref_id|</span> VecDB
+
+    Tech <span class="token arrow operator">--></span><span class="token label property">|Query: 'Torque for F-150 alternator'|</span> Orch
+    Orch <span class="token arrow operator">--></span><span class="token label property">|Filtered Vector Search|</span> VecDB
+    VecDB <span class="token arrow operator">--></span><span class="token label property">|Return Top-K Chunks + asset_ref_id|</span> Orch
+    Orch <span class="token arrow operator">-.-></span><span class="token label property">|Point-Read Hydration via asset_id|</span> Postgres
+    Postgres <span class="token arrow operator">-.-></span><span class="token label property">|Raw Markdown Table &amp; S3 Diagram URI|</span> Orch
+    Orch <span class="token arrow operator">--></span><span class="token label property">|Full Context + Grounded Prompt|</span> GenLLM
+    GenLLM <span class="token arrow operator">--></span><span class="token label property">|Grounded Answer + Citations|</span> Tech</code></pre>
+<h3 id="the-architectural-roles">The Architectural Roles:</h3>
+<ul>
+<li><strong>PostgreSQL / Amazon DynamoDB (Source of Truth):</strong>
+Houses the complete, uncompressed, raw assets—full Markdown tables, wiring diagram base64/S3 URIs, document version lineages, and change histories.</li>
+<li><strong>Vector DB (OpenSearch Serverless / Pinecone):</strong>
+Contains <em>only</em> high-dimensional embeddings, concise natural language summaries of complex assets, and indexed metadata properties (<code>make</code>, <code>model</code>, <code>year</code>, <code>system</code>) used for hard pre-filtering.</li>
+</ul>
+<p>The bridge between these two disparate worlds is a single, deterministic identifier: <strong><code>asset_ref_id</code></strong>.</p>
+<hr>
+<h2 id="3-ingestion-mechanics-generating-deterministic-asset-hashes">3. Ingestion Mechanics: Generating Deterministic Asset Hashes</h2>
+<p>How do we reliably link a vector search result to a 10KB raw markdown table without distributed race conditions?</p>
+<p>Instead of generating arbitrary UUIDs, we compute a <strong>deterministic SHA-256 hash of the normalized asset payload</strong>:</p>
+<pre class="language-python" tabindex="0"><code class="language-python"><span class="token keyword">import</span> hashlib
+<span class="token keyword">import</span> json
+<span class="token keyword">from</span> typing <span class="token keyword">import</span> Dict<span class="token punctuation">,</span> Any<span class="token punctuation">,</span> Optional
+
+<span class="token keyword">def</span> <span class="token function">generate_asset_id</span><span class="token punctuation">(</span>raw_content<span class="token punctuation">:</span> <span class="token builtin">str</span><span class="token punctuation">,</span> asset_type<span class="token punctuation">:</span> <span class="token builtin">str</span><span class="token punctuation">)</span> <span class="token operator">-</span><span class="token operator">></span> <span class="token builtin">str</span><span class="token punctuation">:</span>
+    <span class="token triple-quoted-string string">"""
+    Generates a deterministic SHA-256 fingerprint for complex assets.
+    Guarantees global deduplication across thousands of service manuals.
+    """</span>
+    normalized_content <span class="token operator">=</span> raw_content<span class="token punctuation">.</span>strip<span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">.</span>replace<span class="token punctuation">(</span><span class="token string">"\r\n"</span><span class="token punctuation">,</span> <span class="token string">"\n"</span><span class="token punctuation">)</span>
+    payload <span class="token operator">=</span> <span class="token string-interpolation"><span class="token string">f"</span><span class="token interpolation"><span class="token punctuation">{</span>asset_type<span class="token punctuation">}</span></span><span class="token string">:</span><span class="token interpolation"><span class="token punctuation">{</span>normalized_content<span class="token punctuation">}</span></span><span class="token string">"</span></span><span class="token punctuation">.</span>encode<span class="token punctuation">(</span><span class="token string">"utf-8"</span><span class="token punctuation">)</span>
+    <span class="token keyword">return</span> hashlib<span class="token punctuation">.</span>sha256<span class="token punctuation">(</span>payload<span class="token punctuation">)</span><span class="token punctuation">.</span>hexdigest<span class="token punctuation">(</span><span class="token punctuation">)</span></code></pre>
+<h3 id="the-ingestion-sequence">The Ingestion Sequence:</h3>
+<ol>
+<li><strong>Extraction:</strong> The worker parses page 142 of <code>2022_F150_Manual.pdf</code> and extracts a 6-row torque table.</li>
+<li><strong>Deterministic Fingerprint:</strong> The SHA-256 hash (<code>e3b0c44...</code>) is generated as the <code>asset_id</code>.</li>
+<li><strong>Primary Write (PostgreSQL):</strong> The raw table is persisted into PostgreSQL with <code>ON CONFLICT (asset_id) DO NOTHING</code>. If 40 other Ford manuals share this standard bolt table, the write succeeds instantly with zero storage duplication.</li>
+<li><strong>Summary Generation:</strong> An offline, cost-effective LLM (e.g., Claude 3.5 Haiku) generates an embedding-friendly summary:
+<blockquote>
+<p><em>&quot;Alternator mounting bolt specifications for 2022 Ford F-150 3.5L EcoBoost. Lists primary bracket bolt torque at 40 Nm (30 lb-ft) and secondary tensioner bolt at 25 Nm.&quot;</em></p>
+</blockquote>
+</li>
+<li><strong>Vector Index Write:</strong> The summary is embedded into a 1536-dimensional vector and stored in the vector database with <code>asset_ref_id = &quot;e3b0c44...&quot;</code>.</li>
+</ol>
+<hr>
+<h2 id="4-resolving-distributed-two-phase-writes">4. Resolving Distributed Two-Phase Writes</h2>
+<p>What happens if the worker commits the raw asset to PostgreSQL, but the network crashes before indexing into OpenSearch? Or worse, what if the vector is indexed but the Postgres transaction rolls back?</p>
+<p>A dangling <code>asset_ref_id</code> causes runtime <code>404 Asset Not Found</code> errors when a technician asks a question.</p>
+<p>To prevent this in high-throughput pipelines, we adopt the <strong>Transactional Outbox Pattern</strong>:</p>
+<pre class="language-mermaid" tabindex="0"><code class="language-mermaid"><span class="token keyword">sequenceDiagram</span>
+    <span class="token keyword">autonumber</span>
+    <span class="token keyword">participant</span> W as ETL Worker
+    <span class="token keyword">participant</span> PG as PostgreSQL <span class="token text string">(Primary)</span>
+    <span class="token keyword">participant</span> OB as Outbox Table
+    <span class="token keyword">participant</span> P as Outbox Publisher
+    <span class="token keyword">participant</span> V as Vector Database
+
+    W<span class="token arrow operator">->></span>PG<span class="token operator">:</span> BEGIN TRANSACTION
+    W<span class="token arrow operator">->></span>PG<span class="token operator">:</span> INSERT INTO complex_assets <span class="token text string">(asset_id, raw_content)</span>
+    W<span class="token arrow operator">->></span>OB<span class="token operator">:</span> INSERT INTO outbox_events <span class="token text string">(event_id, asset_id, status='PENDING')</span>
+    W<span class="token arrow operator">->></span>PG<span class="token operator">:</span> COMMIT
+    
+    <span class="token keyword">Note over</span> PG,OB<span class="token operator">:</span> Atomic Commit Guarantee
+
+    <span class="token keyword">loop</span> Polling or CDC <span class="token text string">(Debezium)</span>
+        P<span class="token arrow operator">->></span>OB<span class="token operator">:</span> SELECT * FROM outbox_events WHERE status = 'PENDING'
+        P<span class="token arrow operator">->></span>V<span class="token operator">:</span> Embed Summary <span class="token operator">&amp;</span> Index Vector <span class="token text string">(asset_ref_id)</span>
+        <span class="token keyword">alt</span> Vector Index Success
+            P<span class="token arrow operator">->></span>OB<span class="token operator">:</span> UPDATE outbox_events SET status = 'COMPLETED'
+        <span class="token keyword">else</span> Transient Network Error
+            P<span class="token arrow operator">->></span>OB<span class="token operator">:</span> Increment Retry Count <span class="token text string">(Exponential Backoff)</span>
+        <span class="token keyword">end</span>
+    <span class="token keyword">end</span></code></pre>
+<p>By decoupling vector ingestion via an outbox event log, we guarantee <strong>at-least-once vector indexing</strong> while maintaining strict referential integrity.</p>
+<hr>
+<h2 id="5-production-schemas-postgresql-and-vector-db">5. Production Schemas: PostgreSQL &amp; Vector DB</h2>
+<p>Here are the concrete database schemas powering this architecture:</p>
+<h3 id="1-postgresql-source-of-truth-schema">1. PostgreSQL Source of Truth Schema</h3>
+<pre class="language-sql" tabindex="0"><code class="language-sql"><span class="token keyword">CREATE</span> <span class="token keyword">TYPE</span> asset_type_enum <span class="token keyword">AS</span> <span class="token keyword">ENUM</span> <span class="token punctuation">(</span><span class="token string">'MARKDOWN_TABLE'</span><span class="token punctuation">,</span> <span class="token string">'WIRING_DIAGRAM'</span><span class="token punctuation">,</span> <span class="token string">'SCHEMATIC_IMAGE'</span><span class="token punctuation">,</span> <span class="token string">'PROCEDURE_BLOCK'</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+<span class="token keyword">CREATE</span> <span class="token keyword">TABLE</span> documents <span class="token punctuation">(</span>
+    doc_id UUID <span class="token keyword">PRIMARY</span> <span class="token keyword">KEY</span> <span class="token keyword">DEFAULT</span> gen_random_uuid<span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">,</span>
+    file_name <span class="token keyword">VARCHAR</span><span class="token punctuation">(</span><span class="token number">255</span><span class="token punctuation">)</span> <span class="token operator">NOT</span> <span class="token boolean">NULL</span><span class="token punctuation">,</span>
+    vehicle_make <span class="token keyword">VARCHAR</span><span class="token punctuation">(</span><span class="token number">64</span><span class="token punctuation">)</span> <span class="token operator">NOT</span> <span class="token boolean">NULL</span><span class="token punctuation">,</span>
+    vehicle_model <span class="token keyword">VARCHAR</span><span class="token punctuation">(</span><span class="token number">64</span><span class="token punctuation">)</span> <span class="token operator">NOT</span> <span class="token boolean">NULL</span><span class="token punctuation">,</span>
+    model_year <span class="token keyword">INT</span> <span class="token operator">NOT</span> <span class="token boolean">NULL</span><span class="token punctuation">,</span>
+    s3_uri <span class="token keyword">TEXT</span> <span class="token operator">NOT</span> <span class="token boolean">NULL</span><span class="token punctuation">,</span>
+    version <span class="token keyword">VARCHAR</span><span class="token punctuation">(</span><span class="token number">32</span><span class="token punctuation">)</span> <span class="token operator">NOT</span> <span class="token boolean">NULL</span> <span class="token keyword">DEFAULT</span> <span class="token string">'1.0.0'</span><span class="token punctuation">,</span>
+    created_at <span class="token keyword">TIMESTAMP</span> <span class="token keyword">WITH</span> <span class="token keyword">TIME</span> ZONE <span class="token keyword">DEFAULT</span> <span class="token function">NOW</span><span class="token punctuation">(</span><span class="token punctuation">)</span>
+<span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+<span class="token keyword">CREATE</span> <span class="token keyword">TABLE</span> complex_assets <span class="token punctuation">(</span>
+    asset_id <span class="token keyword">CHAR</span><span class="token punctuation">(</span><span class="token number">64</span><span class="token punctuation">)</span> <span class="token keyword">PRIMARY</span> <span class="token keyword">KEY</span><span class="token punctuation">,</span> <span class="token comment">-- Deterministic SHA-256 hash</span>
+    doc_id UUID <span class="token keyword">REFERENCES</span> documents<span class="token punctuation">(</span>doc_id<span class="token punctuation">)</span> <span class="token keyword">ON</span> <span class="token keyword">DELETE</span> <span class="token keyword">CASCADE</span><span class="token punctuation">,</span>
+    page_number <span class="token keyword">INT</span> <span class="token operator">NOT</span> <span class="token boolean">NULL</span><span class="token punctuation">,</span>
+    asset_type asset_type_enum <span class="token operator">NOT</span> <span class="token boolean">NULL</span><span class="token punctuation">,</span>
+    raw_content <span class="token keyword">TEXT</span> <span class="token operator">NOT</span> <span class="token boolean">NULL</span><span class="token punctuation">,</span> <span class="token comment">-- Full markdown table or diagram SVG/JSON</span>
+    s3_highres_url <span class="token keyword">TEXT</span><span class="token punctuation">,</span> <span class="token comment">-- Link to full resolution wiring diagram</span>
+    created_at <span class="token keyword">TIMESTAMP</span> <span class="token keyword">WITH</span> <span class="token keyword">TIME</span> ZONE <span class="token keyword">DEFAULT</span> <span class="token function">NOW</span><span class="token punctuation">(</span><span class="token punctuation">)</span>
+<span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+<span class="token keyword">CREATE</span> <span class="token keyword">INDEX</span> idx_complex_assets_doc <span class="token keyword">ON</span> complex_assets<span class="token punctuation">(</span>doc_id<span class="token punctuation">,</span> page_number<span class="token punctuation">)</span><span class="token punctuation">;</span></code></pre>
+<h3 id="2-vector-db-index-schema-opensearch-pinecone">2. Vector DB Index Schema (OpenSearch / Pinecone)</h3>
+<pre class="language-json" tabindex="0"><code class="language-json"><span class="token punctuation">{</span>
+  <span class="token property">"chunk_id"</span><span class="token operator">:</span> <span class="token string">"chunk_f150_2022_alt_091"</span><span class="token punctuation">,</span>
+  <span class="token property">"embedding"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token number">0.0124</span><span class="token punctuation">,</span> <span class="token number">-0.0452</span><span class="token punctuation">,</span> <span class="token number">0.0891</span><span class="token punctuation">,</span> <span class="token string">"...(1536 dims)"</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
+  <span class="token property">"text_content"</span><span class="token operator">:</span> <span class="token string">"Table summary: Alternator mounting bolt torque specs for 2022 Ford F-150. Upper bolt requires 40 Nm, lower pivot bolt 60 Nm."</span><span class="token punctuation">,</span>
+  <span class="token property">"asset_ref_id"</span><span class="token operator">:</span> <span class="token string">"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"</span><span class="token punctuation">,</span>
+  <span class="token property">"metadata"</span><span class="token operator">:</span> <span class="token punctuation">{</span>
+    <span class="token property">"doc_id"</span><span class="token operator">:</span> <span class="token string">"d13a9601-3829-4171-8bc4-a55e905d4b89"</span><span class="token punctuation">,</span>
+    <span class="token property">"page_num"</span><span class="token operator">:</span> <span class="token number">142</span><span class="token punctuation">,</span>
+    <span class="token property">"vehicle_make"</span><span class="token operator">:</span> <span class="token string">"Ford"</span><span class="token punctuation">,</span>
+    <span class="token property">"vehicle_model"</span><span class="token operator">:</span> <span class="token string">"F-150"</span><span class="token punctuation">,</span>
+    <span class="token property">"vehicle_year"</span><span class="token operator">:</span> <span class="token number">2022</span><span class="token punctuation">,</span>
+    <span class="token property">"system_category"</span><span class="token operator">:</span> <span class="token string">"Electrical"</span><span class="token punctuation">,</span>
+    <span class="token property">"subsystem"</span><span class="token operator">:</span> <span class="token string">"Charging"</span><span class="token punctuation">,</span>
+    <span class="token property">"chunk_type"</span><span class="token operator">:</span> <span class="token string">"table_summary"</span><span class="token punctuation">,</span>
+    <span class="token property">"part_numbers"</span><span class="token operator">:</span> <span class="token punctuation">[</span><span class="token string">"GL-891"</span><span class="token punctuation">,</span> <span class="token string">"10300-AA"</span><span class="token punctuation">]</span>
+  <span class="token punctuation">}</span>
+<span class="token punctuation">}</span></code></pre>
+<hr>
+<h2 id="6-the-online-runtime-hydration-pattern">6. The Online Runtime Hydration Pattern</h2>
+<p>During query execution, the RAG orchestrator executes an efficient <strong>two-phase read</strong>:</p>
+<pre class="language-python" tabindex="0"><code class="language-python"><span class="token keyword">import</span> psycopg2
+<span class="token keyword">from</span> psycopg2<span class="token punctuation">.</span>extras <span class="token keyword">import</span> RealDictCursor
+<span class="token keyword">from</span> typing <span class="token keyword">import</span> List<span class="token punctuation">,</span> Dict<span class="token punctuation">,</span> Any
+
+<span class="token keyword">class</span> <span class="token class-name">DualDatabaseRetriever</span><span class="token punctuation">:</span>
+    <span class="token keyword">def</span> <span class="token function">__init__</span><span class="token punctuation">(</span>self<span class="token punctuation">,</span> vector_client<span class="token punctuation">,</span> pg_conn_pool<span class="token punctuation">)</span><span class="token punctuation">:</span>
+        self<span class="token punctuation">.</span>vector_client <span class="token operator">=</span> vector_client
+        self<span class="token punctuation">.</span>pg_pool <span class="token operator">=</span> pg_conn_pool
+
+    <span class="token keyword">def</span> <span class="token function">search_and_hydrate</span><span class="token punctuation">(</span>
+        self<span class="token punctuation">,</span> 
+        query<span class="token punctuation">:</span> <span class="token builtin">str</span><span class="token punctuation">,</span> 
+        filters<span class="token punctuation">:</span> Dict<span class="token punctuation">[</span><span class="token builtin">str</span><span class="token punctuation">,</span> Any<span class="token punctuation">]</span><span class="token punctuation">,</span> 
+        top_k<span class="token punctuation">:</span> <span class="token builtin">int</span> <span class="token operator">=</span> <span class="token number">5</span>
+    <span class="token punctuation">)</span> <span class="token operator">-</span><span class="token operator">></span> List<span class="token punctuation">[</span>Dict<span class="token punctuation">[</span><span class="token builtin">str</span><span class="token punctuation">,</span> Any<span class="token punctuation">]</span><span class="token punctuation">]</span><span class="token punctuation">:</span>
+        <span class="token comment"># Phase 1: High-Speed Vector Query with Pre-Filtering</span>
+        search_results <span class="token operator">=</span> self<span class="token punctuation">.</span>vector_client<span class="token punctuation">.</span>search<span class="token punctuation">(</span>
+            query<span class="token operator">=</span>query<span class="token punctuation">,</span>
+            <span class="token builtin">filter</span><span class="token operator">=</span><span class="token punctuation">{</span>
+                <span class="token string">"vehicle_make"</span><span class="token punctuation">:</span> filters<span class="token punctuation">[</span><span class="token string">"make"</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
+                <span class="token string">"vehicle_model"</span><span class="token punctuation">:</span> filters<span class="token punctuation">[</span><span class="token string">"model"</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
+                <span class="token string">"vehicle_year"</span><span class="token punctuation">:</span> filters<span class="token punctuation">[</span><span class="token string">"year"</span><span class="token punctuation">]</span>
+            <span class="token punctuation">}</span><span class="token punctuation">,</span>
+            top_k<span class="token operator">=</span>top_k
+        <span class="token punctuation">)</span>
+
+        asset_ids_to_hydrate <span class="token operator">=</span> <span class="token punctuation">[</span>
+            hit<span class="token punctuation">[</span><span class="token string">"asset_ref_id"</span><span class="token punctuation">]</span> 
+            <span class="token keyword">for</span> hit <span class="token keyword">in</span> search_results 
+            <span class="token keyword">if</span> hit<span class="token punctuation">.</span>get<span class="token punctuation">(</span><span class="token string">"asset_ref_id"</span><span class="token punctuation">)</span>
+        <span class="token punctuation">]</span>
+
+        <span class="token keyword">if</span> <span class="token keyword">not</span> asset_ids_to_hydrate<span class="token punctuation">:</span>
+            <span class="token keyword">return</span> search_results
+
+        <span class="token comment"># Phase 2: Batch Hydration via Single Relational Query</span>
+        hydrated_assets <span class="token operator">=</span> <span class="token punctuation">{</span><span class="token punctuation">}</span>
+        <span class="token keyword">with</span> self<span class="token punctuation">.</span>pg_pool<span class="token punctuation">.</span>getconn<span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token keyword">as</span> conn<span class="token punctuation">:</span>
+            <span class="token keyword">with</span> conn<span class="token punctuation">.</span>cursor<span class="token punctuation">(</span>cursor_factory<span class="token operator">=</span>RealDictCursor<span class="token punctuation">)</span> <span class="token keyword">as</span> cur<span class="token punctuation">:</span>
+                cur<span class="token punctuation">.</span>execute<span class="token punctuation">(</span>
+                    <span class="token triple-quoted-string string">"""
+                    SELECT asset_id, asset_type, raw_content, s3_highres_url 
+                    FROM complex_assets 
+                    WHERE asset_id = ANY(%s)
+                    """</span><span class="token punctuation">,</span>
+                    <span class="token punctuation">(</span>asset_ids_to_hydrate<span class="token punctuation">,</span><span class="token punctuation">)</span>
+                <span class="token punctuation">)</span>
+                <span class="token keyword">for</span> row <span class="token keyword">in</span> cur<span class="token punctuation">.</span>fetchall<span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">:</span>
+                    hydrated_assets<span class="token punctuation">[</span>row<span class="token punctuation">[</span><span class="token string">"asset_id"</span><span class="token punctuation">]</span><span class="token punctuation">]</span> <span class="token operator">=</span> row
+
+        <span class="token comment"># Merge raw ground truth back into LLM context window</span>
+        enriched_chunks <span class="token operator">=</span> <span class="token punctuation">[</span><span class="token punctuation">]</span>
+        <span class="token keyword">for</span> hit <span class="token keyword">in</span> search_results<span class="token punctuation">:</span>
+            asset_ref <span class="token operator">=</span> hit<span class="token punctuation">.</span>get<span class="token punctuation">(</span><span class="token string">"asset_ref_id"</span><span class="token punctuation">)</span>
+            <span class="token keyword">if</span> asset_ref <span class="token keyword">and</span> asset_ref <span class="token keyword">in</span> hydrated_assets<span class="token punctuation">:</span>
+                raw_data <span class="token operator">=</span> hydrated_assets<span class="token punctuation">[</span>asset_ref<span class="token punctuation">]</span>
+                enriched_chunks<span class="token punctuation">.</span>append<span class="token punctuation">(</span><span class="token punctuation">{</span>
+                    <span class="token string">"type"</span><span class="token punctuation">:</span> raw_data<span class="token punctuation">[</span><span class="token string">"asset_type"</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
+                    <span class="token string">"content"</span><span class="token punctuation">:</span> raw_data<span class="token punctuation">[</span><span class="token string">"raw_content"</span><span class="token punctuation">]</span><span class="token punctuation">,</span> <span class="token comment"># Injects exact markdown table</span>
+                    <span class="token string">"image_url"</span><span class="token punctuation">:</span> raw_data<span class="token punctuation">[</span><span class="token string">"s3_highres_url"</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
+                    <span class="token string">"citation"</span><span class="token punctuation">:</span> <span class="token string-interpolation"><span class="token string">f"Manual </span><span class="token interpolation"><span class="token punctuation">{</span>hit<span class="token punctuation">[</span><span class="token string">'metadata'</span><span class="token punctuation">]</span><span class="token punctuation">[</span><span class="token string">'doc_id'</span><span class="token punctuation">]</span><span class="token punctuation">}</span></span><span class="token string">, Page </span><span class="token interpolation"><span class="token punctuation">{</span>hit<span class="token punctuation">[</span><span class="token string">'metadata'</span><span class="token punctuation">]</span><span class="token punctuation">[</span><span class="token string">'page_num'</span><span class="token punctuation">]</span><span class="token punctuation">}</span></span><span class="token string">"</span></span>
+                <span class="token punctuation">}</span><span class="token punctuation">)</span>
+            <span class="token keyword">else</span><span class="token punctuation">:</span>
+                enriched_chunks<span class="token punctuation">.</span>append<span class="token punctuation">(</span><span class="token punctuation">{</span>
+                    <span class="token string">"type"</span><span class="token punctuation">:</span> <span class="token string">"text"</span><span class="token punctuation">,</span>
+                    <span class="token string">"content"</span><span class="token punctuation">:</span> hit<span class="token punctuation">[</span><span class="token string">"text_content"</span><span class="token punctuation">]</span><span class="token punctuation">,</span>
+                    <span class="token string">"citation"</span><span class="token punctuation">:</span> <span class="token string-interpolation"><span class="token string">f"Page </span><span class="token interpolation"><span class="token punctuation">{</span>hit<span class="token punctuation">[</span><span class="token string">'metadata'</span><span class="token punctuation">]</span><span class="token punctuation">[</span><span class="token string">'page_num'</span><span class="token punctuation">]</span><span class="token punctuation">}</span></span><span class="token string">"</span></span>
+                <span class="token punctuation">}</span><span class="token punctuation">)</span>
+
+        <span class="token keyword">return</span> enriched_chunks</code></pre>
+<p>Notice the latency profile:</p>
+<ol>
+<li>OpenSearch executes vector + metadata pre-filtering in <strong>~15ms</strong>.</li>
+<li>PostgreSQL executes an indexed batch point lookup (<code>asset_id = ANY(...)</code>) in <strong>~3ms</strong>.</li>
+<li>The total retrieval overhead is <strong>under 20ms</strong>, while passing 100% accurate, uncorrupted markdown tables to the generation model.</li>
+</ol>
+<hr>
+<h2 id="7-production-engineering-takeaways">7. Production Engineering Takeaways</h2>
+<p>Before deploying a technical documentation assistant to field technicians:</p>
+<ul>
+<li>[ ] <strong>Decouple Vector Indexing from Heavy Blobs:</strong> Never store raw tabular strings or diagram blobs directly inside vector node attributes.</li>
+<li>[ ] <strong>Hash Assets for Deduplication:</strong> Use SHA-256 content hashes as asset primary keys to eliminate duplicate technical tables across manual updates.</li>
+<li>[ ] <strong>Summarize for Vectors, Hydrate for Generation:</strong> Embed concise natural language summaries generated by cheap offline LLMs, but always inject raw Markdown tables into the prompt.</li>
+<li>[ ] <strong>Enforce Transactional Consistency:</strong> Protect your dual-database architecture using the Transactional Outbox Pattern to eliminate dangling references.</li>
+<li>[ ] <strong>Hardware Pre-Filtering:</strong> Filter by vehicle make, model, and year before vector similarity ranking to cut search space by 99% and ensure zero cross-model hallucinations.</li>
+</ul>
+
+	</div>
+	<ul class="links-nextprev"><li class="links-nextprev-prev">← Previous<a href="/my-blog/blog/graphrag-vs-vector-rag-linked-trinity-architecture/">GraphRAG vs. Vector RAG: The &#39;Linked Trinity&#39; Datastore Pattern</a></li><li class="links-nextprev-next">Next →<a href="/my-blog/blog/rag-hybrid-search-tradeoffs-production/">When Semantic Search Fails: Hard Trade-Offs in Production Hybrid RAG</a></li>
+	</ul>
+</article>
+
+
+				</heading-anchors>
+			</div>
+		</main>
+
+		<footer>
+			<div class="container">
+				<p>&copy; 2026 Rohit Marathe · Built with <a href="https://www.11ty.dev/">Eleventy</a></p>
+				<div class="footer-links">
+					<a href="https://github.com/rpm360" target="_blank" rel="noopener">GitHub</a>
+					<a href="https://linkedin.com/in/rohit-marathe-ucf" target="_blank" rel="noopener">LinkedIn</a>
+					<a href="mailto:rohitmarathe1995@gmail.com">Email</a>
+					<a href="/my-blog/feed/feed.xml">RSS</a>
+				</div>
+			</div>
+		</footer>
+		<dialog class="search-dialog" id="search-dialog" aria-label="Search posts">
+			<input class="search-input" id="search-input" type="search" placeholder="Search posts, topics, tags…" autocomplete="off">
+			<ul class="search-results" id="search-results"></ul>
+		</dialog>
+
+		<!-- This page `/blog/rag-dual-database-architecture-beyond-naive-vectors/` was built on 2026-10-22T17:24:54.926Z -->
+		<script type="module" src="/my-blog/dist/lhbtuzXz-m.js"></script>
+
+		
+	</body>
+</html>
