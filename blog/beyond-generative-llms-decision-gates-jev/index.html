@@ -1,0 +1,1168 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>Beyond Generative LLMs: Architecting High-Speed Decision Gates with TypeSafe AI&#39;s Jev</title>
+		<meta name="description" content="A deep architectural dive into decision models versus generative text models. Learn how TypeSafe AI&#39;s Jev delivers sub-100ms deterministic routing, inline agent guardrails, and cost-optimized LLM pipelines.">
+		<meta name="author" content="Rohit Marathe">
+		<meta name="theme-color" content="#0b0f19">
+		<meta property="og:title" content="Beyond Generative LLMs: Architecting High-Speed Decision Gates with TypeSafe AI&#39;s Jev">
+		<meta property="og:description" content="A deep architectural dive into decision models versus generative text models. Learn how TypeSafe AI&#39;s Jev delivers sub-100ms deterministic routing, inline agent guardrails, and cost-optimized LLM pipelines.">
+		<meta property="og:type" content="article">
+		<link rel="alternate" href="/my-blog/feed/feed.xml" type="application/atom+xml" title="Rohit Marathe">
+		<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
+		<script>
+			(function () {
+				var t = localStorage.getItem('theme');
+				if (!t) t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+				document.documentElement.setAttribute('data-theme', t);
+			})();
+		</script>
+		<link rel="preconnect" href="https://fonts.googleapis.com">
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+		<link href="https://fonts.googleapis.com/css2?family=Geist&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+		
+		<style>/* ============================================
+   Rohit Marathe — Personal Blog Theme
+   Editorial reading experience · light + dark
+   ============================================ */
+
+/* === Design Tokens === */
+:root {
+	--font-family: 'Inter', -apple-system, system-ui, sans-serif;
+	--font-family-serif: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+	--font-family-monospace: 'JetBrains Mono', Consolas, Menlo, Monaco, monospace;
+
+	--accent: #0ea5e9;
+	--accent-2: #8b5cf6;
+	--accent-gradient: linear-gradient(120deg, #0ea5e9, #8b5cf6 60%, #ec4899);
+
+	--radius: 16px;
+	--radius-sm: 10px;
+	--transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+	--syntax-tab-size: 2;
+
+	--container: 1080px;
+	--reading: 700px;
+	color-scheme: dark;
+
+	/* Dark (default) */
+	--bg-primary: #0b0f19;
+	--bg-secondary: #111827;
+	--bg-card: rgba(255, 255, 255, 0.035);
+	--bg-card-hover: rgba(255, 255, 255, 0.06);
+	--bg-glass: rgba(11, 15, 25, 0.72);
+	--text-primary: #f1f5f9;
+	--text-body: #cbd5e1;
+	--text-secondary: #94a3b8;
+	--text-muted: #64748b;
+	--border-subtle: rgba(255, 255, 255, 0.08);
+	--border-accent: rgba(14, 165, 233, 0.4);
+	--accent-text: #38bdf8;
+	--code-bg: #0f172a;
+	--shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+	--glow-1: rgba(14, 165, 233, 0.12);
+	--glow-2: rgba(139, 92, 246, 0.1);
+}
+
+:root[data-theme="light"] {
+	color-scheme: light;
+	--bg-primary: #fbfbfd;
+	--bg-secondary: #f1f5f9;
+	--bg-card: #ffffff;
+	--bg-card-hover: #ffffff;
+	--bg-glass: rgba(251, 251, 253, 0.8);
+	--text-primary: #0f172a;
+	--text-body: #1e293b;
+	--text-secondary: #475569;
+	--text-muted: #64748b;
+	--border-subtle: rgba(15, 23, 42, 0.09);
+	--border-accent: rgba(14, 165, 233, 0.5);
+	--accent-text: #0369a1;
+	--code-bg: #f1f5f9;
+	--shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+	--glow-1: rgba(14, 165, 233, 0.1);
+	--glow-2: rgba(139, 92, 246, 0.08);
+}
+
+/* === Reset === */
+* { box-sizing: border-box; }
+@view-transition { navigation: auto; }
+
+html, body {
+	padding: 0;
+	margin: 0;
+	font-family: var(--font-family);
+	color: var(--text-primary);
+	background-color: var(--bg-primary);
+	-webkit-font-smoothing: antialiased;
+}
+html { overflow-y: scroll; scroll-behavior: smooth; scroll-padding-top: 90px; }
+body {
+	min-height: 100vh;
+	display: flex;
+	flex-direction: column;
+	transition: background-color 0.3s, color 0.3s;
+}
+
+/* Ambient glow */
+body::before {
+	content: '';
+	position: fixed;
+	inset: 0;
+	background:
+		radial-gradient(600px circle at 8% -5%, var(--glow-1), transparent 70%),
+		radial-gradient(700px circle at 100% 100%, var(--glow-2), transparent 70%);
+	pointer-events: none;
+	z-index: -1;
+}
+
+::selection { background: rgba(14, 165, 233, 0.3); }
+
+/* === Accessibility === */
+.visually-hidden:not(:focus):not(:active) {
+	clip: rect(0 0 0 0);
+	clip-path: inset(50%);
+	height: 1px;
+	overflow: hidden;
+	position: absolute;
+	white-space: nowrap;
+	width: 1px;
+}
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+@media (prefers-reduced-motion: reduce) {
+	* { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+
+/* === Media === */
+img { max-width: 100%; border-radius: var(--radius-sm); }
+img[width][height] { height: auto; }
+img[src$=".svg"] { width: 100%; height: auto; max-width: none; }
+video, iframe { width: 100%; height: auto; border-radius: var(--radius); }
+iframe { aspect-ratio: 16/9; }
+
+/* === Typography === */
+p { line-height: 1.75; color: var(--text-body); }
+li { line-height: 1.75; color: var(--text-body); }
+h1, h2, h3, h4 { color: var(--text-primary); letter-spacing: -0.025em; line-height: 1.2; }
+h1 { font-size: 2.2rem; font-weight: 800; }
+h2 { font-size: 1.55rem; margin-top: 2em; font-weight: 700; }
+h3 { font-size: 1.2rem; margin-top: 1.8em; font-weight: 650; }
+hr { border: 0; border-top: 1px solid var(--border-subtle); margin: 3rem 0; }
+
+a[href] { color: var(--accent-text); text-decoration: none; transition: var(--transition); }
+a[href]:hover { color: var(--text-primary); }
+
+/* === Layout === */
+.container { width: 100%; max-width: var(--container); margin: 0 auto; padding: 0 1.5rem; }
+main { flex: 1; padding: 2.5rem 0 4rem; animation: fadeInUp 0.45s ease-out; }
+main > heading-anchors > :first-child { margin-top: 0; }
+@keyframes fadeInUp {
+	from { opacity: 0; transform: translateY(14px); }
+	to { opacity: 1; transform: translateY(0); }
+}
+
+/* === Header === */
+.site-header {
+	position: sticky;
+	top: 0;
+	z-index: 100;
+	background: var(--bg-glass);
+	backdrop-filter: saturate(180%) blur(16px);
+	-webkit-backdrop-filter: saturate(180%) blur(16px);
+	border-bottom: 1px solid var(--border-subtle);
+}
+.site-header .container {
+	display: flex;
+	align-items: center;
+	gap: 1rem;
+	height: 64px;
+}
+.home-link {
+	flex-grow: 1;
+	font-size: 1.1rem;
+	font-weight: 800;
+	letter-spacing: -0.03em;
+	background: var(--accent-gradient);
+	-webkit-background-clip: text;
+	background-clip: text;
+	-webkit-text-fill-color: transparent;
+}
+.home-link:hover { opacity: 0.8; color: transparent !important; }
+.nav { display: flex; gap: 0.25rem; padding: 0; margin: 0; list-style: none; }
+.nav-item a[href] {
+	color: var(--text-secondary);
+	font-size: 0.9rem;
+	font-weight: 500;
+	padding: 0.45em 0.85em;
+	border-radius: 999px;
+}
+.nav-item a[href]:hover { color: var(--text-primary); background: var(--bg-card-hover); }
+.nav a[href][aria-current="page"] { color: var(--text-primary); background: var(--bg-card); box-shadow: inset 0 0 0 1px var(--border-subtle); }
+
+.header-actions { display: flex; gap: 0.5rem; align-items: center; }
+.icon-btn, .search-trigger {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	height: 36px;
+	padding: 0 0.7rem;
+	border: 1px solid var(--border-subtle);
+	background: var(--bg-card);
+	color: var(--text-secondary);
+	border-radius: 999px;
+	font: inherit;
+	font-size: 0.85rem;
+	cursor: pointer;
+	transition: var(--transition);
+}
+.icon-btn { width: 36px; justify-content: center; padding: 0; }
+.icon-btn:hover, .search-trigger:hover { color: var(--text-primary); border-color: var(--border-accent); }
+.search-trigger kbd {
+	font: 500 0.7rem var(--font-family);
+	padding: 0.1rem 0.4rem;
+	border-radius: 5px;
+	border: 1px solid var(--border-subtle);
+	color: var(--text-muted);
+}
+.theme-toggle .sun { display: none; }
+:root[data-theme="light"] .theme-toggle .sun { display: block; }
+:root[data-theme="light"] .theme-toggle .moon { display: none; }
+
+#skip-link {
+	background: var(--bg-secondary);
+	color: var(--text-primary);
+	padding: 0.5rem 1rem;
+	border: 1px solid var(--border-accent);
+	border-radius: var(--radius-sm);
+}
+#skip-link.visually-hidden:focus { position: absolute; top: 1rem; left: 1rem; z-index: 999; }
+
+/* Reading progress */
+.progress {
+	position: fixed;
+	top: 0; left: 0;
+	height: 3px;
+	width: 100%;
+	transform-origin: 0 50%;
+	transform: scaleX(0);
+	background: var(--accent-gradient);
+	z-index: 200;
+}
+
+/* === Hero === */
+.hero { padding: 4rem 0 3rem; max-width: 780px; }
+.hero-eyebrow {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	font-size: 0.8rem;
+	font-weight: 600;
+	color: var(--text-secondary);
+	padding: 0.35rem 0.8rem;
+	border: 1px solid var(--border-subtle);
+	background: var(--bg-card);
+	border-radius: 999px;
+	margin-bottom: 1.5rem;
+}
+.hero-eyebrow .dot {
+	width: 8px; height: 8px; border-radius: 50%;
+	background: #22c55e;
+	box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.6);
+	animation: pulse 2s infinite;
+}
+@keyframes pulse {
+	70% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
+	100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+}
+.hero h1 {
+	font-size: clamp(2.4rem, 6vw, 3.8rem);
+	font-weight: 800;
+	line-height: 1.05;
+	margin: 0 0 1rem;
+	letter-spacing: -0.04em;
+}
+.gradient-text {
+	background: var(--accent-gradient);
+	-webkit-background-clip: text;
+	background-clip: text;
+	-webkit-text-fill-color: transparent;
+}
+.hero-tagline { font-size: 1.2rem; color: var(--text-secondary); margin: 0 0 1.75rem; line-height: 1.6; }
+.hero-tags { display: flex; flex-wrap: wrap; gap: 0.5rem; list-style: none; padding: 0; margin: 0; }
+.hero-tag {
+	font-size: 0.8rem;
+	font-weight: 500;
+	line-height: 1.4;
+	color: var(--text-secondary);
+	background: var(--bg-card);
+	border: 1px solid var(--border-subtle);
+	padding: 0.3em 0.85em;
+	border-radius: 999px;
+}
+
+/* === Section headings === */
+.section-heading {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	font-size: 0.8rem;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.12em;
+	color: var(--text-muted);
+	margin: 3rem 0 1.25rem;
+}
+.section-heading a { text-transform: none; letter-spacing: 0; font-size: 0.9rem; font-weight: 500; }
+
+/* === Post cards === */
+.postlist {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+	gap: 1.25rem;
+}
+.postlist-item {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+	padding: 1.5rem;
+	background: var(--bg-card);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius);
+	transition: var(--transition);
+}
+.postlist-item:hover {
+	border-color: var(--border-accent);
+	transform: translateY(-4px);
+	box-shadow: var(--shadow);
+	background: var(--bg-card-hover);
+}
+.postlist-meta { display: flex; gap: 0.5rem; align-items: center; font-size: 0.78rem; color: var(--text-muted); }
+.postlist-link {
+	font-size: 1.2rem;
+	font-weight: 700;
+	line-height: 1.3;
+	letter-spacing: -0.02em;
+	color: var(--text-primary) !important;
+}
+/* Whole card is clickable */
+.postlist-link::after { content: ''; position: absolute; inset: 0; border-radius: var(--radius); }
+.postlist-item:hover .postlist-link { color: var(--accent-text) !important; }
+.postlist-desc {
+	margin: 0;
+	font-size: 0.93rem;
+	line-height: 1.6;
+	color: var(--text-secondary);
+	display: -webkit-box;
+	-webkit-line-clamp: 3;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+.postlist-tags { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: auto; padding-top: 0.25rem; position: relative; z-index: 1; }
+
+/* Featured (first) card spans the grid on wide screens */
+.postlist.featured .postlist-item:first-child { grid-column: 1 / -1; padding: 2rem; }
+.postlist.featured .postlist-item:first-child .postlist-link { font-size: 1.75rem; }
+.postlist.featured .postlist-item:first-child .postlist-desc { font-size: 1.05rem; -webkit-line-clamp: 2; max-width: 60ch; }
+
+/* === Tags === */
+.post-tag {
+	display: inline-flex;
+	align-items: center;
+	font-size: 0.75rem;
+	font-weight: 500;
+	color: var(--text-secondary);
+	background: var(--bg-secondary);
+	border: 1px solid var(--border-subtle);
+	padding: 0.2em 0.7em;
+	border-radius: 999px;
+	text-transform: capitalize;
+}
+a.post-tag:hover { color: var(--accent-text); border-color: var(--border-accent); }
+
+/* === Article === */
+.article { max-width: var(--reading); margin: 0 auto; }
+.article-header { margin-bottom: 2.5rem; }
+.article-header h1 {
+	font-size: clamp(2rem, 5vw, 3rem);
+	line-height: 1.1;
+	letter-spacing: -0.035em;
+	margin: 0 0 1rem;
+}
+.article-desc { font-size: 1.2rem; color: var(--text-secondary); line-height: 1.55; margin: 0 0 1.5rem; }
+.post-metadata {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5rem 1rem;
+	list-style: none;
+	padding: 1rem 0 0;
+	margin: 0;
+	border-top: 1px solid var(--border-subtle);
+	font-size: 0.88rem;
+	color: var(--text-muted);
+}
+.post-metadata li { color: var(--text-muted); line-height: 1.5; }
+.post-metadata .tags { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-left: auto; }
+
+/* Comfortable long-form body */
+.article-body { font-size: 1.125rem; }
+.article-body p, .article-body li { font-size: 1.125rem; line-height: 1.85; color: var(--text-body); }
+.article-body p { margin: 1.4em 0; }
+.article-body h2 { margin-top: 2.6em; padding-top: 0.2em; }
+.article-body a[href]:not(.heading-anchor) {
+	text-decoration: underline;
+	text-decoration-color: color-mix(in srgb, var(--accent-text) 40%, transparent);
+	text-underline-offset: 3px;
+}
+.article-body a[href]:hover { text-decoration-color: currentColor; }
+.article-body blockquote {
+	margin: 1.8em 0;
+	padding: 0.2em 0 0.2em 1.4em;
+	border-left: 3px solid var(--accent);
+	color: var(--text-secondary);
+	font-style: italic;
+}
+.article-body blockquote p { color: inherit; margin: 0.6em 0; }
+.article-body ul, .article-body ol { padding-left: 1.4em; }
+.article-body li::marker { color: var(--accent); }
+.article-body img { display: block; margin: 2em auto; border: 1px solid var(--border-subtle); }
+
+/* Table of contents */
+.toc {
+	margin: 0 0 2.5rem;
+	padding: 1.1rem 1.4rem;
+	background: var(--bg-card);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius);
+}
+.toc[hidden] { display: none; }
+.toc-title { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); margin: 0 0 0.6rem; }
+.toc ol { list-style: none; margin: 0; padding: 0; }
+.toc li { line-height: 1.4; margin: 0.15rem 0; }
+.toc li.l3 { padding-left: 1rem; }
+.toc a[href] { display: block; padding: 0.25rem 0; font-size: 0.92rem; color: var(--text-secondary); }
+.toc a[href]:hover, .toc a[href].active { color: var(--accent-text); }
+
+/* Prev/Next */
+.links-nextprev {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 1rem;
+	list-style: none;
+	padding: 0;
+	margin: 4rem 0 0;
+}
+.links-nextprev li {
+	padding: 1.1rem 1.3rem;
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius);
+	background: var(--bg-card);
+	transition: var(--transition);
+	font-size: 0.8rem;
+	color: var(--text-muted);
+}
+.links-nextprev li:hover { border-color: var(--border-accent); transform: translateY(-2px); }
+.links-nextprev li a { display: block; margin-top: 0.3rem; font-size: 1rem; font-weight: 600; color: var(--text-primary); line-height: 1.35; }
+.links-nextprev-next { text-align: right; grid-column: 2; }
+.links-nextprev-prev { grid-column: 1; }
+
+/* === Tables === */
+table { margin: 1.5em 0; border-collapse: collapse; width: 100%; display: block; overflow-x: auto; font-size: 0.95rem; }
+table td, table th { padding: 0.6em 1em; border: 1px solid var(--border-subtle); text-align: left; }
+table th { background: var(--bg-secondary); color: var(--text-primary); }
+
+/* === Code === */
+pre, code { font-family: var(--font-family-monospace); }
+code {
+	font-size: 0.86em;
+	color: var(--accent-text);
+	background: var(--bg-secondary);
+	padding: 0.15em 0.4em;
+	border-radius: 6px;
+}
+pre code { background: none; padding: 0; color: inherit; word-break: normal; }
+pre {
+	position: relative;
+	margin: 1.8em 0;
+	line-height: 1.6;
+	tab-size: var(--syntax-tab-size);
+	hyphens: none;
+	direction: ltr;
+	text-align: left;
+	white-space: pre;
+	overflow-x: auto;
+	background: var(--code-bg);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius-sm);
+	padding: 1.1em 1.3em;
+	font-size: 0.88rem;
+}
+pre[class*="language-"] { background: #0d1117 !important; border-radius: var(--radius-sm); }
+
+/* === Mermaid Diagrams === */
+.mermaid {
+	display: flex;
+	justify-content: center;
+	margin: 2rem 0;
+	background: var(--bg-card);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius);
+	padding: 1.5rem;
+	overflow-x: auto;
+}
+.mermaid svg {
+	max-width: 100%;
+	height: auto;
+}
+.copy-btn {
+	position: absolute;
+	top: 0.6rem;
+	right: 0.6rem;
+	font: 500 0.72rem var(--font-family);
+	padding: 0.3rem 0.65rem;
+	border-radius: 6px;
+	border: 1px solid rgba(255, 255, 255, 0.12);
+	background: rgba(255, 255, 255, 0.07);
+	color: #cbd5e1;
+	cursor: pointer;
+	opacity: 0;
+	transition: var(--transition);
+}
+pre:hover .copy-btn, .copy-btn:focus-visible { opacity: 1; }
+.copy-btn:hover { background: rgba(255, 255, 255, 0.15); }
+
+/* === Footer === */
+footer { border-top: 1px solid var(--border-subtle); padding: 2.5rem 0; }
+footer .container { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
+footer p { margin: 0; font-size: 0.85rem; color: var(--text-muted); }
+.footer-links { display: flex; gap: 1.5rem; }
+.footer-links a { color: var(--text-secondary); font-size: 0.88rem; font-weight: 500; }
+.footer-links a:hover { color: var(--accent-text); }
+
+/* === Search palette === */
+.search-dialog {
+	width: min(640px, calc(100vw - 2rem));
+	margin: 12vh auto auto;
+	padding: 0;
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius);
+	background: var(--bg-secondary);
+	color: var(--text-primary);
+	box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+	overflow: hidden;
+}
+.search-dialog::backdrop { background: rgba(2, 6, 23, 0.6); backdrop-filter: blur(4px); }
+.search-input {
+	width: 100%;
+	padding: 1.1rem 1.4rem;
+	background: transparent;
+	border: 0;
+	border-bottom: 1px solid var(--border-subtle);
+	color: var(--text-primary);
+	font: inherit;
+	font-size: 1.05rem;
+	outline: none;
+}
+.search-results { list-style: none; margin: 0; padding: 0.5rem; max-height: 50vh; overflow-y: auto; }
+.search-results li { padding: 0; }
+.search-results a[href] {
+	display: block;
+	padding: 0.7rem 0.9rem;
+	border-radius: var(--radius-sm);
+	color: var(--text-primary);
+}
+.search-results a[href]:hover, .search-results a[href].selected { background: var(--bg-card-hover); box-shadow: inset 0 0 0 1px var(--border-accent); }
+.search-results .s-title { font-weight: 600; font-size: 0.97rem; }
+.search-results .s-desc { display: block; font-size: 0.82rem; color: var(--text-secondary); margin-top: 0.15rem; }
+.search-empty { padding: 1.2rem; text-align: center; color: var(--text-muted); font-size: 0.9rem; }
+
+/* === Chat (homepage) === */
+.chat-container {
+	background: var(--bg-card);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius);
+	overflow: hidden;
+	margin-bottom: 2rem;
+}
+.chat-header { padding: 0.9rem 1.4rem; border-bottom: 1px solid var(--border-subtle); display: flex; align-items: center; gap: 0.6rem; font-weight: 600; font-size: 0.95rem; }
+.chat-header .dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; }
+.chat-body { height: 320px; overflow-y: auto; padding: 1.4rem; display: flex; flex-direction: column; gap: 0.9rem; }
+.msg { max-width: 85%; padding: 0.7rem 1rem; border-radius: 14px; font-size: 0.95rem; line-height: 1.55; white-space: pre-wrap; }
+.msg-ai { align-self: flex-start; background: var(--bg-secondary); border: 1px solid var(--border-subtle); color: var(--text-primary); border-bottom-left-radius: 4px; }
+.msg-user { align-self: flex-end; background: var(--accent-gradient); color: #fff; border-bottom-right-radius: 4px; }
+.chat-form { display: flex; gap: 0.6rem; padding: 0.9rem 1.2rem; border-top: 1px solid var(--border-subtle); }
+.chat-form input {
+	flex: 1;
+	padding: 0.65rem 1rem;
+	background: var(--bg-primary);
+	border: 1px solid var(--border-subtle);
+	border-radius: 999px;
+	color: var(--text-primary);
+	font: inherit;
+	font-size: 0.95rem;
+	outline: none;
+}
+.chat-form input:focus { border-color: var(--border-accent); }
+.chat-form button {
+	padding: 0.6rem 1.3rem;
+	border: 0;
+	border-radius: 999px;
+	background: var(--accent-gradient);
+	color: #fff;
+	font: inherit;
+	font-weight: 600;
+	font-size: 0.9rem;
+	cursor: pointer;
+	transition: var(--transition);
+}
+.chat-form button:hover { filter: brightness(1.1); }
+.chat-form button:disabled { opacity: 0.5; cursor: wait; }
+
+/* === Responsive === */
+@media (max-width: 700px) {
+	.container { padding: 0 1.1rem; }
+	.nav-item a[href] { padding: 0.4em 0.6em; font-size: 0.85rem; }
+	.search-trigger span, .search-trigger kbd { display: none; }
+	.search-trigger { width: 36px; padding: 0; justify-content: center; }
+	.hero { padding: 2.5rem 0 2rem; }
+	.article-body, .article-body p, .article-body li { font-size: 1.05rem; }
+	.links-nextprev { grid-template-columns: 1fr; }
+	.links-nextprev-next, .links-nextprev-prev { grid-column: 1; }
+	.post-metadata .tags { margin-left: 0; }
+}
+@media (max-width: 520px) {
+	.site-header .container { height: auto; padding-top: 0.7rem; padding-bottom: 0.7rem; flex-wrap: wrap; }
+	.home-link { flex-basis: 60%; }
+}
+
+@media print {
+	.site-header, .progress, footer, .toc, .copy-btn, .links-nextprev { display: none !important; }
+	body::before { display: none; }
+}
+/**
+ * okaidia theme for JavaScript, CSS and HTML
+ * Loosely based on Monokai textmate theme by http://www.monokai.nl/
+ * @author ocodia
+ */
+
+code[class*="language-"],
+pre[class*="language-"] {
+	color: #f8f8f2;
+	background: none;
+	text-shadow: 0 1px rgba(0, 0, 0, 0.3);
+	font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+	font-size: 1em;
+	text-align: left;
+	white-space: pre;
+	word-spacing: normal;
+	word-break: normal;
+	word-wrap: normal;
+	line-height: 1.5;
+
+	-moz-tab-size: 4;
+	-o-tab-size: 4;
+	tab-size: 4;
+
+	-webkit-hyphens: none;
+	-moz-hyphens: none;
+	-ms-hyphens: none;
+	hyphens: none;
+}
+
+/* Code blocks */
+pre[class*="language-"] {
+	padding: 1em;
+	margin: .5em 0;
+	overflow: auto;
+	border-radius: 0.3em;
+}
+
+:not(pre) > code[class*="language-"],
+pre[class*="language-"] {
+	background: #272822;
+}
+
+/* Inline code */
+:not(pre) > code[class*="language-"] {
+	padding: .1em;
+	border-radius: .3em;
+	white-space: normal;
+}
+
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+	color: #8292a2;
+}
+
+.token.punctuation {
+	color: #f8f8f2;
+}
+
+.token.namespace {
+	opacity: .7;
+}
+
+.token.property,
+.token.tag,
+.token.constant,
+.token.symbol,
+.token.deleted {
+	color: #f92672;
+}
+
+.token.boolean,
+.token.number {
+	color: #ae81ff;
+}
+
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.inserted {
+	color: #a6e22e;
+}
+
+.token.operator,
+.token.entity,
+.token.url,
+.language-css .token.string,
+.style .token.string,
+.token.variable {
+	color: #f8f8f2;
+}
+
+.token.atrule,
+.token.attr-value,
+.token.function,
+.token.class-name {
+	color: #e6db74;
+}
+
+.token.keyword {
+	color: #66d9ef;
+}
+
+.token.regex,
+.token.important {
+	color: #fd971f;
+}
+
+.token.important,
+.token.bold {
+	font-weight: bold;
+}
+.token.italic {
+	font-style: italic;
+}
+
+.token.entity {
+	cursor: help;
+}
+/*
+ * New diff- syntax
+ */
+
+pre[class*="language-diff-"] {
+	--eleventy-code-padding: 1.25em;
+	padding-left: var(--eleventy-code-padding);
+	padding-right: var(--eleventy-code-padding);
+}
+.token.deleted {
+	background-color: hsl(0, 51%, 37%);
+	color: inherit;
+}
+.token.inserted {
+	background-color: hsl(126, 31%, 39%);
+	color: inherit;
+}
+
+/* Make the + and - characters unselectable for copy/paste */
+.token.prefix.unchanged,
+.token.prefix.inserted,
+.token.prefix.deleted {
+	-webkit-user-select: none;
+	user-select: none;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding-top: 2px;
+	padding-bottom: 2px;
+}
+.token.prefix.inserted,
+.token.prefix.deleted {
+	width: var(--eleventy-code-padding);
+	background-color: rgba(0,0,0,.2);
+}
+
+/* Optional: full-width background color */
+.token.inserted:not(.prefix),
+.token.deleted:not(.prefix) {
+	display: block;
+	margin-left: calc(-1 * var(--eleventy-code-padding));
+	margin-right: calc(-1 * var(--eleventy-code-padding));
+	text-decoration: none; /* override del, ins, mark defaults */
+	color: inherit; /* override del, ins, mark defaults */
+}</style>
+		
+	</head>
+	<body>
+		<a href="#main" id="skip-link" class="visually-hidden">Skip to main content</a>
+		<div class="progress" id="progress" aria-hidden="true"></div>
+
+		<header class="site-header">
+			<div class="container">
+				<a href="/my-blog/" class="home-link">Rohit Marathe</a>
+				<nav aria-label="Primary">
+					<ul class="nav">
+						<li class="nav-item"><a href="/my-blog/">Home</a></li>
+						<li class="nav-item"><a href="/my-blog/blog/">Archive</a></li>
+						<li class="nav-item"><a href="/my-blog/about/">About</a></li>
+						<li class="nav-item"><a href="/my-blog/feed/feed.xml">Feed</a></li>
+					</ul>
+				</nav>
+
+				<div class="header-actions">
+					<button class="search-trigger" id="search-open" type="button" aria-label="Search posts" data-index="/my-blog/search.json">
+						<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+						<span>Search</span><kbd>⌘K</kbd>
+					</button>
+					<button class="icon-btn theme-toggle" id="theme-toggle" type="button" aria-label="Toggle light/dark theme">
+						<svg class="moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path></svg>
+						<svg class="sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+					</button>
+				</div>
+			</div>
+		</header>
+
+		<main id="main">
+			<div class="container">
+				<heading-anchors>
+					
+
+
+<article class="article">
+	<header class="article-header">
+		<h1 id="beyond-generative-llms-architecting-high-speed-decision-gates-with-typesafe-ais-jev">Beyond Generative LLMs: Architecting High-Speed Decision Gates with TypeSafe AI&#39;s Jev</h1><p class="article-desc">A deep architectural dive into decision models versus generative text models. Learn how TypeSafe AI&#39;s Jev delivers sub-100ms deterministic routing, inline agent guardrails, and cost-optimized LLM pipelines.</p>
+		<ul class="post-metadata">
+			<li><time datetime="2026-04-20">April 20, 2026</time></li>
+			<li>·</li>
+			<li>7 min read</li>
+			<li>·</li>
+			<li title="Views of this post">👁 <span class="view-count" data-slug="beyond-generative-llms-decision-gates-jev" data-hit="">1,000</span> views</li>
+			<li class="tags">
+				<a href="/my-blog/tags/ai-engineering/" class="post-tag">ai-engineering</a>
+				<a href="/my-blog/tags/decision-models/" class="post-tag">decision-models</a>
+				<a href="/my-blog/tags/system-design/" class="post-tag">system-design</a>
+				<a href="/my-blog/tags/python/" class="post-tag">python</a>
+				<a href="/my-blog/tags/cost-optimization/" class="post-tag">cost-optimization</a>
+				<a href="/my-blog/tags/agents/" class="post-tag">agents</a>
+			</li>
+		</ul>
+	</header>
+
+	<nav class="toc" id="toc" aria-label="Table of contents" hidden="">
+		<p class="toc-title">On this page</p>
+		<ol></ol>
+	</nav>
+
+	<div class="article-body">
+		<p>In modern AI engineering, teams frequently fall into a costly anti-pattern: <strong>using multi-billion-parameter autoregressive models for simple classification, routing, and verification tasks.</strong></p>
+<p>When an incoming customer ticket needs triage, a user prompt requires security filtering, or an autonomous browser agent must select the next button to click, invoking a generative model like GPT-4o or Claude 3.7 introduces:</p>
+<ol>
+<li><strong>Multi-second latency</strong> waiting for token generation.</li>
+<li><strong>Parsing overhead</strong> with fragile JSON output schemas.</li>
+<li><strong>Runaway API costs</strong> burning token budgets on binary yes/no decisions.</li>
+</ol>
+<p>Enter <strong>TypeSafe AI's Jev</strong>—a specialized <strong>decision model</strong> engineered not to generate paragraphs of text, but to evaluate typed, deterministic questions directly over state in sub-second latency.</p>
+<p>In this article, we explore how decision models fundamentally differ from text generators, analyze six production use cases, and implement an end-to-end hybrid triage gate in Python.</p>
+<hr>
+<h2 id="1-paradigm-shift-text-generation-vs-deterministic-verdicts">1. Paradigm Shift: Text Generation vs. Deterministic Verdicts</h2>
+<p>Traditional LLMs predict the next token in a sequence. To make a decision, an LLM must generate text tokens that your application then deserializes and validates:</p>
+<pre><code>[Prompt + Context] ──► [Autoregressive Generation] ──► &quot;```json\n{&quot;action&quot;: ...}\n```&quot; ──► Pydantic Parse
+</code></pre>
+<p>In contrast, Jev takes an arbitrary <strong>state payload</strong> (raw text, structured JSON, code, or DOM nodes) and evaluates a battery of strictly typed questions in a single forward pass:</p>
+<pre><code>                     ┌── Question 1 (choice) ──► Selected Option
+[State / Context] ──►│── Question 2 (noul)   ──► Boolean Flag (True/False + Prob)
+                     └── Question 3 (score)  ──► Continuous Metric (0 - 100)
+</code></pre>
+<h3 id="the-three-typed-primitives-of-jev">The Three Typed Primitives of Jev</h3>
+<p>Instead of freeform prompts, Jev operates on three mathematical primitives:</p>
+<ol>
+<li><strong><code>choice</code></strong>: Selects exactly one label from a predefined list of string categories (e.g., routing queues, model tiers, tool actions).</li>
+<li><strong><code>noul</code></strong>: A probabilistic boolean output (True or False) paired with an explicit confidence score.</li>
+<li><strong><code>score</code></strong>: A bounded numeric rating (typically 0–100) indicating intensity, risk, or priority.</li>
+</ol>
+<hr>
+<h2 id="2-comparison-generative-llms-vs-decision-models-vs-classical-ml">2. Comparison: Generative LLMs vs. Decision Models vs. Classical ML</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Dimension</th>
+<th style="text-align:left">Generative LLMs (e.g. GPT-4o, Claude)</th>
+<th style="text-align:left">Decision Models (TypeSafe AI Jev)</th>
+<th style="text-align:left">Classical ML (e.g. Scikit / XGBoost)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><strong>Output Type</strong></td>
+<td style="text-align:left">Autoregressive text stream</td>
+<td style="text-align:left">Strictly typed (<code>choice</code>, <code>noul</code>, <code>score</code>)</td>
+<td style="text-align:left">Fixed class label / float probability</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>P95 Latency</strong></td>
+<td style="text-align:left">1,500ms – 5,000ms</td>
+<td style="text-align:left">80ms – 180ms</td>
+<td style="text-align:left">5ms – 20ms</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>Schema Reliability</strong></td>
+<td style="text-align:left">Prone to formatting hallucination</td>
+<td style="text-align:left">100% deterministic type safety</td>
+<td style="text-align:left">100% deterministic</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>Zero-Shot Generalization</strong></td>
+<td style="text-align:left">High</td>
+<td style="text-align:left">High (understands complex semantic context)</td>
+<td style="text-align:left">Low (requires custom training &amp; feature engineering)</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>Input Flexibility</strong></td>
+<td style="text-align:left">Text, multimodal images</td>
+<td style="text-align:left">Text, clean DOM trees, JSON state</td>
+<td style="text-align:left">Pre-engineered feature vectors</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>Cost Profile</strong></td>
+<td style="text-align:left">High ($2.50 – $15.00 / 1M tokens)</td>
+<td style="text-align:left">Low (fractions of a cent per batch)</td>
+<td style="text-align:left">Lowest (self-hosted compute)</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="3-six-real-world-architecture-patterns">3. Six Real-World Architecture Patterns</h2>
+<pre class="language-mermaid" tabindex="0"><code class="language-mermaid"><span class="token keyword">flowchart</span> TD
+    A<span class="token text string">[Incoming Request / Event]</span> <span class="token arrow operator">--></span> B<span class="token text string">{Jev Decision Gate}</span>
+    B <span class="token arrow operator">--></span><span class="token label property">|Flagged: Security Violation|</span> C<span class="token text string">[Drop &amp; Alert SecOps]</span>
+    B <span class="token arrow operator">--></span><span class="token label property">|Simple FAQ / Low Urgency|</span> D<span class="token text string">[Route to Fast SLM / Auto-Reply]</span>
+    B <span class="token arrow operator">--></span><span class="token label property">|High Complexity / Reasoning|</span> E<span class="token text string">[Route to Claude 3.7 / o3]</span>
+    B <span class="token arrow operator">--></span><span class="token label property">|High Risk / Account Blocker|</span> F<span class="token text string">[Queue for Human Tier 1 Support]</span></code></pre>
+<h3 id="1-cost-and-model-tier-routing">1. Cost &amp; Model Tier Routing</h3>
+<p>Sending every user prompt to an expensive reasoning model (e.g., OpenAI o3 or Claude Opus) burns capital unnecessarily. Jev acts as an ingress router:</p>
+<ul>
+<li>It scores prompt complexity (<code>score</code>) and selects the appropriate model tier (<code>choice</code>: <code>[&quot;slm&quot;, &quot;general_llm&quot;, &quot;reasoning_model&quot;]</code>).</li>
+<li>70% of mundane queries resolve through sub-cent SLMs without human-perceptible latency.</li>
+</ul>
+<h3 id="2-inline-agent-guardrails-and-jailbreak-detection">2. Inline Agent Guardrails &amp; Jailbreak Detection</h3>
+<p>Running a complete LLM before every tool call doubles execution time. A Jev <code>noul</code> question placed directly in front of Python/Bash/SQL tool executors checks:</p>
+<ul>
+<li><em>&quot;Does this tool call attempt command injection, directory traversal, or data exfiltration?&quot;</em></li>
+<li>Decisions return in <strong>&lt;100ms</strong>, enforcing airtight guardrails without stalling autonomous loops.</li>
+</ul>
+<h3 id="3-sub-second-browser-automation-next-action-pick">3. Sub-Second Browser Automation (Next-Action Pick)</h3>
+<p>Multimodal web agents taking full screenshots on every step are slow and expensive. By piping a filtered DOM tree into Jev with a <code>choice</code> question, Jev selects the target CSS selector or button in sub-second time.</p>
+<h3 id="4-rag-retrieval-reranking-and-hallucination-check">4. RAG Retrieval Reranking &amp; Hallucination Check</h3>
+<p>Vector databases often return chunks that share keywords but lack factual relevance. Jev scores candidates:</p>
+<ul>
+<li>Evaluates top-20 chunks for relevance against the query.</li>
+<li>Verifies whether an answer's claims are explicitly supported or contradicted by source citations.</li>
+</ul>
+<h3 id="5-high-volume-support-inbox-triage">5. High-Volume Support Inbox Triage</h3>
+<p>Enterprise helpdesks process thousands of incoming emails daily. Rather than generating replies immediately, Jev categorizes the department, tags SLA urgency, and determines if automated resolution is legally safe.</p>
+<h3 id="6-dynamic-lead-scoring-and-crm-enrichment">6. Dynamic Lead Scoring &amp; CRM Enrichment</h3>
+<p>Sales teams waste hours skimming notes. Jev evaluates unstructured meeting transcripts and extracts a purchase-intent score (1–100) alongside firmographic fit.</p>
+<hr>
+<h2 id="4-production-implementation-the-hybrid-triage-gate">4. Production Implementation: The Hybrid Triage Gate</h2>
+<p>Here is a production-grade Python implementation of an asynchronous support triage workflow. Jev acts as the high-speed gatekeeper: if a ticket represents a high-risk security alert or billing dispute, the expensive LLM generation step is bypassed completely.</p>
+<pre class="language-python" tabindex="0"><code class="language-python"><span class="token keyword">import</span> os
+<span class="token keyword">import</span> requests
+<span class="token keyword">from</span> typing <span class="token keyword">import</span> Dict<span class="token punctuation">,</span> Any<span class="token punctuation">,</span> Optional
+
+JEV_API_URL <span class="token operator">=</span> os<span class="token punctuation">.</span>getenv<span class="token punctuation">(</span><span class="token string">"JEV_API_URL"</span><span class="token punctuation">,</span> <span class="token string">"https://api.typesafe.ai/v1/systemone"</span><span class="token punctuation">)</span>
+OPENAI_API_URL <span class="token operator">=</span> <span class="token string">"https://api.openai.com/v1/chat/completions"</span>
+
+TYPESAFE_API_KEY <span class="token operator">=</span> os<span class="token punctuation">.</span>environ<span class="token punctuation">[</span><span class="token string">"TYPESAFE_API_KEY"</span><span class="token punctuation">]</span>
+OPENAI_API_KEY <span class="token operator">=</span> os<span class="token punctuation">.</span>environ<span class="token punctuation">[</span><span class="token string">"OPENAI_API_KEY"</span><span class="token punctuation">]</span>
+
+
+<span class="token keyword">def</span> <span class="token function">evaluate_ticket_with_jev</span><span class="token punctuation">(</span>ticket_text<span class="token punctuation">:</span> <span class="token builtin">str</span><span class="token punctuation">,</span> user_tier<span class="token punctuation">:</span> <span class="token builtin">str</span><span class="token punctuation">)</span> <span class="token operator">-</span><span class="token operator">></span> Dict<span class="token punctuation">[</span><span class="token builtin">str</span><span class="token punctuation">,</span> Any<span class="token punctuation">]</span><span class="token punctuation">:</span>
+    <span class="token triple-quoted-string string">"""
+    Sub-second evaluation pass using Jev.
+    Evaluates routing department, automated reply safety, and SLA urgency.
+    """</span>
+    payload <span class="token operator">=</span> <span class="token punctuation">{</span>
+        <span class="token string">"state"</span><span class="token punctuation">:</span> <span class="token string-interpolation"><span class="token string">f"Customer Tier: </span><span class="token interpolation"><span class="token punctuation">{</span>user_tier<span class="token punctuation">}</span></span><span class="token string">\nTicket Content: </span><span class="token interpolation"><span class="token punctuation">{</span>ticket_text<span class="token punctuation">}</span></span><span class="token string">"</span></span><span class="token punctuation">,</span>
+        <span class="token string">"questions"</span><span class="token punctuation">:</span> <span class="token punctuation">[</span>
+            <span class="token punctuation">{</span>
+                <span class="token string">"id"</span><span class="token punctuation">:</span> <span class="token string">"department"</span><span class="token punctuation">,</span>
+                <span class="token string">"type"</span><span class="token punctuation">:</span> <span class="token string">"choice"</span><span class="token punctuation">,</span>
+                <span class="token string">"prompt"</span><span class="token punctuation">:</span> <span class="token string">"Which department should handle this request?"</span><span class="token punctuation">,</span>
+                <span class="token string">"options"</span><span class="token punctuation">:</span> <span class="token punctuation">[</span>
+                    <span class="token string">"general_faq"</span><span class="token punctuation">,</span>
+                    <span class="token string">"billing_dispute"</span><span class="token punctuation">,</span>
+                    <span class="token string">"technical_bug"</span><span class="token punctuation">,</span>
+                    <span class="token string">"security_issue"</span><span class="token punctuation">,</span>
+                <span class="token punctuation">]</span><span class="token punctuation">,</span>
+            <span class="token punctuation">}</span><span class="token punctuation">,</span>
+            <span class="token punctuation">{</span>
+                <span class="token string">"id"</span><span class="token punctuation">:</span> <span class="token string">"can_auto_reply"</span><span class="token punctuation">,</span>
+                <span class="token string">"type"</span><span class="token punctuation">:</span> <span class="token string">"noul"</span><span class="token punctuation">,</span>
+                <span class="token string">"prompt"</span><span class="token punctuation">:</span> <span class="token string">"Can this inquiry be safely addressed by an automated FAQ response without human approval?"</span><span class="token punctuation">,</span>
+            <span class="token punctuation">}</span><span class="token punctuation">,</span>
+            <span class="token punctuation">{</span>
+                <span class="token string">"id"</span><span class="token punctuation">:</span> <span class="token string">"urgency_score"</span><span class="token punctuation">,</span>
+                <span class="token string">"type"</span><span class="token punctuation">:</span> <span class="token string">"score"</span><span class="token punctuation">,</span>
+                <span class="token string">"prompt"</span><span class="token punctuation">:</span> <span class="token string">"Rate the urgency and SLA risk of this issue from 1 to 100."</span><span class="token punctuation">,</span>
+            <span class="token punctuation">}</span><span class="token punctuation">,</span>
+        <span class="token punctuation">]</span><span class="token punctuation">,</span>
+    <span class="token punctuation">}</span>
+
+    headers <span class="token operator">=</span> <span class="token punctuation">{</span>
+        <span class="token string">"Authorization"</span><span class="token punctuation">:</span> <span class="token string-interpolation"><span class="token string">f"Bearer </span><span class="token interpolation"><span class="token punctuation">{</span>TYPESAFE_API_KEY<span class="token punctuation">}</span></span><span class="token string">"</span></span><span class="token punctuation">,</span>
+        <span class="token string">"Content-Type"</span><span class="token punctuation">:</span> <span class="token string">"application/json"</span><span class="token punctuation">,</span>
+    <span class="token punctuation">}</span>
+
+    response <span class="token operator">=</span> requests<span class="token punctuation">.</span>post<span class="token punctuation">(</span>JEV_API_URL<span class="token punctuation">,</span> headers<span class="token operator">=</span>headers<span class="token punctuation">,</span> json<span class="token operator">=</span>payload<span class="token punctuation">,</span> timeout<span class="token operator">=</span><span class="token number">4</span><span class="token punctuation">)</span>
+    response<span class="token punctuation">.</span>raise_for_status<span class="token punctuation">(</span><span class="token punctuation">)</span>
+    <span class="token keyword">return</span> response<span class="token punctuation">.</span>json<span class="token punctuation">(</span><span class="token punctuation">)</span>
+
+
+<span class="token keyword">def</span> <span class="token function">call_llm_draft_response</span><span class="token punctuation">(</span>ticket_text<span class="token punctuation">:</span> <span class="token builtin">str</span><span class="token punctuation">)</span> <span class="token operator">-</span><span class="token operator">></span> <span class="token builtin">str</span><span class="token punctuation">:</span>
+    <span class="token triple-quoted-string string">"""Invoked ONLY when Jev approves automated response generation."""</span>
+    headers <span class="token operator">=</span> <span class="token punctuation">{</span>
+        <span class="token string">"Authorization"</span><span class="token punctuation">:</span> <span class="token string-interpolation"><span class="token string">f"Bearer </span><span class="token interpolation"><span class="token punctuation">{</span>OPENAI_API_KEY<span class="token punctuation">}</span></span><span class="token string">"</span></span><span class="token punctuation">,</span>
+        <span class="token string">"Content-Type"</span><span class="token punctuation">:</span> <span class="token string">"application/json"</span><span class="token punctuation">,</span>
+    <span class="token punctuation">}</span>
+    body <span class="token operator">=</span> <span class="token punctuation">{</span>
+        <span class="token string">"model"</span><span class="token punctuation">:</span> <span class="token string">"gpt-4o-mini"</span><span class="token punctuation">,</span>
+        <span class="token string">"messages"</span><span class="token punctuation">:</span> <span class="token punctuation">[</span>
+            <span class="token punctuation">{</span>
+                <span class="token string">"role"</span><span class="token punctuation">:</span> <span class="token string">"system"</span><span class="token punctuation">,</span>
+                <span class="token string">"content"</span><span class="token punctuation">:</span> <span class="token string">"You are a concise customer support engineer. Provide a direct, factual answer."</span><span class="token punctuation">,</span>
+            <span class="token punctuation">}</span><span class="token punctuation">,</span>
+            <span class="token punctuation">{</span><span class="token string">"role"</span><span class="token punctuation">:</span> <span class="token string">"user"</span><span class="token punctuation">,</span> <span class="token string">"content"</span><span class="token punctuation">:</span> ticket_text<span class="token punctuation">}</span><span class="token punctuation">,</span>
+        <span class="token punctuation">]</span><span class="token punctuation">,</span>
+        <span class="token string">"temperature"</span><span class="token punctuation">:</span> <span class="token number">0.2</span><span class="token punctuation">,</span>
+    <span class="token punctuation">}</span>
+    response <span class="token operator">=</span> requests<span class="token punctuation">.</span>post<span class="token punctuation">(</span>OPENAI_API_URL<span class="token punctuation">,</span> headers<span class="token operator">=</span>headers<span class="token punctuation">,</span> json<span class="token operator">=</span>body<span class="token punctuation">,</span> timeout<span class="token operator">=</span><span class="token number">8</span><span class="token punctuation">)</span>
+    response<span class="token punctuation">.</span>raise_for_status<span class="token punctuation">(</span><span class="token punctuation">)</span>
+    <span class="token keyword">return</span> response<span class="token punctuation">.</span>json<span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">[</span><span class="token string">"choices"</span><span class="token punctuation">]</span><span class="token punctuation">[</span><span class="token number">0</span><span class="token punctuation">]</span><span class="token punctuation">[</span><span class="token string">"message"</span><span class="token punctuation">]</span><span class="token punctuation">[</span><span class="token string">"content"</span><span class="token punctuation">]</span>
+
+
+<span class="token keyword">def</span> <span class="token function">route_and_process_ticket</span><span class="token punctuation">(</span>ticket_text<span class="token punctuation">:</span> <span class="token builtin">str</span><span class="token punctuation">,</span> user_tier<span class="token punctuation">:</span> <span class="token builtin">str</span> <span class="token operator">=</span> <span class="token string">"Standard"</span><span class="token punctuation">)</span> <span class="token operator">-</span><span class="token operator">></span> Dict<span class="token punctuation">[</span><span class="token builtin">str</span><span class="token punctuation">,</span> Any<span class="token punctuation">]</span><span class="token punctuation">:</span>
+    <span class="token comment"># 1. High-speed decision gate via Jev</span>
+    jev_result <span class="token operator">=</span> evaluate_ticket_with_jev<span class="token punctuation">(</span>ticket_text<span class="token punctuation">,</span> user_tier<span class="token punctuation">)</span>
+
+    <span class="token comment"># Extract strictly typed verdicts</span>
+    department <span class="token operator">=</span> jev_result<span class="token punctuation">[</span><span class="token string">"department"</span><span class="token punctuation">]</span><span class="token punctuation">[</span><span class="token string">"value"</span><span class="token punctuation">]</span>
+    can_auto_reply <span class="token operator">=</span> jev_result<span class="token punctuation">[</span><span class="token string">"can_auto_reply"</span><span class="token punctuation">]</span><span class="token punctuation">[</span><span class="token string">"value"</span><span class="token punctuation">]</span>
+    urgency_score <span class="token operator">=</span> jev_result<span class="token punctuation">[</span><span class="token string">"urgency_score"</span><span class="token punctuation">]</span><span class="token punctuation">[</span><span class="token string">"value"</span><span class="token punctuation">]</span>
+
+    <span class="token comment"># 2. Short-circuit critical conditions without burning LLM tokens</span>
+    <span class="token keyword">if</span> department <span class="token operator">==</span> <span class="token string">"security_issue"</span> <span class="token keyword">or</span> urgency_score <span class="token operator">>=</span> <span class="token number">85</span><span class="token punctuation">:</span>
+        <span class="token keyword">return</span> <span class="token punctuation">{</span>
+            <span class="token string">"status"</span><span class="token punctuation">:</span> <span class="token string">"ESCALATED_HUMAN_TIER_1"</span><span class="token punctuation">,</span>
+            <span class="token string">"department"</span><span class="token punctuation">:</span> department<span class="token punctuation">,</span>
+            <span class="token string">"urgency"</span><span class="token punctuation">:</span> urgency_score<span class="token punctuation">,</span>
+            <span class="token string">"reason"</span><span class="token punctuation">:</span> <span class="token string">"Critical security flag or severe SLA urgency raised by Jev."</span><span class="token punctuation">,</span>
+        <span class="token punctuation">}</span>
+
+    <span class="token keyword">if</span> department <span class="token operator">==</span> <span class="token string">"billing_dispute"</span><span class="token punctuation">:</span>
+        <span class="token keyword">return</span> <span class="token punctuation">{</span>
+            <span class="token string">"status"</span><span class="token punctuation">:</span> <span class="token string">"QUEUED_FINANCE_REVIEW"</span><span class="token punctuation">,</span>
+            <span class="token string">"department"</span><span class="token punctuation">:</span> department<span class="token punctuation">,</span>
+            <span class="token string">"urgency"</span><span class="token punctuation">:</span> urgency_score<span class="token punctuation">,</span>
+            <span class="token string">"reason"</span><span class="token punctuation">:</span> <span class="token string">"Requires human finance verification; LLM generation bypassed."</span><span class="token punctuation">,</span>
+        <span class="token punctuation">}</span>
+
+    <span class="token comment"># 3. Safe for automation? Let the generative model draft a reply</span>
+    <span class="token keyword">if</span> can_auto_reply<span class="token punctuation">:</span>
+        draft <span class="token operator">=</span> call_llm_draft_response<span class="token punctuation">(</span>ticket_text<span class="token punctuation">)</span>
+        <span class="token keyword">return</span> <span class="token punctuation">{</span>
+            <span class="token string">"status"</span><span class="token punctuation">:</span> <span class="token string">"AUTO_REPLIED"</span><span class="token punctuation">,</span>
+            <span class="token string">"department"</span><span class="token punctuation">:</span> department<span class="token punctuation">,</span>
+            <span class="token string">"urgency"</span><span class="token punctuation">:</span> urgency_score<span class="token punctuation">,</span>
+            <span class="token string">"response"</span><span class="token punctuation">:</span> draft<span class="token punctuation">,</span>
+        <span class="token punctuation">}</span>
+
+    <span class="token comment"># 4. Fallback queue</span>
+    <span class="token keyword">return</span> <span class="token punctuation">{</span>
+        <span class="token string">"status"</span><span class="token punctuation">:</span> <span class="token string">"QUEUED_STANDARD_SUPPORT"</span><span class="token punctuation">,</span>
+        <span class="token string">"department"</span><span class="token punctuation">:</span> department<span class="token punctuation">,</span>
+        <span class="token string">"urgency"</span><span class="token punctuation">:</span> urgency_score<span class="token punctuation">,</span>
+        <span class="token string">"reason"</span><span class="token punctuation">:</span> <span class="token string">"Unsuitable for automated reply."</span><span class="token punctuation">,</span>
+    <span class="token punctuation">}</span></code></pre>
+<hr>
+<h2 id="5-the-financial-and-operational-roi">5. The Financial &amp; Operational ROI</h2>
+<p>Let's model the impact across <strong>100,000 incoming support tickets per month</strong>:</p>
+<h3 id="traditional-naive-architecture-llm-for-all">Traditional Naive Architecture (LLM for All)</h3>
+<ul>
+<li>Every ticket hits <code>gpt-4o</code> or <code>claude-3-5-sonnet</code> to classify, summarize, and draft a response.</li>
+<li>Avg token usage: 800 input tokens + 300 output tokens = ~$0.007 per ticket.</li>
+<li><strong>Total Cost:</strong> <strong>$700 / month</strong></li>
+<li><strong>Average Triage Latency:</strong> <strong>2,200ms</strong></li>
+</ul>
+<h3 id="hybrid-architecture-with-jev-decision-gates">Hybrid Architecture with Jev Decision Gates</h3>
+<ul>
+<li>100,000 tickets pass through Jev first ($0.0004 per evaluation).</li>
+<li>40% of tickets (billing disputes, outages, account closures) bypass LLM generation entirely and route to human queues in <strong>&lt;120ms</strong>.</li>
+<li>35% of simple queries route to lightweight models (<code>gpt-4o-mini</code> at $0.0003 per completion).</li>
+<li>Only 25% of complex tickets require frontier model generation.</li>
+<li><strong>Total Cost:</strong> <strong>$145 / month</strong> (79% cost reduction)</li>
+<li><strong>Average Triage Latency:</strong> <strong>110ms</strong> for escalations; <strong>650ms</strong> overall.</li>
+</ul>
+<hr>
+<h2 id="6-production-checklist">6. Production Checklist</h2>
+<p>When introducing decision models into your agentic stack:</p>
+<ul>
+<li>[ ] <strong>Define Clear Primitives:</strong> Map business decisions explicitly to <code>choice</code> (routing), <code>noul</code> (guardrails), or <code>score</code> (thresholds).</li>
+<li>[ ] <strong>Short-Circuit Early:</strong> Place decision gates ahead of expensive LLMs and external third-party API tool calls.</li>
+<li>[ ] <strong>Enforce Timeouts:</strong> Set a strict 3–5 second timeout on decision evaluations to maintain sub-second SLA performance.</li>
+<li>[ ] <strong>Telemetry:</strong> Log decision confidence scores to detect topic drift and refine question prompts over time.</li>
+</ul>
+
+	</div>
+	<ul class="links-nextprev"><li class="links-nextprev-prev">← Previous<a href="/my-blog/blog/enterprise-claude-code-aws-bedrock-governance/">Enterprise Claude Code on AWS Bedrock: Multi-User SSO, Governance, and AI Admin Playbook</a></li>
+	</ul>
+</article>
+
+
+				</heading-anchors>
+			</div>
+		</main>
+
+		<footer>
+			<div class="container">
+				<p>&copy; 2026 Rohit Marathe · Built with <a href="https://www.11ty.dev/">Eleventy</a></p>
+				<div class="footer-links">
+					<a href="https://github.com/rpm360" target="_blank" rel="noopener">GitHub</a>
+					<a href="https://linkedin.com/in/rohit-marathe-ucf" target="_blank" rel="noopener">LinkedIn</a>
+					<a href="mailto:rohitmarathe1995@gmail.com">Email</a>
+					<a href="/my-blog/feed/feed.xml">RSS</a>
+				</div>
+			</div>
+		</footer>
+		<dialog class="search-dialog" id="search-dialog" aria-label="Search posts">
+			<input class="search-input" id="search-input" type="search" placeholder="Search posts, topics, tags…" autocomplete="off">
+			<ul class="search-results" id="search-results"></ul>
+		</dialog>
+
+		<!-- This page `/blog/beyond-generative-llms-decision-gates-jev/` was built on 2026-10-22T17:04:48.826Z -->
+		<script type="module" src="/my-blog/dist/lhbtuzXz-m.js"></script>
+
+		
+	</body>
+</html>

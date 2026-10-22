@@ -5,11 +5,275 @@
   <subtitle>AI Systems Engineer crafting intelligent systems at scale.</subtitle>
   <link href="https://rpm360.github.io/my-blog/feed/feed.xml" rel="self" />
   <link href="https://rpm360.github.io/my-blog/my-blog/" />
-  <updated>2026-04-18T00:00:00Z</updated>
+  <updated>2026-04-20T00:00:00Z</updated>
   <id>https://rpm360.github.io/my-blog/my-blog/</id>
   <author>
     <name>Rohit Marathe</name>
   </author>
+  <entry>
+    <title>Beyond Generative LLMs: Architecting High-Speed Decision Gates with TypeSafe AI&#39;s Jev</title>
+    <link href="https://rpm360.github.io/my-blog/blog/beyond-generative-llms-decision-gates-jev/" />
+    <updated>2026-04-20T00:00:00Z</updated>
+    <id>https://rpm360.github.io/my-blog/blog/beyond-generative-llms-decision-gates-jev/</id>
+    <content type="html">&lt;p&gt;In modern AI engineering, teams frequently fall into a costly anti-pattern: &lt;strong&gt;using multi-billion-parameter autoregressive models for simple classification, routing, and verification tasks.&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;When an incoming customer ticket needs triage, a user prompt requires security filtering, or an autonomous browser agent must select the next button to click, invoking a generative model like GPT-4o or Claude 3.7 introduces:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;Multi-second latency&lt;/strong&gt; waiting for token generation.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Parsing overhead&lt;/strong&gt; with fragile JSON output schemas.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Runaway API costs&lt;/strong&gt; burning token budgets on binary yes/no decisions.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Enter &lt;strong&gt;TypeSafe AI&#39;s Jev&lt;/strong&gt;—a specialized &lt;strong&gt;decision model&lt;/strong&gt; engineered not to generate paragraphs of text, but to evaluate typed, deterministic questions directly over state in sub-second latency.&lt;/p&gt;
+&lt;p&gt;In this article, we explore how decision models fundamentally differ from text generators, analyze six production use cases, and implement an end-to-end hybrid triage gate in Python.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id=&quot;1-paradigm-shift-text-generation-vs-deterministic-verdicts&quot;&gt;1. Paradigm Shift: Text Generation vs. Deterministic Verdicts&lt;/h2&gt;
+&lt;p&gt;Traditional LLMs predict the next token in a sequence. To make a decision, an LLM must generate text tokens that your application then deserializes and validates:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;[Prompt + Context] ──► [Autoregressive Generation] ──► &amp;quot;```json&#92;n{&amp;quot;action&amp;quot;: ...}&#92;n```&amp;quot; ──► Pydantic Parse
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;In contrast, Jev takes an arbitrary &lt;strong&gt;state payload&lt;/strong&gt; (raw text, structured JSON, code, or DOM nodes) and evaluates a battery of strictly typed questions in a single forward pass:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;                     ┌── Question 1 (choice) ──► Selected Option
+[State / Context] ──►│── Question 2 (noul)   ──► Boolean Flag (True/False + Prob)
+                     └── Question 3 (score)  ──► Continuous Metric (0 - 100)
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h3 id=&quot;the-three-typed-primitives-of-jev&quot;&gt;The Three Typed Primitives of Jev&lt;/h3&gt;
+&lt;p&gt;Instead of freeform prompts, Jev operates on three mathematical primitives:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;&lt;code&gt;choice&lt;/code&gt;&lt;/strong&gt;: Selects exactly one label from a predefined list of string categories (e.g., routing queues, model tiers, tool actions).&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;&lt;code&gt;noul&lt;/code&gt;&lt;/strong&gt;: A probabilistic boolean output (True or False) paired with an explicit confidence score.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;&lt;code&gt;score&lt;/code&gt;&lt;/strong&gt;: A bounded numeric rating (typically 0–100) indicating intensity, risk, or priority.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;hr&gt;
+&lt;h2 id=&quot;2-comparison-generative-llms-vs-decision-models-vs-classical-ml&quot;&gt;2. Comparison: Generative LLMs vs. Decision Models vs. Classical ML&lt;/h2&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style=&quot;text-align:left&quot;&gt;Dimension&lt;/th&gt;
+&lt;th style=&quot;text-align:left&quot;&gt;Generative LLMs (e.g. GPT-4o, Claude)&lt;/th&gt;
+&lt;th style=&quot;text-align:left&quot;&gt;Decision Models (TypeSafe AI Jev)&lt;/th&gt;
+&lt;th style=&quot;text-align:left&quot;&gt;Classical ML (e.g. Scikit / XGBoost)&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;&lt;strong&gt;Output Type&lt;/strong&gt;&lt;/td&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;Autoregressive text stream&lt;/td&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;Strictly typed (&lt;code&gt;choice&lt;/code&gt;, &lt;code&gt;noul&lt;/code&gt;, &lt;code&gt;score&lt;/code&gt;)&lt;/td&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;Fixed class label / float probability&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;&lt;strong&gt;P95 Latency&lt;/strong&gt;&lt;/td&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;1,500ms – 5,000ms&lt;/td&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;80ms – 180ms&lt;/td&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;5ms – 20ms&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;&lt;strong&gt;Schema Reliability&lt;/strong&gt;&lt;/td&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;Prone to formatting hallucination&lt;/td&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;100% deterministic type safety&lt;/td&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;100% deterministic&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;&lt;strong&gt;Zero-Shot Generalization&lt;/strong&gt;&lt;/td&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;High&lt;/td&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;High (understands complex semantic context)&lt;/td&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;Low (requires custom training &amp;amp; feature engineering)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;&lt;strong&gt;Input Flexibility&lt;/strong&gt;&lt;/td&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;Text, multimodal images&lt;/td&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;Text, clean DOM trees, JSON state&lt;/td&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;Pre-engineered feature vectors&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;&lt;strong&gt;Cost Profile&lt;/strong&gt;&lt;/td&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;High ($2.50 – $15.00 / 1M tokens)&lt;/td&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;Low (fractions of a cent per batch)&lt;/td&gt;
+&lt;td style=&quot;text-align:left&quot;&gt;Lowest (self-hosted compute)&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;hr&gt;
+&lt;h2 id=&quot;3-six-real-world-architecture-patterns&quot;&gt;3. Six Real-World Architecture Patterns&lt;/h2&gt;
+&lt;pre class=&quot;language-mermaid&quot; tabindex=&quot;0&quot;&gt;&lt;code class=&quot;language-mermaid&quot;&gt;&lt;span class=&quot;token keyword&quot;&gt;flowchart&lt;/span&gt; TD
+    A&lt;span class=&quot;token text string&quot;&gt;[Incoming Request / Event]&lt;/span&gt; &lt;span class=&quot;token arrow operator&quot;&gt;--&gt;&lt;/span&gt; B&lt;span class=&quot;token text string&quot;&gt;{Jev Decision Gate}&lt;/span&gt;
+    B &lt;span class=&quot;token arrow operator&quot;&gt;--&gt;&lt;/span&gt;&lt;span class=&quot;token label property&quot;&gt;|Flagged: Security Violation|&lt;/span&gt; C&lt;span class=&quot;token text string&quot;&gt;[Drop &amp;amp; Alert SecOps]&lt;/span&gt;
+    B &lt;span class=&quot;token arrow operator&quot;&gt;--&gt;&lt;/span&gt;&lt;span class=&quot;token label property&quot;&gt;|Simple FAQ / Low Urgency|&lt;/span&gt; D&lt;span class=&quot;token text string&quot;&gt;[Route to Fast SLM / Auto-Reply]&lt;/span&gt;
+    B &lt;span class=&quot;token arrow operator&quot;&gt;--&gt;&lt;/span&gt;&lt;span class=&quot;token label property&quot;&gt;|High Complexity / Reasoning|&lt;/span&gt; E&lt;span class=&quot;token text string&quot;&gt;[Route to Claude 3.7 / o3]&lt;/span&gt;
+    B &lt;span class=&quot;token arrow operator&quot;&gt;--&gt;&lt;/span&gt;&lt;span class=&quot;token label property&quot;&gt;|High Risk / Account Blocker|&lt;/span&gt; F&lt;span class=&quot;token text string&quot;&gt;[Queue for Human Tier 1 Support]&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;h3 id=&quot;1-cost-and-model-tier-routing&quot;&gt;1. Cost &amp;amp; Model Tier Routing&lt;/h3&gt;
+&lt;p&gt;Sending every user prompt to an expensive reasoning model (e.g., OpenAI o3 or Claude Opus) burns capital unnecessarily. Jev acts as an ingress router:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;It scores prompt complexity (&lt;code&gt;score&lt;/code&gt;) and selects the appropriate model tier (&lt;code&gt;choice&lt;/code&gt;: &lt;code&gt;[&amp;quot;slm&amp;quot;, &amp;quot;general_llm&amp;quot;, &amp;quot;reasoning_model&amp;quot;]&lt;/code&gt;).&lt;/li&gt;
+&lt;li&gt;70% of mundane queries resolve through sub-cent SLMs without human-perceptible latency.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&quot;2-inline-agent-guardrails-and-jailbreak-detection&quot;&gt;2. Inline Agent Guardrails &amp;amp; Jailbreak Detection&lt;/h3&gt;
+&lt;p&gt;Running a complete LLM before every tool call doubles execution time. A Jev &lt;code&gt;noul&lt;/code&gt; question placed directly in front of Python/Bash/SQL tool executors checks:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;em&gt;&amp;quot;Does this tool call attempt command injection, directory traversal, or data exfiltration?&amp;quot;&lt;/em&gt;&lt;/li&gt;
+&lt;li&gt;Decisions return in &lt;strong&gt;&amp;lt;100ms&lt;/strong&gt;, enforcing airtight guardrails without stalling autonomous loops.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&quot;3-sub-second-browser-automation-next-action-pick&quot;&gt;3. Sub-Second Browser Automation (Next-Action Pick)&lt;/h3&gt;
+&lt;p&gt;Multimodal web agents taking full screenshots on every step are slow and expensive. By piping a filtered DOM tree into Jev with a &lt;code&gt;choice&lt;/code&gt; question, Jev selects the target CSS selector or button in sub-second time.&lt;/p&gt;
+&lt;h3 id=&quot;4-rag-retrieval-reranking-and-hallucination-check&quot;&gt;4. RAG Retrieval Reranking &amp;amp; Hallucination Check&lt;/h3&gt;
+&lt;p&gt;Vector databases often return chunks that share keywords but lack factual relevance. Jev scores candidates:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Evaluates top-20 chunks for relevance against the query.&lt;/li&gt;
+&lt;li&gt;Verifies whether an answer&#39;s claims are explicitly supported or contradicted by source citations.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&quot;5-high-volume-support-inbox-triage&quot;&gt;5. High-Volume Support Inbox Triage&lt;/h3&gt;
+&lt;p&gt;Enterprise helpdesks process thousands of incoming emails daily. Rather than generating replies immediately, Jev categorizes the department, tags SLA urgency, and determines if automated resolution is legally safe.&lt;/p&gt;
+&lt;h3 id=&quot;6-dynamic-lead-scoring-and-crm-enrichment&quot;&gt;6. Dynamic Lead Scoring &amp;amp; CRM Enrichment&lt;/h3&gt;
+&lt;p&gt;Sales teams waste hours skimming notes. Jev evaluates unstructured meeting transcripts and extracts a purchase-intent score (1–100) alongside firmographic fit.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id=&quot;4-production-implementation-the-hybrid-triage-gate&quot;&gt;4. Production Implementation: The Hybrid Triage Gate&lt;/h2&gt;
+&lt;p&gt;Here is a production-grade Python implementation of an asynchronous support triage workflow. Jev acts as the high-speed gatekeeper: if a ticket represents a high-risk security alert or billing dispute, the expensive LLM generation step is bypassed completely.&lt;/p&gt;
+&lt;pre class=&quot;language-python&quot; tabindex=&quot;0&quot;&gt;&lt;code class=&quot;language-python&quot;&gt;&lt;span class=&quot;token keyword&quot;&gt;import&lt;/span&gt; os
+&lt;span class=&quot;token keyword&quot;&gt;import&lt;/span&gt; requests
+&lt;span class=&quot;token keyword&quot;&gt;from&lt;/span&gt; typing &lt;span class=&quot;token keyword&quot;&gt;import&lt;/span&gt; Dict&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; Any&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; Optional
+
+JEV_API_URL &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; os&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;getenv&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&quot;JEV_API_URL&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;https://api.typesafe.ai/v1/systemone&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+OPENAI_API_URL &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;https://api.openai.com/v1/chat/completions&quot;&lt;/span&gt;
+
+TYPESAFE_API_KEY &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; os&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;environ&lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&quot;TYPESAFE_API_KEY&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt;
+OPENAI_API_KEY &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; os&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;environ&lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&quot;OPENAI_API_KEY&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt;
+
+
+&lt;span class=&quot;token keyword&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;token function&quot;&gt;evaluate_ticket_with_jev&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;ticket_text&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token builtin&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; user_tier&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token builtin&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;token operator&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;token operator&quot;&gt;&gt;&lt;/span&gt; Dict&lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;token builtin&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; Any&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;token triple-quoted-string string&quot;&gt;&quot;&quot;&quot;
+    Sub-second evaluation pass using Jev.
+    Evaluates routing department, automated reply safety, and SLA urgency.
+    &quot;&quot;&quot;&lt;/span&gt;
+    payload &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;token string&quot;&gt;&quot;state&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token string-interpolation&quot;&gt;&lt;span class=&quot;token string&quot;&gt;f&quot;Customer Tier: &lt;/span&gt;&lt;span class=&quot;token interpolation&quot;&gt;&lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;user_tier&lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&#92;nTicket Content: &lt;/span&gt;&lt;span class=&quot;token interpolation&quot;&gt;&lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;ticket_text&lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&quot;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+        &lt;span class=&quot;token string&quot;&gt;&quot;questions&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;
+            &lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;
+                &lt;span class=&quot;token string&quot;&gt;&quot;id&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;department&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+                &lt;span class=&quot;token string&quot;&gt;&quot;type&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;choice&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+                &lt;span class=&quot;token string&quot;&gt;&quot;prompt&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;Which department should handle this request?&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+                &lt;span class=&quot;token string&quot;&gt;&quot;options&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;
+                    &lt;span class=&quot;token string&quot;&gt;&quot;general_faq&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+                    &lt;span class=&quot;token string&quot;&gt;&quot;billing_dispute&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+                    &lt;span class=&quot;token string&quot;&gt;&quot;technical_bug&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+                    &lt;span class=&quot;token string&quot;&gt;&quot;security_issue&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+                &lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+            &lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+            &lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;
+                &lt;span class=&quot;token string&quot;&gt;&quot;id&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;can_auto_reply&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+                &lt;span class=&quot;token string&quot;&gt;&quot;type&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;noul&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+                &lt;span class=&quot;token string&quot;&gt;&quot;prompt&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;Can this inquiry be safely addressed by an automated FAQ response without human approval?&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+            &lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+            &lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;
+                &lt;span class=&quot;token string&quot;&gt;&quot;id&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;urgency_score&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+                &lt;span class=&quot;token string&quot;&gt;&quot;type&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;score&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+                &lt;span class=&quot;token string&quot;&gt;&quot;prompt&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;Rate the urgency and SLA risk of this issue from 1 to 100.&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+            &lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+        &lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;
+
+    headers &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;token string&quot;&gt;&quot;Authorization&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token string-interpolation&quot;&gt;&lt;span class=&quot;token string&quot;&gt;f&quot;Bearer &lt;/span&gt;&lt;span class=&quot;token interpolation&quot;&gt;&lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;TYPESAFE_API_KEY&lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&quot;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+        &lt;span class=&quot;token string&quot;&gt;&quot;Content-Type&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;application/json&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;
+
+    response &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; requests&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;post&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;JEV_API_URL&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; headers&lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt;headers&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; json&lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt;payload&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; timeout&lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;token number&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+    response&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;raise_for_status&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;token keyword&quot;&gt;return&lt;/span&gt; response&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;json&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+
+
+&lt;span class=&quot;token keyword&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;token function&quot;&gt;call_llm_draft_response&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;ticket_text&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token builtin&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;token operator&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;token operator&quot;&gt;&gt;&lt;/span&gt; &lt;span class=&quot;token builtin&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;token triple-quoted-string string&quot;&gt;&quot;&quot;&quot;Invoked ONLY when Jev approves automated response generation.&quot;&quot;&quot;&lt;/span&gt;
+    headers &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;token string&quot;&gt;&quot;Authorization&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token string-interpolation&quot;&gt;&lt;span class=&quot;token string&quot;&gt;f&quot;Bearer &lt;/span&gt;&lt;span class=&quot;token interpolation&quot;&gt;&lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;OPENAI_API_KEY&lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&quot;&lt;/span&gt;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+        &lt;span class=&quot;token string&quot;&gt;&quot;Content-Type&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;application/json&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;
+    body &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;token string&quot;&gt;&quot;model&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;gpt-4o-mini&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+        &lt;span class=&quot;token string&quot;&gt;&quot;messages&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;
+            &lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;
+                &lt;span class=&quot;token string&quot;&gt;&quot;role&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;system&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+                &lt;span class=&quot;token string&quot;&gt;&quot;content&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;You are a concise customer support engineer. Provide a direct, factual answer.&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+            &lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+            &lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&quot;role&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;user&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;content&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; ticket_text&lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+        &lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+        &lt;span class=&quot;token string&quot;&gt;&quot;temperature&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;0.2&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;
+    response &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; requests&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;post&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;OPENAI_API_URL&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; headers&lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt;headers&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; json&lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt;body&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; timeout&lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;token number&quot;&gt;8&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+    response&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;raise_for_status&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;token keyword&quot;&gt;return&lt;/span&gt; response&lt;span class=&quot;token punctuation&quot;&gt;.&lt;/span&gt;json&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&quot;choices&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;token number&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&quot;message&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&quot;content&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt;
+
+
+&lt;span class=&quot;token keyword&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;token function&quot;&gt;route_and_process_ticket&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;ticket_text&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token builtin&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; user_tier&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token builtin&quot;&gt;str&lt;/span&gt; &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;Standard&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;token operator&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;token operator&quot;&gt;&gt;&lt;/span&gt; Dict&lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;token builtin&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; Any&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;token comment&quot;&gt;# 1. High-speed decision gate via Jev&lt;/span&gt;
+    jev_result &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; evaluate_ticket_with_jev&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;ticket_text&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt; user_tier&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+
+    &lt;span class=&quot;token comment&quot;&gt;# Extract strictly typed verdicts&lt;/span&gt;
+    department &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; jev_result&lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&quot;department&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&quot;value&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt;
+    can_auto_reply &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; jev_result&lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&quot;can_auto_reply&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&quot;value&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt;
+    urgency_score &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; jev_result&lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&quot;urgency_score&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;token string&quot;&gt;&quot;value&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;]&lt;/span&gt;
+
+    &lt;span class=&quot;token comment&quot;&gt;# 2. Short-circuit critical conditions without burning LLM tokens&lt;/span&gt;
+    &lt;span class=&quot;token keyword&quot;&gt;if&lt;/span&gt; department &lt;span class=&quot;token operator&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;security_issue&quot;&lt;/span&gt; &lt;span class=&quot;token keyword&quot;&gt;or&lt;/span&gt; urgency_score &lt;span class=&quot;token operator&quot;&gt;&gt;=&lt;/span&gt; &lt;span class=&quot;token number&quot;&gt;85&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;token keyword&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;token string&quot;&gt;&quot;status&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;ESCALATED_HUMAN_TIER_1&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+            &lt;span class=&quot;token string&quot;&gt;&quot;department&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; department&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+            &lt;span class=&quot;token string&quot;&gt;&quot;urgency&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; urgency_score&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+            &lt;span class=&quot;token string&quot;&gt;&quot;reason&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;Critical security flag or severe SLA urgency raised by Jev.&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+        &lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;
+
+    &lt;span class=&quot;token keyword&quot;&gt;if&lt;/span&gt; department &lt;span class=&quot;token operator&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;billing_dispute&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;token keyword&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;token string&quot;&gt;&quot;status&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;QUEUED_FINANCE_REVIEW&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+            &lt;span class=&quot;token string&quot;&gt;&quot;department&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; department&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+            &lt;span class=&quot;token string&quot;&gt;&quot;urgency&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; urgency_score&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+            &lt;span class=&quot;token string&quot;&gt;&quot;reason&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;Requires human finance verification; LLM generation bypassed.&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+        &lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;
+
+    &lt;span class=&quot;token comment&quot;&gt;# 3. Safe for automation? Let the generative model draft a reply&lt;/span&gt;
+    &lt;span class=&quot;token keyword&quot;&gt;if&lt;/span&gt; can_auto_reply&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt;
+        draft &lt;span class=&quot;token operator&quot;&gt;=&lt;/span&gt; call_llm_draft_response&lt;span class=&quot;token punctuation&quot;&gt;(&lt;/span&gt;ticket_text&lt;span class=&quot;token punctuation&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;token keyword&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;token string&quot;&gt;&quot;status&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;AUTO_REPLIED&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+            &lt;span class=&quot;token string&quot;&gt;&quot;department&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; department&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+            &lt;span class=&quot;token string&quot;&gt;&quot;urgency&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; urgency_score&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+            &lt;span class=&quot;token string&quot;&gt;&quot;response&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; draft&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+        &lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;
+
+    &lt;span class=&quot;token comment&quot;&gt;# 4. Fallback queue&lt;/span&gt;
+    &lt;span class=&quot;token keyword&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;token punctuation&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;token string&quot;&gt;&quot;status&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;QUEUED_STANDARD_SUPPORT&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+        &lt;span class=&quot;token string&quot;&gt;&quot;department&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; department&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+        &lt;span class=&quot;token string&quot;&gt;&quot;urgency&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; urgency_score&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+        &lt;span class=&quot;token string&quot;&gt;&quot;reason&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;token string&quot;&gt;&quot;Unsuitable for automated reply.&quot;&lt;/span&gt;&lt;span class=&quot;token punctuation&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;token punctuation&quot;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;hr&gt;
+&lt;h2 id=&quot;5-the-financial-and-operational-roi&quot;&gt;5. The Financial &amp;amp; Operational ROI&lt;/h2&gt;
+&lt;p&gt;Let&#39;s model the impact across &lt;strong&gt;100,000 incoming support tickets per month&lt;/strong&gt;:&lt;/p&gt;
+&lt;h3 id=&quot;traditional-naive-architecture-llm-for-all&quot;&gt;Traditional Naive Architecture (LLM for All)&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Every ticket hits &lt;code&gt;gpt-4o&lt;/code&gt; or &lt;code&gt;claude-3-5-sonnet&lt;/code&gt; to classify, summarize, and draft a response.&lt;/li&gt;
+&lt;li&gt;Avg token usage: 800 input tokens + 300 output tokens = ~$0.007 per ticket.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Total Cost:&lt;/strong&gt; &lt;strong&gt;$700 / month&lt;/strong&gt;&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Average Triage Latency:&lt;/strong&gt; &lt;strong&gt;2,200ms&lt;/strong&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&quot;hybrid-architecture-with-jev-decision-gates&quot;&gt;Hybrid Architecture with Jev Decision Gates&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;100,000 tickets pass through Jev first ($0.0004 per evaluation).&lt;/li&gt;
+&lt;li&gt;40% of tickets (billing disputes, outages, account closures) bypass LLM generation entirely and route to human queues in &lt;strong&gt;&amp;lt;120ms&lt;/strong&gt;.&lt;/li&gt;
+&lt;li&gt;35% of simple queries route to lightweight models (&lt;code&gt;gpt-4o-mini&lt;/code&gt; at $0.0003 per completion).&lt;/li&gt;
+&lt;li&gt;Only 25% of complex tickets require frontier model generation.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Total Cost:&lt;/strong&gt; &lt;strong&gt;$145 / month&lt;/strong&gt; (79% cost reduction)&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Average Triage Latency:&lt;/strong&gt; &lt;strong&gt;110ms&lt;/strong&gt; for escalations; &lt;strong&gt;650ms&lt;/strong&gt; overall.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;hr&gt;
+&lt;h2 id=&quot;6-production-checklist&quot;&gt;6. Production Checklist&lt;/h2&gt;
+&lt;p&gt;When introducing decision models into your agentic stack:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;[ ] &lt;strong&gt;Define Clear Primitives:&lt;/strong&gt; Map business decisions explicitly to &lt;code&gt;choice&lt;/code&gt; (routing), &lt;code&gt;noul&lt;/code&gt; (guardrails), or &lt;code&gt;score&lt;/code&gt; (thresholds).&lt;/li&gt;
+&lt;li&gt;[ ] &lt;strong&gt;Short-Circuit Early:&lt;/strong&gt; Place decision gates ahead of expensive LLMs and external third-party API tool calls.&lt;/li&gt;
+&lt;li&gt;[ ] &lt;strong&gt;Enforce Timeouts:&lt;/strong&gt; Set a strict 3–5 second timeout on decision evaluations to maintain sub-second SLA performance.&lt;/li&gt;
+&lt;li&gt;[ ] &lt;strong&gt;Telemetry:&lt;/strong&gt; Log decision confidence scores to detect topic drift and refine question prompts over time.&lt;/li&gt;
+&lt;/ul&gt;
+</content>
+  </entry>
   <entry>
     <title>Enterprise Claude Code on AWS Bedrock: Multi-User SSO, Governance, and AI Admin Playbook</title>
     <link href="https://rpm360.github.io/my-blog/blog/enterprise-claude-code-aws-bedrock-governance/" />
