@@ -237,31 +237,36 @@ document.getElementById('chat-form').addEventListener('submit', async function(e
 	const message = input.value.trim();
 	if (!message) return;
 
-	const userMsg = document.createElement('div');
-	userMsg.className = 'mb-2 text-right';
-	userMsg.innerHTML = `<span class="Label text-normal text-left color-bg-accent-emphasis color-fg-on-emphasis" style="display:inline-block; max-width: 80%; padding: 8px; white-space: pre-wrap; font-size: 14px;">${message}</span>`;
-	display.appendChild(userMsg);
+	// User message
+	const userBubble = document.createElement('div');
+	userBubble.className = 'msg msg-user';
+	userBubble.textContent = message;
+	display.appendChild(userBubble);
 
 	input.value = '';
 	submitBtn.disabled = true;
 	display.scrollTop = display.scrollHeight;
 
-	const aiMsg = document.createElement('div');
-	aiMsg.className = 'mb-2 text-left';
-	const aiBubble = document.createElement('span');
-	aiBubble.className = 'Label text-normal text-left color-bg-default color-border-default'
-	aiBubble.style.cssText = 'display:inline-block; max-width: 80%; padding: 8px; white-space: pre-wrap; font-size: 14px; border: 1px solid;';
-	aiMsg.appendChild(aiBubble);
-	display.appendChild(aiMsg);
+	// AI message placeholder
+	const aiBubble = document.createElement('div');
+	aiBubble.className = 'msg msg-ai';
+	display.appendChild(aiBubble);
 
 	try {
 		const response = await fetch('https://34-69-152-38.nip.io/api/chat', {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
+			headers: {
+				'Content-Type': 'application/json',
+				'X-Blog-Auth': 'BLOG_AI_2026_SECURE_TOKEN'
+			},
 			body: JSON.stringify({ message })
 		});
 
-		if (!response.ok) throw new Error('Network response was not ok');
+		if (!response.ok) {
+			if (response.status === 401) throw new Error('Unauthorized');
+			if (response.status === 429) throw new Error('Rate limit exceeded');
+			throw new Error('Network response was not ok');
+		}
 
 		const reader = response.body.getReader();
 		const decoder = new TextDecoder();
@@ -274,7 +279,7 @@ document.getElementById('chat-form').addEventListener('submit', async function(e
 			if (value) {
 				buffer += decoder.decode(value, { stream: true });
 				const lines = buffer.split('\n');
-				buffer = lines.pop(); // keep the last incomplete line
+				buffer = lines.pop();
 				for (const line of lines) {
 					if (line.startsWith('data: ')) {
 						const data = line.slice(6);
@@ -283,9 +288,10 @@ document.getElementById('chat-form').addEventListener('submit', async function(e
 							const parsed = JSON.parse(data);
 							if (parsed.text) {
 								aiBubble.textContent += parsed.text;
+							} else if (parsed.error) {
+								aiBubble.textContent = parsed.error;
 							}
 						} catch(err) {
-							// if plain text
 							aiBubble.textContent += data;
 						}
 					}
@@ -295,9 +301,152 @@ document.getElementById('chat-form').addEventListener('submit', async function(e
 		}
 	} catch (error) {
 		console.error('Chat error:', error);
-		aiBubble.textContent = 'Oops! Something went wrong communicating with the AI.';
+		aiBubble.textContent = error.message === 'Rate limit exceeded'
+			? 'Rate limit reached (5 messages/hour). Please try again later.'
+			: 'Oops! Something went wrong communicating with the AI.';
 	} finally {
 		submitBtn.disabled = false;
 		input.focus();
 	}
 });
+// ---- Per-post view counters (Abacus). Each post starts at 1000; +1 per visit to that post ----
+		(function () {
+			var BASE = 1000;
+			var isLocal = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+			document.querySelectorAll('.view-count').forEach(function (el) {
+				// Only the post's own page counts a visit (and not on localhost); cards just read
+				var mode = (el.hasAttribute('data-hit') && !isLocal) ? 'hit' : 'get';
+				fetch('https://abacus.jasoncameron.dev/' + mode + '/rpm360-my-blog/' + encodeURIComponent(el.dataset.slug))
+					.then(function (r) { return r.ok ? r.json() : { value: 0 }; })
+					.then(function (d) { el.textContent = (BASE + (d.value || 0)).toLocaleString('en-US'); })
+					.catch(function () {});
+			});
+		})();
+
+		// ---- Theme toggle ----
+		document.getElementById('theme-toggle').addEventListener('click', function () {
+			var next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+			document.documentElement.setAttribute('data-theme', next);
+			localStorage.setItem('theme', next);
+		});
+
+		// ---- Reading progress ----
+		var progress = document.getElementById('progress');
+		function updateProgress() {
+			var h = document.documentElement;
+			var max = h.scrollHeight - h.clientHeight;
+			progress.style.transform = 'scaleX(' + (max > 0 ? h.scrollTop / max : 0) + ')';
+		}
+		document.addEventListener('scroll', updateProgress, { passive: true });
+		updateProgress();
+
+		// ---- Copy buttons on code blocks ----
+		document.querySelectorAll('pre').forEach(function (pre) {
+			var btn = document.createElement('button');
+			btn.className = 'copy-btn';
+			btn.type = 'button';
+			btn.textContent = 'Copy';
+			btn.addEventListener('click', function () {
+				navigator.clipboard.writeText(pre.innerText.replace(/\nCopy$/, '')).then(function () {
+					btn.textContent = 'Copied ✓';
+					setTimeout(function () { btn.textContent = 'Copy'; }, 1600);
+				});
+			});
+			pre.appendChild(btn);
+		});
+
+		// ---- Table of contents (post pages) ----
+		var toc = document.getElementById('toc');
+		if (toc) {
+			var heads = document.querySelectorAll('.article-body h2[id], .article-body h3[id]');
+			if (heads.length >= 3) {
+				var list = toc.querySelector('ol');
+				heads.forEach(function (h) {
+					var li = document.createElement('li');
+					li.className = h.tagName === 'H3' ? 'l3' : 'l2';
+					var a = document.createElement('a');
+					a.href = '#' + h.id;
+					a.textContent = h.textContent.replace(/^#\s*/, '');
+					li.appendChild(a);
+					list.appendChild(li);
+				});
+				toc.hidden = false;
+				var links = toc.querySelectorAll('a');
+				var io = new IntersectionObserver(function (entries) {
+					entries.forEach(function (e) {
+						if (e.isIntersecting) {
+							links.forEach(function (l) { l.classList.toggle('active', l.getAttribute('href') === '#' + e.target.id); });
+						}
+					});
+				}, { rootMargin: '-80px 0px -70% 0px' });
+				heads.forEach(function (h) { io.observe(h); });
+			}
+		}
+
+		// ---- Search palette (⌘K / Ctrl+K or "/") ----
+		(function () {
+			var dialog = document.getElementById('search-dialog');
+			var input = document.getElementById('search-input');
+			var results = document.getElementById('search-results');
+			var openBtn = document.getElementById('search-open');
+			var index = null, selected = 0;
+
+			function load() {
+				if (index) return Promise.resolve(index);
+				return fetch(openBtn.dataset.index).then(function (r) { return r.json(); }).then(function (d) { return (index = d); });
+			}
+			function render(q) {
+				q = q.trim().toLowerCase();
+				var terms = q.split(/\s+/).filter(Boolean);
+				var hits = (index || []).filter(function (p) {
+					var hay = (p.title + ' ' + p.description + ' ' + p.tags.join(' ') + ' ' + p.text).toLowerCase();
+					return terms.every(function (t) { return hay.indexOf(t) !== -1; });
+				}).slice(0, 8);
+				if (!terms.length) hits = (index || []).slice(0, 5);
+				selected = 0;
+				results.innerHTML = '';
+				if (!hits.length) {
+					results.innerHTML = '<li class="search-empty">No posts match “' + q.replace(/</g, '&lt;') + '”</li>';
+					return;
+				}
+				hits.forEach(function (p, i) {
+					var li = document.createElement('li');
+					var a = document.createElement('a');
+					a.href = p.url;
+					if (i === 0) a.className = 'selected';
+					var t = document.createElement('span'); t.className = 's-title'; t.textContent = p.title;
+					var d = document.createElement('span'); d.className = 's-desc'; d.textContent = p.description;
+					a.appendChild(t); a.appendChild(d); li.appendChild(a); results.appendChild(li);
+				});
+			}
+			function open() {
+				dialog.showModal();
+				input.value = '';
+				load().then(function () { render(''); });
+				input.focus();
+			}
+			function move(delta) {
+				var items = results.querySelectorAll('a');
+				if (!items.length) return;
+				items[selected] && items[selected].classList.remove('selected');
+				selected = (selected + delta + items.length) % items.length;
+				items[selected].classList.add('selected');
+				items[selected].scrollIntoView({ block: 'nearest' });
+			}
+			openBtn.addEventListener('click', open);
+			input.addEventListener('input', function () { load().then(function () { render(input.value); }); });
+			input.addEventListener('keydown', function (e) {
+				if (e.key === 'ArrowDown') { e.preventDefault(); move(1); }
+				else if (e.key === 'ArrowUp') { e.preventDefault(); move(-1); }
+				else if (e.key === 'Enter') {
+					var a = results.querySelectorAll('a')[selected];
+					if (a) window.location.href = a.href;
+				}
+			});
+			dialog.addEventListener('click', function (e) { if (e.target === dialog) dialog.close(); });
+			document.addEventListener('keydown', function (e) {
+				var typing = /INPUT|TEXTAREA/.test(document.activeElement.tagName);
+				if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); dialog.open ? dialog.close() : open(); }
+				else if (e.key === '/' && !typing && !dialog.open) { e.preventDefault(); open(); }
+			});
+		})();
