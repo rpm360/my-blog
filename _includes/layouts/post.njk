@@ -43,3 +43,57 @@ layout: layouts/base.njk
 	{%- endif %}
 	{%- endif %}
 </article>
+
+{#- On-demand client-side rendering for Mermaid diagrams #}
+<script type="module">
+	const mermaidCodes = document.querySelectorAll('pre > code.language-mermaid, pre.language-mermaid');
+	if (mermaidCodes.length > 0) {
+		const { default: mermaid } = await import('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs');
+		
+		const getTheme = () => document.documentElement.getAttribute('data-theme') === 'light' ? 'default' : 'dark';
+
+		const diagrams = [];
+		mermaidCodes.forEach((codeEl, index) => {
+			const pre = codeEl.closest('pre');
+			if (pre && !pre.dataset.processed) {
+				pre.dataset.processed = "true";
+				const rawCode = (codeEl.tagName === 'CODE' ? codeEl.textContent : pre.textContent).trim();
+				const container = document.createElement('div');
+				container.className = 'mermaid';
+				container.id = 'mermaid-block-' + index;
+				container.dataset.raw = rawCode;
+				pre.parentNode.replaceChild(container, pre);
+				diagrams.push(container);
+			}
+		});
+
+		async function renderMermaid() {
+			mermaid.initialize({
+				startOnLoad: false,
+				theme: getTheme(),
+				themeVariables: {
+					darkMode: getTheme() === 'dark',
+					fontFamily: 'Inter, system-ui, sans-serif'
+				}
+			});
+
+			for (const container of diagrams) {
+				const id = 'svg-' + container.id + '-' + Math.random().toString(36).substring(2, 8);
+				try {
+					const { svg } = await mermaid.render(id, container.dataset.raw);
+					container.innerHTML = svg;
+				} catch (err) {
+					console.error('Mermaid render error:', err);
+					container.innerHTML = '<pre><code>' + container.dataset.raw + '</code></pre>';
+				}
+			}
+		}
+
+		await renderMermaid();
+
+		// Re-render when theme toggles
+		document.getElementById('theme-toggle')?.addEventListener('click', () => {
+			setTimeout(renderMermaid, 60);
+		});
+	}
+</script>
