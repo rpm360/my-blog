@@ -1,0 +1,16 @@
+---
+permalink: /search.json
+layout: false
+eleventyExcludeFromCollections: true
+---
+[
+{%- for post in collections.posts | reverse %}
+	{
+		"title": {{ post.data.title | dump | safe }},
+		"description": {{ (post.data.description or "") | dump | safe }},
+		"url": {{ post.url | url | dump | safe }},
+		"tags": {{ (post.data.tags | filterTagList) | dump | safe }},
+		"text": {{ post.templateContent | plainExcerpt(4000) | dump | safe }}
+	}{% if not loop.last %},{% endif %}
+{%- endfor %}
+]

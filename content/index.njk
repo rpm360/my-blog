@@ -4,14 +4,12 @@ const eleventyNavigation = {
 	order: 1
 };
 
-const numberOfLatestPostsToShow = 8;
+const numberOfLatestPostsToShow = 5;
 ---
-<div class="hero">
-	<span class="hero-emoji">🚀</span>
-	<div class="kinetic-container">
-		<h1 class="kinetic-text-layer">Rohit Marathe</h1>
-	</div>
-	<p class="hero-tagline">AI Systems Engineer building intelligent systems at scale.<br>Multi-Agent Systems · LLM Orchestration · Cloud Engineering</p>
+<section class="hero">
+	<span class="hero-eyebrow"><span class="dot"></span> Writing about AI systems &amp; engineering</span>
+	<h1>Hi, I'm <span class="gradient-text">Rohit Marathe.</span></h1>
+	<p class="hero-tagline">AI Systems Engineer building intelligent systems at scale — multi-agent systems, LLM orchestration and cloud engineering. Notes, patterns and lessons from the trenches.</p>
 	<ul class="hero-tags">
 		<li class="hero-tag">Python</li>
 		<li class="hero-tag">AWS</li>
@@ -22,45 +20,107 @@ const numberOfLatestPostsToShow = 8;
 		<li class="hero-tag">Kubernetes</li>
 		<li class="hero-tag">TypeScript</li>
 	</ul>
-</div>
+</section>
 
 {% set postsCount = collections.posts | length %}
-{% set latestPostsCount = postsCount | min(numberOfLatestPostsToShow) %}
-<h2 class="section-heading">Latest Post{% if latestPostsCount != 1 %}s{% endif %}</h2>
+<h2 class="section-heading"><span>Latest writing</span>{% if postsCount > numberOfLatestPostsToShow %}<a href="blog.njk">View all {{ postsCount }} posts →</a>{% endif %}</h2>
 
-<div class="bento-grid">
-	{% set postslist = collections.posts | head(-1 * numberOfLatestPostsToShow) | reverse %}
-	{% for post in postslist %}
-	<div class="bento-item">
-		<div class="bento-title"><a href="{{ post.url }}">{{ post.data.title }}</a></div>
-		<div class="bento-desc">{{ post.data.description or post.content | striptags | truncate(120) }}</div>
-		<div class="post-metadata mt-auto">
-			<time datetime="{{ post.date | htmlDateString }}">{{ post.date | readableDate("LLLL yyyy") }}</time>
-			<span class="reading-time">{{ post.data.readingTime }}</span>
-			{% for tag in post.data.tags | filterTagList %}
-				{% set tagUrl %}/tags/{{ tag | slugify }}/{% endset %}
-				<a href="{{ tagUrl }}" class="post-tag">{{ tag }}</a>{% if not loop.last %}, {% endif %}
-			{% endfor %}
-		</div>
+{% set postslist = collections.posts | head(-1 * numberOfLatestPostsToShow) %}
+{% set featured = true %}
+{% include "postslist.njk" %}
+
+<h2 class="section-heading" id="ask-my-ai-agent"><span>Ask my AI agent</span></h2>
+
+<div class="chat-container">
+	<div class="chat-header"><span class="dot"></span> Blog Assistant</div>
+	<div id="chat-display" class="chat-body">
+		<div class="msg msg-ai">Hi! I'm Rohit's AI assistant. Ask me about AI engineering, his blog posts, or his career path.</div>
 	</div>
-	{% endfor %}
+	<form id="chat-form" class="chat-form">
+		<input id="chat-input" type="text" placeholder="Type your message…" aria-label="Message">
+		<button id="chat-submit" type="submit">Send</button>
+	</form>
 </div>
 
-{% set morePosts = postsCount - numberOfLatestPostsToShow %}
-{% if morePosts > 0 %}
-<p class="mt-4">{{ morePosts }} more post{% if morePosts != 1 %}s{% endif %} can be found in <a href="blog.njk">the archive</a>.</p>
-{% endif %}
+<script>
+document.getElementById('chat-form').addEventListener('submit', async function(e) {
+	e.preventDefault();
+	const input = document.getElementById('chat-input');
+	const submitBtn = document.getElementById('chat-submit');
+	const display = document.getElementById('chat-display');
+	const message = input.value.trim();
+	if (!message) return;
 
-<h2 class="section-heading">Featured Projects</h2>
-<div class="bento-grid">
-	<div class="bento-item featured">
-		<div class="bento-title">OpenClaw Gateway</div>
-		<div class="bento-desc">Secure gateway node handling telemetry, authentication, and tunneling for agent endpoints.</div>
-		<a href="#" class="btn btn-primary">Learn More</a>
-	</div>
-	<div class="bento-item">
-		<div class="bento-title">Hiring Patterns Model</div>
-		<div class="bento-desc">Data analysis pipeline extracting AI SDE hiring patterns across the Atlanta region.</div>
-		<a href="#" class="btn">View Data</a>
-	</div>
-</div>
+	// User message
+	const userBubble = document.createElement('div');
+	userBubble.className = 'msg msg-user';
+	userBubble.textContent = message;
+	display.appendChild(userBubble);
+
+	input.value = '';
+	submitBtn.disabled = true;
+	display.scrollTop = display.scrollHeight;
+
+	// AI message placeholder
+	const aiBubble = document.createElement('div');
+	aiBubble.className = 'msg msg-ai';
+	display.appendChild(aiBubble);
+
+	try {
+		const response = await fetch('https://34-69-152-38.nip.io/api/chat', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				'X-Blog-Auth': 'BLOG_AI_2026_SECURE_TOKEN'
+			},
+			body: JSON.stringify({ message })
+		});
+
+		if (!response.ok) {
+			if (response.status === 401) throw new Error('Unauthorized');
+			if (response.status === 429) throw new Error('Rate limit exceeded');
+			throw new Error('Network response was not ok');
+		}
+
+		const reader = response.body.getReader();
+		const decoder = new TextDecoder();
+		let done = false;
+		let buffer = '';
+
+		while (!done) {
+			const { value, done: readerDone } = await reader.read();
+			done = readerDone;
+			if (value) {
+				buffer += decoder.decode(value, { stream: true });
+				const lines = buffer.split('\n');
+				buffer = lines.pop();
+				for (const line of lines) {
+					if (line.startsWith('data: ')) {
+						const data = line.slice(6);
+						if (data === '[DONE]') break;
+						try {
+							const parsed = JSON.parse(data);
+							if (parsed.text) {
+								aiBubble.textContent += parsed.text;
+							} else if (parsed.error) {
+								aiBubble.textContent = parsed.error;
+							}
+						} catch(err) {
+							aiBubble.textContent += data;
+						}
+					}
+				}
+				display.scrollTop = display.scrollHeight;
+			}
+		}
+	} catch (error) {
+		console.error('Chat error:', error);
+		aiBubble.textContent = error.message === 'Rate limit exceeded'
+			? 'Rate limit reached (5 messages/hour). Please try again later.'
+			: 'Oops! Something went wrong communicating with the AI.';
+	} finally {
+		submitBtn.disabled = false;
+		input.focus();
+	}
+});
+</script>
