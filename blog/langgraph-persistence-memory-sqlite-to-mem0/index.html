@@ -1,0 +1,1168 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>From SQLite to Mem0: Architecting Production Memory &amp; Persistence for LangGraph Agents</title>
+		<meta name="description" content="A deep architectural guide on scaling LangGraph memory from local SQLite checkpointers to production PostgreSQL pooling, Redis session caching, and semantic agent memory layers like Mem0.">
+		<meta name="author" content="Rohit Marathe">
+		<meta name="theme-color" content="#0b0f19">
+		<meta property="og:title" content="From SQLite to Mem0: Architecting Production Memory &amp; Persistence for LangGraph Agents">
+		<meta property="og:description" content="A deep architectural guide on scaling LangGraph memory from local SQLite checkpointers to production PostgreSQL pooling, Redis session caching, and semantic agent memory layers like Mem0.">
+		<meta property="og:type" content="article">
+		<link rel="alternate" href="/my-blog/feed/feed.xml" type="application/atom+xml" title="Rohit Marathe">
+		<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
+		<script>
+			(function () {
+				var t = localStorage.getItem('theme');
+				if (!t) t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+				document.documentElement.setAttribute('data-theme', t);
+			})();
+		</script>
+		<link rel="preconnect" href="https://fonts.googleapis.com">
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+		<link href="https://fonts.googleapis.com/css2?family=Geist&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+		
+		<style>/* ============================================
+   Rohit Marathe — Personal Blog Theme
+   Editorial reading experience · light + dark
+   ============================================ */
+
+/* === Design Tokens === */
+:root {
+	--font-family: 'Inter', -apple-system, system-ui, sans-serif;
+	--font-family-serif: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+	--font-family-monospace: 'JetBrains Mono', Consolas, Menlo, Monaco, monospace;
+
+	--accent: #0ea5e9;
+	--accent-2: #8b5cf6;
+	--accent-gradient: linear-gradient(120deg, #0ea5e9, #8b5cf6 60%, #ec4899);
+
+	--radius: 16px;
+	--radius-sm: 10px;
+	--transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+	--syntax-tab-size: 2;
+
+	--container: 1080px;
+	--reading: 700px;
+	color-scheme: dark;
+
+	/* Dark (default) */
+	--bg-primary: #0b0f19;
+	--bg-secondary: #111827;
+	--bg-card: rgba(255, 255, 255, 0.035);
+	--bg-card-hover: rgba(255, 255, 255, 0.06);
+	--bg-glass: rgba(11, 15, 25, 0.72);
+	--text-primary: #f1f5f9;
+	--text-body: #cbd5e1;
+	--text-secondary: #94a3b8;
+	--text-muted: #64748b;
+	--border-subtle: rgba(255, 255, 255, 0.08);
+	--border-accent: rgba(14, 165, 233, 0.4);
+	--accent-text: #38bdf8;
+	--code-bg: #0f172a;
+	--shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+	--glow-1: rgba(14, 165, 233, 0.12);
+	--glow-2: rgba(139, 92, 246, 0.1);
+}
+
+:root[data-theme="light"] {
+	color-scheme: light;
+	--bg-primary: #fbfbfd;
+	--bg-secondary: #f1f5f9;
+	--bg-card: #ffffff;
+	--bg-card-hover: #ffffff;
+	--bg-glass: rgba(251, 251, 253, 0.8);
+	--text-primary: #0f172a;
+	--text-body: #1e293b;
+	--text-secondary: #475569;
+	--text-muted: #64748b;
+	--border-subtle: rgba(15, 23, 42, 0.09);
+	--border-accent: rgba(14, 165, 233, 0.5);
+	--accent-text: #0369a1;
+	--code-bg: #f1f5f9;
+	--shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+	--glow-1: rgba(14, 165, 233, 0.1);
+	--glow-2: rgba(139, 92, 246, 0.08);
+}
+
+/* === Reset === */
+* { box-sizing: border-box; }
+@view-transition { navigation: auto; }
+
+html, body {
+	padding: 0;
+	margin: 0;
+	font-family: var(--font-family);
+	color: var(--text-primary);
+	background-color: var(--bg-primary);
+	-webkit-font-smoothing: antialiased;
+}
+html { overflow-y: scroll; scroll-behavior: smooth; scroll-padding-top: 90px; }
+body {
+	min-height: 100vh;
+	display: flex;
+	flex-direction: column;
+	transition: background-color 0.3s, color 0.3s;
+}
+
+/* Ambient glow */
+body::before {
+	content: '';
+	position: fixed;
+	inset: 0;
+	background:
+		radial-gradient(600px circle at 8% -5%, var(--glow-1), transparent 70%),
+		radial-gradient(700px circle at 100% 100%, var(--glow-2), transparent 70%);
+	pointer-events: none;
+	z-index: -1;
+}
+
+::selection { background: rgba(14, 165, 233, 0.3); }
+
+/* === Accessibility === */
+.visually-hidden:not(:focus):not(:active) {
+	clip: rect(0 0 0 0);
+	clip-path: inset(50%);
+	height: 1px;
+	overflow: hidden;
+	position: absolute;
+	white-space: nowrap;
+	width: 1px;
+}
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+@media (prefers-reduced-motion: reduce) {
+	* { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+
+/* === Media === */
+img { max-width: 100%; border-radius: var(--radius-sm); }
+img[width][height] { height: auto; }
+img[src$=".svg"] { width: 100%; height: auto; max-width: none; }
+video, iframe { width: 100%; height: auto; border-radius: var(--radius); }
+iframe { aspect-ratio: 16/9; }
+
+/* === Typography === */
+p { line-height: 1.75; color: var(--text-body); }
+li { line-height: 1.75; color: var(--text-body); }
+h1, h2, h3, h4 { color: var(--text-primary); letter-spacing: -0.025em; line-height: 1.2; }
+h1 { font-size: 2.2rem; font-weight: 800; }
+h2 { font-size: 1.55rem; margin-top: 2em; font-weight: 700; }
+h3 { font-size: 1.2rem; margin-top: 1.8em; font-weight: 650; }
+hr { border: 0; border-top: 1px solid var(--border-subtle); margin: 3rem 0; }
+
+a[href] { color: var(--accent-text); text-decoration: none; transition: var(--transition); }
+a[href]:hover { color: var(--text-primary); }
+
+/* === Layout === */
+.container { width: 100%; max-width: var(--container); margin: 0 auto; padding: 0 1.5rem; }
+main { flex: 1; padding: 2.5rem 0 4rem; animation: fadeInUp 0.45s ease-out; }
+main > heading-anchors > :first-child { margin-top: 0; }
+@keyframes fadeInUp {
+	from { opacity: 0; transform: translateY(14px); }
+	to { opacity: 1; transform: translateY(0); }
+}
+
+/* === Header === */
+.site-header {
+	position: sticky;
+	top: 0;
+	z-index: 100;
+	background: var(--bg-glass);
+	backdrop-filter: saturate(180%) blur(16px);
+	-webkit-backdrop-filter: saturate(180%) blur(16px);
+	border-bottom: 1px solid var(--border-subtle);
+}
+.site-header .container {
+	display: flex;
+	align-items: center;
+	gap: 1rem;
+	height: 64px;
+}
+.home-link {
+	flex-grow: 1;
+	font-size: 1.1rem;
+	font-weight: 800;
+	letter-spacing: -0.03em;
+	background: var(--accent-gradient);
+	-webkit-background-clip: text;
+	background-clip: text;
+	-webkit-text-fill-color: transparent;
+}
+.home-link:hover { opacity: 0.8; color: transparent !important; }
+.nav { display: flex; gap: 0.25rem; padding: 0; margin: 0; list-style: none; }
+.nav-item a[href] {
+	color: var(--text-secondary);
+	font-size: 0.9rem;
+	font-weight: 500;
+	padding: 0.45em 0.85em;
+	border-radius: 999px;
+}
+.nav-item a[href]:hover { color: var(--text-primary); background: var(--bg-card-hover); }
+.nav a[href][aria-current="page"] { color: var(--text-primary); background: var(--bg-card); box-shadow: inset 0 0 0 1px var(--border-subtle); }
+
+.header-actions { display: flex; gap: 0.5rem; align-items: center; }
+.icon-btn, .search-trigger {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	height: 36px;
+	padding: 0 0.7rem;
+	border: 1px solid var(--border-subtle);
+	background: var(--bg-card);
+	color: var(--text-secondary);
+	border-radius: 999px;
+	font: inherit;
+	font-size: 0.85rem;
+	cursor: pointer;
+	transition: var(--transition);
+}
+.icon-btn { width: 36px; justify-content: center; padding: 0; }
+.icon-btn:hover, .search-trigger:hover { color: var(--text-primary); border-color: var(--border-accent); }
+.search-trigger kbd {
+	font: 500 0.7rem var(--font-family);
+	padding: 0.1rem 0.4rem;
+	border-radius: 5px;
+	border: 1px solid var(--border-subtle);
+	color: var(--text-muted);
+}
+.theme-toggle .sun { display: none; }
+:root[data-theme="light"] .theme-toggle .sun { display: block; }
+:root[data-theme="light"] .theme-toggle .moon { display: none; }
+
+#skip-link {
+	background: var(--bg-secondary);
+	color: var(--text-primary);
+	padding: 0.5rem 1rem;
+	border: 1px solid var(--border-accent);
+	border-radius: var(--radius-sm);
+}
+#skip-link.visually-hidden:focus { position: absolute; top: 1rem; left: 1rem; z-index: 999; }
+
+/* Reading progress */
+.progress {
+	position: fixed;
+	top: 0; left: 0;
+	height: 3px;
+	width: 100%;
+	transform-origin: 0 50%;
+	transform: scaleX(0);
+	background: var(--accent-gradient);
+	z-index: 200;
+}
+
+/* === Hero === */
+.hero { padding: 4rem 0 3rem; max-width: 780px; }
+.hero-eyebrow {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	font-size: 0.8rem;
+	font-weight: 600;
+	color: var(--text-secondary);
+	padding: 0.35rem 0.8rem;
+	border: 1px solid var(--border-subtle);
+	background: var(--bg-card);
+	border-radius: 999px;
+	margin-bottom: 1.5rem;
+}
+.hero-eyebrow .dot {
+	width: 8px; height: 8px; border-radius: 50%;
+	background: #22c55e;
+	box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.6);
+	animation: pulse 2s infinite;
+}
+@keyframes pulse {
+	70% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
+	100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+}
+.hero h1 {
+	font-size: clamp(2.4rem, 6vw, 3.8rem);
+	font-weight: 800;
+	line-height: 1.05;
+	margin: 0 0 1rem;
+	letter-spacing: -0.04em;
+}
+.gradient-text {
+	background: var(--accent-gradient);
+	-webkit-background-clip: text;
+	background-clip: text;
+	-webkit-text-fill-color: transparent;
+}
+.hero-tagline { font-size: 1.2rem; color: var(--text-secondary); margin: 0 0 1.75rem; line-height: 1.6; }
+.hero-tags { display: flex; flex-wrap: wrap; gap: 0.5rem; list-style: none; padding: 0; margin: 0; }
+.hero-tag {
+	font-size: 0.8rem;
+	font-weight: 500;
+	line-height: 1.4;
+	color: var(--text-secondary);
+	background: var(--bg-card);
+	border: 1px solid var(--border-subtle);
+	padding: 0.3em 0.85em;
+	border-radius: 999px;
+}
+
+/* === Section headings === */
+.section-heading {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	font-size: 0.8rem;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.12em;
+	color: var(--text-muted);
+	margin: 3rem 0 1.25rem;
+}
+.section-heading a { text-transform: none; letter-spacing: 0; font-size: 0.9rem; font-weight: 500; }
+
+/* === Post cards === */
+.postlist {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+	gap: 1.25rem;
+}
+.postlist-item {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+	padding: 1.5rem;
+	background: var(--bg-card);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius);
+	transition: var(--transition);
+}
+.postlist-item:hover {
+	border-color: var(--border-accent);
+	transform: translateY(-4px);
+	box-shadow: var(--shadow);
+	background: var(--bg-card-hover);
+}
+.postlist-meta { display: flex; gap: 0.5rem; align-items: center; font-size: 0.78rem; color: var(--text-muted); }
+.postlist-link {
+	font-size: 1.2rem;
+	font-weight: 700;
+	line-height: 1.3;
+	letter-spacing: -0.02em;
+	color: var(--text-primary) !important;
+}
+/* Whole card is clickable */
+.postlist-link::after { content: ''; position: absolute; inset: 0; border-radius: var(--radius); }
+.postlist-item:hover .postlist-link { color: var(--accent-text) !important; }
+.postlist-desc {
+	margin: 0;
+	font-size: 0.93rem;
+	line-height: 1.6;
+	color: var(--text-secondary);
+	display: -webkit-box;
+	-webkit-line-clamp: 3;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+.postlist-tags { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: auto; padding-top: 0.25rem; position: relative; z-index: 1; }
+
+/* Featured (first) card spans the grid on wide screens */
+.postlist.featured .postlist-item:first-child { grid-column: 1 / -1; padding: 2rem; }
+.postlist.featured .postlist-item:first-child .postlist-link { font-size: 1.75rem; }
+.postlist.featured .postlist-item:first-child .postlist-desc { font-size: 1.05rem; -webkit-line-clamp: 2; max-width: 60ch; }
+
+/* === Tags === */
+.post-tag {
+	display: inline-flex;
+	align-items: center;
+	font-size: 0.75rem;
+	font-weight: 500;
+	color: var(--text-secondary);
+	background: var(--bg-secondary);
+	border: 1px solid var(--border-subtle);
+	padding: 0.2em 0.7em;
+	border-radius: 999px;
+	text-transform: capitalize;
+}
+a.post-tag:hover { color: var(--accent-text); border-color: var(--border-accent); }
+
+/* === Article === */
+.article { max-width: var(--reading); margin: 0 auto; }
+.article-header { margin-bottom: 2.5rem; }
+.article-header h1 {
+	font-size: clamp(2rem, 5vw, 3rem);
+	line-height: 1.1;
+	letter-spacing: -0.035em;
+	margin: 0 0 1rem;
+}
+.article-desc { font-size: 1.2rem; color: var(--text-secondary); line-height: 1.55; margin: 0 0 1.5rem; }
+.post-metadata {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5rem 1rem;
+	list-style: none;
+	padding: 1rem 0 0;
+	margin: 0;
+	border-top: 1px solid var(--border-subtle);
+	font-size: 0.88rem;
+	color: var(--text-muted);
+}
+.post-metadata li { color: var(--text-muted); line-height: 1.5; }
+.post-metadata .tags { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-left: auto; }
+
+/* Comfortable long-form body */
+.article-body { font-size: 1.125rem; }
+.article-body p, .article-body li { font-size: 1.125rem; line-height: 1.85; color: var(--text-body); }
+.article-body p { margin: 1.4em 0; }
+.article-body h2 { margin-top: 2.6em; padding-top: 0.2em; }
+.article-body a[href]:not(.heading-anchor) {
+	text-decoration: underline;
+	text-decoration-color: color-mix(in srgb, var(--accent-text) 40%, transparent);
+	text-underline-offset: 3px;
+}
+.article-body a[href]:hover { text-decoration-color: currentColor; }
+.article-body blockquote {
+	margin: 1.8em 0;
+	padding: 0.2em 0 0.2em 1.4em;
+	border-left: 3px solid var(--accent);
+	color: var(--text-secondary);
+	font-style: italic;
+}
+.article-body blockquote p { color: inherit; margin: 0.6em 0; }
+.article-body ul, .article-body ol { padding-left: 1.4em; }
+.article-body li::marker { color: var(--accent); }
+.article-body img { display: block; margin: 2em auto; border: 1px solid var(--border-subtle); }
+
+/* Table of contents */
+.toc {
+	margin: 0 0 2.5rem;
+	padding: 1.1rem 1.4rem;
+	background: var(--bg-card);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius);
+}
+.toc[hidden] { display: none; }
+.toc-title { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); margin: 0 0 0.6rem; }
+.toc ol { list-style: none; margin: 0; padding: 0; }
+.toc li { line-height: 1.4; margin: 0.15rem 0; }
+.toc li.l3 { padding-left: 1rem; }
+.toc a[href] { display: block; padding: 0.25rem 0; font-size: 0.92rem; color: var(--text-secondary); }
+.toc a[href]:hover, .toc a[href].active { color: var(--accent-text); }
+
+/* Prev/Next */
+.links-nextprev {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 1rem;
+	list-style: none;
+	padding: 0;
+	margin: 4rem 0 0;
+}
+.links-nextprev li {
+	padding: 1.1rem 1.3rem;
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius);
+	background: var(--bg-card);
+	transition: var(--transition);
+	font-size: 0.8rem;
+	color: var(--text-muted);
+}
+.links-nextprev li:hover { border-color: var(--border-accent); transform: translateY(-2px); }
+.links-nextprev li a { display: block; margin-top: 0.3rem; font-size: 1rem; font-weight: 600; color: var(--text-primary); line-height: 1.35; }
+.links-nextprev-next { text-align: right; grid-column: 2; }
+.links-nextprev-prev { grid-column: 1; }
+
+/* === Tables === */
+table { margin: 1.5em 0; border-collapse: collapse; width: 100%; display: block; overflow-x: auto; font-size: 0.95rem; }
+table td, table th { padding: 0.6em 1em; border: 1px solid var(--border-subtle); text-align: left; }
+table th { background: var(--bg-secondary); color: var(--text-primary); }
+
+/* === Code === */
+pre, code { font-family: var(--font-family-monospace); }
+code {
+	font-size: 0.86em;
+	color: var(--accent-text);
+	background: var(--bg-secondary);
+	padding: 0.15em 0.4em;
+	border-radius: 6px;
+}
+pre code { background: none; padding: 0; color: inherit; word-break: normal; }
+pre {
+	position: relative;
+	margin: 1.8em 0;
+	line-height: 1.6;
+	tab-size: var(--syntax-tab-size);
+	hyphens: none;
+	direction: ltr;
+	text-align: left;
+	white-space: pre;
+	overflow-x: auto;
+	background: var(--code-bg);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius-sm);
+	padding: 1.1em 1.3em;
+	font-size: 0.88rem;
+}
+pre[class*="language-"] { background: #0d1117 !important; border-radius: var(--radius-sm); }
+.copy-btn {
+	position: absolute;
+	top: 0.6rem;
+	right: 0.6rem;
+	font: 500 0.72rem var(--font-family);
+	padding: 0.3rem 0.65rem;
+	border-radius: 6px;
+	border: 1px solid rgba(255, 255, 255, 0.12);
+	background: rgba(255, 255, 255, 0.07);
+	color: #cbd5e1;
+	cursor: pointer;
+	opacity: 0;
+	transition: var(--transition);
+}
+pre:hover .copy-btn, .copy-btn:focus-visible { opacity: 1; }
+.copy-btn:hover { background: rgba(255, 255, 255, 0.15); }
+
+/* === Footer === */
+footer { border-top: 1px solid var(--border-subtle); padding: 2.5rem 0; }
+footer .container { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
+footer p { margin: 0; font-size: 0.85rem; color: var(--text-muted); }
+.footer-links { display: flex; gap: 1.5rem; }
+.footer-links a { color: var(--text-secondary); font-size: 0.88rem; font-weight: 500; }
+.footer-links a:hover { color: var(--accent-text); }
+
+/* === Search palette === */
+.search-dialog {
+	width: min(640px, calc(100vw - 2rem));
+	margin: 12vh auto auto;
+	padding: 0;
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius);
+	background: var(--bg-secondary);
+	color: var(--text-primary);
+	box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+	overflow: hidden;
+}
+.search-dialog::backdrop { background: rgba(2, 6, 23, 0.6); backdrop-filter: blur(4px); }
+.search-input {
+	width: 100%;
+	padding: 1.1rem 1.4rem;
+	background: transparent;
+	border: 0;
+	border-bottom: 1px solid var(--border-subtle);
+	color: var(--text-primary);
+	font: inherit;
+	font-size: 1.05rem;
+	outline: none;
+}
+.search-results { list-style: none; margin: 0; padding: 0.5rem; max-height: 50vh; overflow-y: auto; }
+.search-results li { padding: 0; }
+.search-results a[href] {
+	display: block;
+	padding: 0.7rem 0.9rem;
+	border-radius: var(--radius-sm);
+	color: var(--text-primary);
+}
+.search-results a[href]:hover, .search-results a[href].selected { background: var(--bg-card-hover); box-shadow: inset 0 0 0 1px var(--border-accent); }
+.search-results .s-title { font-weight: 600; font-size: 0.97rem; }
+.search-results .s-desc { display: block; font-size: 0.82rem; color: var(--text-secondary); margin-top: 0.15rem; }
+.search-empty { padding: 1.2rem; text-align: center; color: var(--text-muted); font-size: 0.9rem; }
+
+/* === Chat (homepage) === */
+.chat-container {
+	background: var(--bg-card);
+	border: 1px solid var(--border-subtle);
+	border-radius: var(--radius);
+	overflow: hidden;
+	margin-bottom: 2rem;
+}
+.chat-header { padding: 0.9rem 1.4rem; border-bottom: 1px solid var(--border-subtle); display: flex; align-items: center; gap: 0.6rem; font-weight: 600; font-size: 0.95rem; }
+.chat-header .dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; }
+.chat-body { height: 320px; overflow-y: auto; padding: 1.4rem; display: flex; flex-direction: column; gap: 0.9rem; }
+.msg { max-width: 85%; padding: 0.7rem 1rem; border-radius: 14px; font-size: 0.95rem; line-height: 1.55; white-space: pre-wrap; }
+.msg-ai { align-self: flex-start; background: var(--bg-secondary); border: 1px solid var(--border-subtle); color: var(--text-primary); border-bottom-left-radius: 4px; }
+.msg-user { align-self: flex-end; background: var(--accent-gradient); color: #fff; border-bottom-right-radius: 4px; }
+.chat-form { display: flex; gap: 0.6rem; padding: 0.9rem 1.2rem; border-top: 1px solid var(--border-subtle); }
+.chat-form input {
+	flex: 1;
+	padding: 0.65rem 1rem;
+	background: var(--bg-primary);
+	border: 1px solid var(--border-subtle);
+	border-radius: 999px;
+	color: var(--text-primary);
+	font: inherit;
+	font-size: 0.95rem;
+	outline: none;
+}
+.chat-form input:focus { border-color: var(--border-accent); }
+.chat-form button {
+	padding: 0.6rem 1.3rem;
+	border: 0;
+	border-radius: 999px;
+	background: var(--accent-gradient);
+	color: #fff;
+	font: inherit;
+	font-weight: 600;
+	font-size: 0.9rem;
+	cursor: pointer;
+	transition: var(--transition);
+}
+.chat-form button:hover { filter: brightness(1.1); }
+.chat-form button:disabled { opacity: 0.5; cursor: wait; }
+
+/* === Responsive === */
+@media (max-width: 700px) {
+	.container { padding: 0 1.1rem; }
+	.nav-item a[href] { padding: 0.4em 0.6em; font-size: 0.85rem; }
+	.search-trigger span, .search-trigger kbd { display: none; }
+	.search-trigger { width: 36px; padding: 0; justify-content: center; }
+	.hero { padding: 2.5rem 0 2rem; }
+	.article-body, .article-body p, .article-body li { font-size: 1.05rem; }
+	.links-nextprev { grid-template-columns: 1fr; }
+	.links-nextprev-next, .links-nextprev-prev { grid-column: 1; }
+	.post-metadata .tags { margin-left: 0; }
+}
+@media (max-width: 520px) {
+	.site-header .container { height: auto; padding-top: 0.7rem; padding-bottom: 0.7rem; flex-wrap: wrap; }
+	.home-link { flex-basis: 60%; }
+}
+
+@media print {
+	.site-header, .progress, footer, .toc, .copy-btn, .links-nextprev { display: none !important; }
+	body::before { display: none; }
+}
+/**
+ * okaidia theme for JavaScript, CSS and HTML
+ * Loosely based on Monokai textmate theme by http://www.monokai.nl/
+ * @author ocodia
+ */
+
+code[class*="language-"],
+pre[class*="language-"] {
+	color: #f8f8f2;
+	background: none;
+	text-shadow: 0 1px rgba(0, 0, 0, 0.3);
+	font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+	font-size: 1em;
+	text-align: left;
+	white-space: pre;
+	word-spacing: normal;
+	word-break: normal;
+	word-wrap: normal;
+	line-height: 1.5;
+
+	-moz-tab-size: 4;
+	-o-tab-size: 4;
+	tab-size: 4;
+
+	-webkit-hyphens: none;
+	-moz-hyphens: none;
+	-ms-hyphens: none;
+	hyphens: none;
+}
+
+/* Code blocks */
+pre[class*="language-"] {
+	padding: 1em;
+	margin: .5em 0;
+	overflow: auto;
+	border-radius: 0.3em;
+}
+
+:not(pre) > code[class*="language-"],
+pre[class*="language-"] {
+	background: #272822;
+}
+
+/* Inline code */
+:not(pre) > code[class*="language-"] {
+	padding: .1em;
+	border-radius: .3em;
+	white-space: normal;
+}
+
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+	color: #8292a2;
+}
+
+.token.punctuation {
+	color: #f8f8f2;
+}
+
+.token.namespace {
+	opacity: .7;
+}
+
+.token.property,
+.token.tag,
+.token.constant,
+.token.symbol,
+.token.deleted {
+	color: #f92672;
+}
+
+.token.boolean,
+.token.number {
+	color: #ae81ff;
+}
+
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.inserted {
+	color: #a6e22e;
+}
+
+.token.operator,
+.token.entity,
+.token.url,
+.language-css .token.string,
+.style .token.string,
+.token.variable {
+	color: #f8f8f2;
+}
+
+.token.atrule,
+.token.attr-value,
+.token.function,
+.token.class-name {
+	color: #e6db74;
+}
+
+.token.keyword {
+	color: #66d9ef;
+}
+
+.token.regex,
+.token.important {
+	color: #fd971f;
+}
+
+.token.important,
+.token.bold {
+	font-weight: bold;
+}
+.token.italic {
+	font-style: italic;
+}
+
+.token.entity {
+	cursor: help;
+}
+/*
+ * New diff- syntax
+ */
+
+pre[class*="language-diff-"] {
+	--eleventy-code-padding: 1.25em;
+	padding-left: var(--eleventy-code-padding);
+	padding-right: var(--eleventy-code-padding);
+}
+.token.deleted {
+	background-color: hsl(0, 51%, 37%);
+	color: inherit;
+}
+.token.inserted {
+	background-color: hsl(126, 31%, 39%);
+	color: inherit;
+}
+
+/* Make the + and - characters unselectable for copy/paste */
+.token.prefix.unchanged,
+.token.prefix.inserted,
+.token.prefix.deleted {
+	-webkit-user-select: none;
+	user-select: none;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding-top: 2px;
+	padding-bottom: 2px;
+}
+.token.prefix.inserted,
+.token.prefix.deleted {
+	width: var(--eleventy-code-padding);
+	background-color: rgba(0,0,0,.2);
+}
+
+/* Optional: full-width background color */
+.token.inserted:not(.prefix),
+.token.deleted:not(.prefix) {
+	display: block;
+	margin-left: calc(-1 * var(--eleventy-code-padding));
+	margin-right: calc(-1 * var(--eleventy-code-padding));
+	text-decoration: none; /* override del, ins, mark defaults */
+	color: inherit; /* override del, ins, mark defaults */
+}</style>
+		
+	</head>
+	<body>
+		<a href="#main" id="skip-link" class="visually-hidden">Skip to main content</a>
+		<div class="progress" id="progress" aria-hidden="true"></div>
+
+		<header class="site-header">
+			<div class="container">
+				<a href="/my-blog/" class="home-link">Rohit Marathe</a>
+				<nav aria-label="Primary">
+					<ul class="nav">
+						<li class="nav-item"><a href="/my-blog/">Home</a></li>
+						<li class="nav-item"><a href="/my-blog/blog/">Archive</a></li>
+						<li class="nav-item"><a href="/my-blog/about/">About</a></li>
+						<li class="nav-item"><a href="/my-blog/feed/feed.xml">Feed</a></li>
+					</ul>
+				</nav>
+
+				<div class="header-actions">
+					<button class="search-trigger" id="search-open" type="button" aria-label="Search posts" data-index="/my-blog/search.json">
+						<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+						<span>Search</span><kbd>⌘K</kbd>
+					</button>
+					<button class="icon-btn theme-toggle" id="theme-toggle" type="button" aria-label="Toggle light/dark theme">
+						<svg class="moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path></svg>
+						<svg class="sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+					</button>
+				</div>
+			</div>
+		</header>
+
+		<main id="main">
+			<div class="container">
+				<heading-anchors>
+					
+
+
+<article class="article">
+	<header class="article-header">
+		<h1 id="from-sqlite-to-mem0-architecting-production-memory-and-persistence-for-langgraph-agents">From SQLite to Mem0: Architecting Production Memory &amp; Persistence for LangGraph Agents</h1><p class="article-desc">A deep architectural guide on scaling LangGraph memory from local SQLite checkpointers to production PostgreSQL pooling, Redis session caching, and semantic agent memory layers like Mem0.</p>
+		<ul class="post-metadata">
+			<li><time datetime="2026-04-15">April 15, 2026</time></li>
+			<li>·</li>
+			<li>8 min read</li>
+			<li>·</li>
+			<li title="Views of this post">👁 <span class="view-count" data-slug="langgraph-persistence-memory-sqlite-to-mem0" data-hit="">1,000</span> views</li>
+			<li class="tags">
+				<a href="/my-blog/tags/langgraph/" class="post-tag">langgraph</a>
+				<a href="/my-blog/tags/ai-agents/" class="post-tag">ai-agents</a>
+				<a href="/my-blog/tags/system-design/" class="post-tag">system-design</a>
+				<a href="/my-blog/tags/memory-architecture/" class="post-tag">memory-architecture</a>
+				<a href="/my-blog/tags/python/" class="post-tag">python</a>
+				<a href="/my-blog/tags/database/" class="post-tag">database</a>
+			</li>
+		</ul>
+	</header>
+
+	<nav class="toc" id="toc" aria-label="Table of contents" hidden="">
+		<p class="toc-title">On this page</p>
+		<ol></ol>
+	</nav>
+
+	<div class="article-body">
+		<p>When building stateful AI agents with <strong>LangGraph</strong>, the path from prototype to production is paved with memory decisions. In official quickstarts, you often see <code>SqliteSaver</code> used as a lightweight checkpointer: you point it at a local <code>.db</code> file, and suddenly your agent remembers conversations across multiple turns.</p>
+<p>It feels effortless—until you deploy it to multi-user, multi-instance production environments.</p>
+<p>In this deep dive, we explore how memory actually works in LangGraph, why SQLite hits a hard wall in production, and how modern agentic architectures combine <strong>PostgreSQL connection pooling</strong>, <strong>Redis caching</strong>, and intelligent semantic memory layers like <strong>Mem0</strong> to support high-concurrency, personalized agent workflows.</p>
+<hr>
+<h2 id="1-langgraph-memory-anatomy-checkpointers-vs-stores">1. LangGraph Memory Anatomy: Checkpointers vs. Stores</h2>
+<p>LangGraph bifurcates agent memory into two distinct abstractions:</p>
+<pre><code>┌────────────────────────────────────────────────────────┐
+│                   LangGraph Memory                     │
+├───────────────────────────┬────────────────────────────┤
+│   Short-Term / Thread     │     Long-Term / Cross-     │
+│   (Checkpointers)         │     Thread (Stores)        │
+│                           │                            │
+│ • State checkpointing     │ • User profiles &amp; traits   │
+│ • Per-session trajectory  │ • Durable facts &amp; habits   │
+│ • Time-travel &amp; branching │ • Cross-session memories   │
+│ • Rollbacks &amp; human-loop  │ • Semantic search recall   │
+└───────────────────────────┴────────────────────────────┘
+</code></pre>
+<ol>
+<li>
+<p><strong>Short-Term Thread Memory (Checkpointers):</strong></p>
+<ul>
+<li>Implemented via <code>BaseCheckpointSaver</code> (e.g., <code>MemorySaver</code>, <code>SqliteSaver</code>, <code>PostgresSaver</code>).</li>
+<li>Saves graph state snapshots after each node executes.</li>
+<li>Allows resuming interrupted flows, human-in-the-loop approvals, and rollbacks.</li>
+<li>Scoped strictly to a <code>thread_id</code>.</li>
+</ul>
+</li>
+<li>
+<p><strong>Long-Term Cross-Thread Memory (Stores):</strong></p>
+<ul>
+<li>Implemented via the <code>BaseStore</code> interface.</li>
+<li>Preserves knowledge <em>across</em> different threads and interaction sessions for a given user or organization.</li>
+<li>Houses user preferences, extracted facts, and historical patterns.</li>
+</ul>
+</li>
+</ol>
+<hr>
+<h2 id="2-the-sqlite-wall-in-production">2. The SQLite Wall in Production</h2>
+<p><code>SqliteSaver</code> is an embedded database engine running directly in your application process:</p>
+<pre class="language-python" tabindex="0"><code class="language-python"><span class="token keyword">from</span> langgraph<span class="token punctuation">.</span>checkpoint<span class="token punctuation">.</span>sqlite <span class="token keyword">import</span> SqliteSaver
+
+<span class="token comment"># Great for local development:</span>
+memory <span class="token operator">=</span> SqliteSaver<span class="token punctuation">.</span>from_conn_string<span class="token punctuation">(</span><span class="token string">"checkpoints.db"</span><span class="token punctuation">)</span>
+graph <span class="token operator">=</span> builder<span class="token punctuation">.</span><span class="token builtin">compile</span><span class="token punctuation">(</span>checkpointer<span class="token operator">=</span>memory<span class="token punctuation">)</span></code></pre>
+<p>While great for local CLI testing, SQLite runs into major architectural limitations when deployed to cloud environments:</p>
+<h3 id="the-single-writer-concurrency-bottleneck">The Single-Writer Concurrency Bottleneck</h3>
+<p>SQLite uses database-level locks for writes. When multiple concurrent users interact with your agent, simultaneous graph state commits queue up. Under moderate traffic spikes, requests quickly fail with <code>sqlite3.OperationalError: database is locked</code> or experience extreme latency tail-ends.</p>
+<h3 id="ephemeral-containers-and-distributed-instances">Ephemeral Containers &amp; Distributed Instances</h3>
+<p>Modern cloud deployments run on Kubernetes, ECS, or serverless containers with multiple horizontal replicas. A local SQLite file lives on an ephemeral container volume:</p>
+<ul>
+<li>Multiple replicas cannot safely share a single SQLite file across network mounts (NFS/EFS) without risking write corruption and lock contention.</li>
+<li>When an auto-scaling group spins down a container, all local checkpoint history is destroyed.</li>
+</ul>
+<h3 id="lack-of-enterprise-ha-and-point-in-time-recovery">Lack of Enterprise HA &amp; Point-in-Time Recovery</h3>
+<p>Production workloads require automated failover, streaming replication, read replicas, and point-in-time recovery (PITR)—capabilities that server-based relational engines deliver out of the box.</p>
+<hr>
+<h2 id="3-scaling-checkpointers-postgresql-and-connection-pooling">3. Scaling Checkpointers: PostgreSQL &amp; Connection Pooling</h2>
+<p>The primary production replacement for short-term graph checkpointing is <strong>PostgreSQL</strong>, using <code>langgraph-checkpoint-postgres</code> with asynchronous connection pooling.</p>
+<pre class="language-python" tabindex="0"><code class="language-python"><span class="token keyword">from</span> langgraph<span class="token punctuation">.</span>checkpoint<span class="token punctuation">.</span>postgres<span class="token punctuation">.</span>aio <span class="token keyword">import</span> AsyncPostgresSaver
+<span class="token keyword">from</span> psycopg_pool <span class="token keyword">import</span> AsyncConnectionPool
+
+DB_URI <span class="token operator">=</span> <span class="token string">"postgresql://user:pass@ep-db.cloud.internal:5432/agent_db"</span>
+
+<span class="token keyword">async</span> <span class="token keyword">def</span> <span class="token function">initialize_agent_graph</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">:</span>
+    <span class="token comment"># Maintain a robust connection pool across agent executions</span>
+    <span class="token keyword">async</span> <span class="token keyword">with</span> AsyncConnectionPool<span class="token punctuation">(</span>conninfo<span class="token operator">=</span>DB_URI<span class="token punctuation">,</span> max_size<span class="token operator">=</span><span class="token number">20</span><span class="token punctuation">)</span> <span class="token keyword">as</span> pool<span class="token punctuation">:</span>
+        checkpointer <span class="token operator">=</span> AsyncPostgresSaver<span class="token punctuation">(</span>pool<span class="token punctuation">)</span>
+        
+        <span class="token comment"># Ensures checkpoint tables, indexes, and write migrations exist</span>
+        <span class="token keyword">await</span> checkpointer<span class="token punctuation">.</span>setup<span class="token punctuation">(</span><span class="token punctuation">)</span>
+        
+        compiled_graph <span class="token operator">=</span> builder<span class="token punctuation">.</span><span class="token builtin">compile</span><span class="token punctuation">(</span>checkpointer<span class="token operator">=</span>checkpointer<span class="token punctuation">)</span>
+        <span class="token keyword">return</span> compiled_graph</code></pre>
+<h3 id="why-connection-pooling-is-critical">Why Connection Pooling is Critical</h3>
+<p>Every node execution in LangGraph reads and commits state. In an agent workflow with loops and tool calls, a single user turn might trigger 5–10 database interactions:</p>
+<ul>
+<li>Opening and tearing down raw TCP + TLS database connections per node creates immense CPU overhead on the DB server.</li>
+<li>Connection pools (like <code>psycopg_pool</code> or <code>asyncpg</code>) keep warm connections ready, capping maximum database load while providing sub-millisecond connection reuse.</li>
+</ul>
+<hr>
+<h2 id="4-the-storage-tier-matrix-postgres-vs-redis-vs-mem0">4. The Storage Tier Matrix: Postgres vs. Redis vs. Mem0</h2>
+<p>When scaling beyond thread checkpointing into agent personalization, choosing the right tool for each job is essential:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">Dimension</th>
+<th style="text-align:left">PostgreSQL (<code>PostgresSaver</code>)</th>
+<th style="text-align:left">Redis (<code>RedisSaver</code> / Cache)</th>
+<th style="text-align:left">Mem0 (Semantic Memory Layer)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left"><strong>Primary Role</strong></td>
+<td style="text-align:left">ACID state checkpointing &amp; transactional logs</td>
+<td style="text-align:left">Low-latency state &amp; fast session key-value cache</td>
+<td style="text-align:left">Semantic fact extraction &amp; long-term personalization</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>Storage Medium</strong></td>
+<td style="text-align:left">Disk (WAL + Buffer Pool)</td>
+<td style="text-align:left">RAM (with optional RDB/AOF persistence)</td>
+<td style="text-align:left">Vector DB + Graph/Metadata store</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>Query Mechanism</strong></td>
+<td style="text-align:left">SQL, exact <code>thread_id</code> and checkpoint index lookup</td>
+<td style="text-align:left">O(1) Key lookup, Pub/Sub, sorted sets</td>
+<td style="text-align:left">Natural language semantic similarity + metadata filters</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>Data Nature</strong></td>
+<td style="text-align:left">Raw messages, serialized state payloads</td>
+<td style="text-align:left">Raw conversation state, rate limits, session locks</td>
+<td style="text-align:left">Extracted facts, deduplicated user traits, preferences</td>
+</tr>
+<tr>
+<td style="text-align:left"><strong>Latency Profile</strong></td>
+<td style="text-align:left">2ms – 10ms</td>
+<td style="text-align:left">&lt; 1ms</td>
+<td style="text-align:left">20ms – 100ms (Embedding generation + ANN search)</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="5-why-mem0-dedicated-semantic-memory-vs-raw-transcripts">5. Why Mem0? Dedicated Semantic Memory vs. Raw Transcripts</h2>
+<p>Dumping raw conversation histories into a database or naive vector index leads to context contamination:</p>
+<ol>
+<li><strong>Context Window Bloat:</strong> Passing 50 turns of dialogue wastes token budget and degrades model reasoning.</li>
+<li><strong>Conflicting &amp; Stale Data:</strong> If a user says &quot;I am flying to NYC tomorrow&quot; and two weeks later says &quot;I moved to Seattle,&quot; raw chat search retrieves both conflicting statements.</li>
+<li><strong>Noisy Vector Search:</strong> Vector searches over raw transcripts often match conversational filler rather than durable user facts.</li>
+</ol>
+<h3 id="how-mem0-operates">How Mem0 Operates</h3>
+<p>Mem0 sits as an intelligent layer between your agent and underlying vector databases (Qdrant, Pinecone, Milvus):</p>
+<pre><code>User Turn ───► Agent Responds ───► Background Queue ───► Extraction Engine
+                                                              │
+   ┌──────────────────────────────────────────────────────────┘
+   ▼
+1. Extract atomic facts (&quot;Prefers Python over TypeScript&quot;)
+2. Deduplicate &amp; resolve conflicts against existing memory
+3. Tag with scopes (User-level, Session-level, Agent-level)
+4. Persist vectors + structured metadata
+</code></pre>
+<h3 id="multi-level-memory-scopes">Multi-Level Memory Scopes</h3>
+<p>Mem0 organizes stored memories by clear scopes:</p>
+<ul>
+<li><strong>User-Level Memory:</strong> Persists across all conversations with a user (e.g., tech stack preferences, dietary restrictions, shipping address).</li>
+<li><strong>Session-Level Memory:</strong> Context specific to the current topic or task.</li>
+<li><strong>Agent-Level Memory:</strong> Guidelines, instructions, and shared organizational patterns.</li>
+</ul>
+<hr>
+<h2 id="6-code-walkthrough-integrating-semantic-memory-with-metadata">6. Code Walkthrough: Integrating Semantic Memory with Metadata</h2>
+<p>Here is how you ingest conversation memory with custom metadata tags, and subsequently query it using hybrid semantic search and timestamp filtering:</p>
+<pre class="language-python" tabindex="0"><code class="language-python"><span class="token keyword">import</span> os
+<span class="token keyword">from</span> mem0 <span class="token keyword">import</span> Memory
+
+<span class="token comment"># Initialize memory client (backed by vector database like Qdrant/Pinecone)</span>
+config <span class="token operator">=</span> <span class="token punctuation">{</span>
+    <span class="token string">"vector_store"</span><span class="token punctuation">:</span> <span class="token punctuation">{</span>
+        <span class="token string">"provider"</span><span class="token punctuation">:</span> <span class="token string">"qdrant"</span><span class="token punctuation">,</span>
+        <span class="token string">"config"</span><span class="token punctuation">:</span> <span class="token punctuation">{</span>
+            <span class="token string">"host"</span><span class="token punctuation">:</span> <span class="token string">"localhost"</span><span class="token punctuation">,</span>
+            <span class="token string">"port"</span><span class="token punctuation">:</span> <span class="token number">6333</span><span class="token punctuation">,</span>
+        <span class="token punctuation">}</span>
+    <span class="token punctuation">}</span>
+<span class="token punctuation">}</span>
+mem <span class="token operator">=</span> Memory<span class="token punctuation">.</span>from_config<span class="token punctuation">(</span>config<span class="token punctuation">)</span>
+
+<span class="token comment"># 1. Storing conversation messages with structured metadata</span>
+conversation <span class="token operator">=</span> <span class="token punctuation">[</span>
+    <span class="token punctuation">{</span><span class="token string">"role"</span><span class="token punctuation">:</span> <span class="token string">"user"</span><span class="token punctuation">,</span> <span class="token string">"content"</span><span class="token punctuation">:</span> <span class="token string">"I'm looking for a quiet mechanical keyboard for coding, budget around $150."</span><span class="token punctuation">}</span><span class="token punctuation">,</span>
+    <span class="token punctuation">{</span><span class="token string">"role"</span><span class="token punctuation">:</span> <span class="token string">"assistant"</span><span class="token punctuation">,</span> <span class="token string">"content"</span><span class="token punctuation">:</span> <span class="token string">"I recommend looking into linear switches like Cherry MX Silent Red or Boba Gums."</span><span class="token punctuation">}</span>
+<span class="token punctuation">]</span>
+
+mem<span class="token punctuation">.</span>add<span class="token punctuation">(</span>
+    messages<span class="token operator">=</span>conversation<span class="token punctuation">,</span>
+    user_id<span class="token operator">=</span><span class="token string">"user_rohit_42"</span><span class="token punctuation">,</span>
+    metadata<span class="token operator">=</span><span class="token punctuation">{</span>
+        <span class="token string">"category"</span><span class="token punctuation">:</span> <span class="token string">"hardware_preferences"</span><span class="token punctuation">,</span>
+        <span class="token string">"budget_usd"</span><span class="token punctuation">:</span> <span class="token number">150</span><span class="token punctuation">,</span>
+        <span class="token string">"source"</span><span class="token punctuation">:</span> <span class="token string">"web_chat"</span>
+    <span class="token punctuation">}</span>
+<span class="token punctuation">)</span>
+
+<span class="token comment"># 2. Hybrid Retrieval: Semantic similarity + metadata filtering</span>
+query <span class="token operator">=</span> <span class="token string">"What kind of office equipment is Rohit looking for?"</span>
+
+relevant_memories <span class="token operator">=</span> mem<span class="token punctuation">.</span>search<span class="token punctuation">(</span>
+    query<span class="token operator">=</span>query<span class="token punctuation">,</span>
+    user_id<span class="token operator">=</span><span class="token string">"user_rohit_42"</span><span class="token punctuation">,</span>
+    limit<span class="token operator">=</span><span class="token number">3</span>
+<span class="token punctuation">)</span>
+
+<span class="token keyword">for</span> item <span class="token keyword">in</span> relevant_memories<span class="token punctuation">.</span>get<span class="token punctuation">(</span><span class="token string">"results"</span><span class="token punctuation">,</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">)</span><span class="token punctuation">:</span>
+    <span class="token comment"># Mem0 provides relevance score (cosine/distance metric)</span>
+    <span class="token keyword">print</span><span class="token punctuation">(</span><span class="token string-interpolation"><span class="token string">f"[</span><span class="token interpolation"><span class="token punctuation">{</span>item<span class="token punctuation">[</span><span class="token string">'score'</span><span class="token punctuation">]</span><span class="token punctuation">:</span><span class="token format-spec">.2f</span><span class="token punctuation">}</span></span><span class="token string">] Fact: </span><span class="token interpolation"><span class="token punctuation">{</span>item<span class="token punctuation">[</span><span class="token string">'memory'</span><span class="token punctuation">]</span><span class="token punctuation">}</span></span><span class="token string">"</span></span><span class="token punctuation">)</span>
+    <span class="token keyword">print</span><span class="token punctuation">(</span><span class="token string-interpolation"><span class="token string">f"       Metadata: </span><span class="token interpolation"><span class="token punctuation">{</span>item<span class="token punctuation">.</span>get<span class="token punctuation">(</span><span class="token string">'metadata'</span><span class="token punctuation">)</span><span class="token punctuation">}</span></span><span class="token string">"</span></span><span class="token punctuation">)</span></code></pre>
+<h3 id="output">Output:</h3>
+<pre class="language-text" tabindex="0"><code class="language-text">[0.89] Fact: Prefers quiet mechanical keyboards for coding with linear silent switches.
+       Metadata: {'category': 'hardware_preferences', 'budget_usd': 150, 'source': 'web_chat'}
+[0.82] Fact: Hardware budget is approximately $150.
+       Metadata: {'category': 'hardware_preferences', 'budget_usd': 150, 'source': 'web_chat'}</code></pre>
+<p>Notice that Mem0 stores <strong>atomic facts</strong> rather than full dialogue, making system prompts compact and hyper-relevant.</p>
+<hr>
+<h2 id="7-real-world-scenario-the-e-commerce-return-visitor">7. Real-World Scenario: The E-Commerce Return Visitor</h2>
+<p>Consider an e-commerce shopping agent:</p>
+<ol>
+<li><strong>Day 1:</strong> A user browses 10 items, compares two camera lenses, expresses a preference for lightweight travel gear, but abandons the cart without purchasing.</li>
+<li><strong>Day 3:</strong> The user returns and says: <em>&quot;Hey, show me what we looked at earlier.&quot;</em></li>
+</ol>
+<h3 id="behind-the-scenes">Behind the Scenes:</h3>
+<ul>
+<li><strong>Without Semantic Memory:</strong> The agent either has no context (new session) or is forced to reload hundreds of message logs.</li>
+<li><strong>With Mem0 &amp; Hybrid Search:</strong>
+<ol>
+<li>The user query is combined with metadata filtering for the last 72 hours (<code>timestamp &gt;= NOW() - 3 days</code>).</li>
+<li>Semantic search extracts the compared lenses and stated travel constraints.</li>
+<li>The agent receives high-confidence facts (<code>score &gt; 0.75</code>):
+<ul>
+<li><code>Fact: User was comparing 24-70mm f/2.8 vs 35mm f/1.8 lenses.</code></li>
+<li><code>Fact: Priority is lightweight gear for travel photography.</code></li>
+</ul>
+</li>
+<li>The LLM immediately provides a personalized greeting without requiring the user to re-explain their context.</li>
+</ol>
+</li>
+</ul>
+<hr>
+<h2 id="8-high-scale-production-architecture-100k-req-sec">8. High-Scale Production Architecture (100k+ Req/Sec)</h2>
+<p>To support enterprise workloads without degrading latency or crashing databases, memory extraction and storage must be decoupled from user interaction:</p>
+<pre class="language-mermaid" tabindex="0"><code class="language-mermaid"><span class="token keyword">sequenceDiagram</span>
+    <span class="token keyword">autonumber</span>
+    actor User
+    <span class="token keyword">participant</span> Gateway as API Gateway / Load Balancer
+    <span class="token keyword">participant</span> Agent as LangGraph Agent <span class="token text string">(Pod)</span>
+    <span class="token keyword">participant</span> Redis as Redis <span class="token text string">(Session &amp; Memory Cache)</span>
+    <span class="token keyword">participant</span> DB as Postgres <span class="token text string">(Checkpoints)</span>
+    <span class="token keyword">participant</span> Queue as Message Queue <span class="token text string">(Kafka/RabbitMQ)</span>
+    <span class="token keyword">participant</span> Worker as Async Memory Extraction Worker
+    <span class="token keyword">participant</span> MemStore as Mem0 + Vector DB <span class="token text string">(Qdrant)</span>
+
+    User<span class="token arrow operator">->></span>Gateway<span class="token operator">:</span> Send Message <span class="token text string">("What camera should I buy?")</span>
+    Gateway<span class="token arrow operator">->></span>Agent<span class="token operator">:</span> Route Request
+    Agent<span class="token arrow operator">->></span>Redis<span class="token operator">:</span> Fetch cached active user memories <span class="token operator">&amp;</span> session state
+    Agent<span class="token arrow operator">->></span>DB<span class="token operator">:</span> Load graph thread checkpoint
+    Agent<span class="token arrow operator">->></span>User<span class="token operator">:</span> Stream response immediately <span class="token text string">(Low Latency)</span>
+    Agent<span class="token arrow operator">->></span>Queue<span class="token operator">:</span> Push interaction event <span class="token text string">(user_id, messages, metadata)</span>
+    
+    <span class="token keyword">rect</span> rgb<span class="token text string">(20, 30, 45)</span>
+    <span class="token keyword">Note over</span> Queue,MemStore<span class="token operator">:</span> Asynchronous Background Processing
+    Queue<span class="token arrow operator">->></span>Worker<span class="token operator">:</span> Consume interaction event
+    Worker<span class="token arrow operator">->></span>Worker<span class="token operator">:</span> Extract atomic facts <span class="token operator">&amp;</span> resolve contradictions
+    Worker<span class="token arrow operator">->></span>MemStore<span class="token operator">:</span> Upsert vectors <span class="token operator">&amp;</span> metadata
+    Worker<span class="token arrow operator">->></span>Redis<span class="token operator">:</span> Invalidate/Update user memory cache
+    <span class="token keyword">end</span></code></pre>
+<h3 id="architectural-pillars">Architectural Pillars:</h3>
+<ol>
+<li><strong>Zero-Latency In-Band Response:</strong> The user-facing agent does not wait for fact extraction or embedding generation. It only reads pre-cached memories from Redis.</li>
+<li><strong>Asynchronous Fact Extraction:</strong> An event queue (Kafka or RabbitMQ) buffers dialogue turns. Dedicated background workers run reflection prompts using cost-effective models (e.g., Claude Haiku or GPT-4o-mini) to extract and deduplicate facts.</li>
+<li><strong>Partitioned Vector Storage:</strong> Vector stores are partitioned by <code>user_id</code> / <code>org_id</code> (multi-tenancy) so nearest-neighbor queries run across isolated shards rather than a monolithic global index.</li>
+<li><strong>Adaptive TTL &amp; Expiration:</strong> While long-term memories persist indefinitely by default, high-volume transactional events should carry an explicit TTL or decay score over time.</li>
+</ol>
+<hr>
+<h2 id="9-conclusion-and-production-checklist">9. Conclusion &amp; Production Checklist</h2>
+<p>Moving beyond local SQLite checkpointers is the milestone where toy agent scripts become enterprise-ready platforms.</p>
+<h3 id="quick-production-checklist">Quick Production Checklist:</h3>
+<ul>
+<li>[ ] <strong>Short-term state:</strong> Swapped <code>SqliteSaver</code> for <code>AsyncPostgresSaver</code> with connection pooling (<code>psycopg_pool</code>).</li>
+<li>[ ] <strong>Low-latency sessions:</strong> Cached hot session data and frequent memory reads in Redis.</li>
+<li>[ ] <strong>Long-term personalization:</strong> Deployed a dedicated memory layer like Mem0 to extract atomic facts instead of hoarding raw chat transcripts.</li>
+<li>[ ] <strong>Decoupled execution:</strong> Placed memory extraction in background message queues so chat response latency remains minimal.</li>
+<li>[ ] <strong>Relevance thresholds:</strong> Added confidence score filtering (<code>score &gt;= 0.75</code>) to keep system prompts clean, accurate, and token-efficient.</li>
+</ul>
+
+	</div>
+	<ul class="links-nextprev"><li class="links-nextprev-prev">← Previous<a href="/my-blog/blog/langchain-vs-langgraph/">LangChain vs LangGraph: Architecting Stateful Multi-Agent Systems</a></li>
+	</ul>
+</article>
+
+				</heading-anchors>
+			</div>
+		</main>
+
+		<footer>
+			<div class="container">
+				<p>&copy; 2026 Rohit Marathe · Built with <a href="https://www.11ty.dev/">Eleventy</a></p>
+				<div class="footer-links">
+					<a href="https://github.com/rpm360" target="_blank" rel="noopener">GitHub</a>
+					<a href="https://linkedin.com/in/rohit-marathe-ucf" target="_blank" rel="noopener">LinkedIn</a>
+					<a href="mailto:rohitmarathe1995@gmail.com">Email</a>
+					<a href="/my-blog/feed/feed.xml">RSS</a>
+				</div>
+			</div>
+		</footer>
+		<dialog class="search-dialog" id="search-dialog" aria-label="Search posts">
+			<input class="search-input" id="search-input" type="search" placeholder="Search posts, topics, tags…" autocomplete="off">
+			<ul class="search-results" id="search-results"></ul>
+		</dialog>
+
+		<!-- This page `/blog/langgraph-persistence-memory-sqlite-to-mem0/` was built on 2026-10-22T15:50:52.432Z -->
+		<script type="module" src="/my-blog/dist/pFT8hTWNtX.js"></script>
+
+		
+	</body>
+</html>
